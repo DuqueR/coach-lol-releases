@@ -1,15 +1,11 @@
 {
-  "version": "52",
-  "notas": "las novedades de cada versión nueva se ven en su ventana antes de actualizar",
+  "version": "53",
+  "notas": "actualizar es más seguro: si algo falla, se queda entera la versión que tenías",
   "archivos": [
     "coach.py",
     "dashboard.html",
     "LEEME.txt",
     "fuente/archivo.woff2",
-    "fuente/hud_eti.ttf",
-    "fuente/hud_neg.ttf",
-    "fuente/hud_num.ttf",
-    "fuente/hud_txt.ttf",
     "fuente/LICENCIA_OFL.txt"
   ]
 }

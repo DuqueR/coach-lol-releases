@@ -108,7 +108,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "52"
+VERSION = "53"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -11903,7 +11903,8 @@ def crear_handler(coach):
                         try:
                             txt = ((DIR / "LEEME.txt").read_text(encoding="utf-8-sig") if _ACTU.get("local")
                                    else _bajar("LEEME.txt", timeout=6).decode("utf-8-sig"))
-                            _ACTU["leeme"] = {nueva: txt}
+                            if any(x["v"] == nueva for x in novedades_leeme(txt, maximo=3)):
+                                _ACTU["leeme"] = {nueva: txt}
                         except Exception:
                             txt = ""
                     lista = novedades_leeme(txt, desde=VERSION, hasta=nueva, maximo=60)
@@ -12357,83 +12358,124 @@ def buscar_actualizacion():
     return info if _version_num(info.get("version")) > _version_num(VERSION) else None
 
 
+def _ruta_segura(ruta):
+    """La ruta de un archivo de la actualizacion dentro de la carpeta del coach (nunca datos/ ni fuera). O None."""
+    try:
+        if not isinstance(ruta, str) or not ruta or ruta.split("/")[0].lower() == "datos":
+            return None
+        base = DIR.resolve()
+        destino = (DIR / ruta).resolve()
+        return DIR / ruta if destino != base and destino.is_relative_to(base) and \
+            destino.parts[len(base.parts)].lower() != "datos" else None
+    except Exception:
+        return None
+
+
 def aplicar_actualizacion(info):
-    """Baja todos los archivos a memoria, valida y solo entonces los escribe. True si quedo actualizado."""
+    """Baja todos los archivos a memoria, valida y solo entonces los escribe. True si quedo actualizado.
+    Primero se escriben todos los .nuevo; despues se cambian, coach.py el ultimo. Si coach.py no se puede cambiar,
+    se deshace lo ya cambiado (con la copia de respaldo) y sigue entera la version vieja."""
     nuevos = {}
+    version = str(info.get("version"))
     try:
         for ruta in info.get("archivos") or []:
-            if ".." in ruta or ruta.startswith(("/", "\\")) or ruta.split("/")[0].lower() == "datos":
+            if _ruta_segura(ruta) is None:
                 raise ValueError(f"ruta no permitida: {ruta}")
             nuevos[ruta] = _bajar(ruta)
         if "coach.py" not in nuevos:
             raise ValueError("version.json no incluye coach.py")
         compile(nuevos["coach.py"].decode("utf-8"), "coach.py", "exec")
     except Exception as e:
-        _ACTU["error"] = f"No pude bajar la versión {info.get('version')}: {e}"
+        _ACTU["error"] = f"No pude bajar la versión {version}: {e}"
         log(f"Actualizaciones: {_ACTU['error']}")
         return False
     copia = DATOS / "respaldo" / f"v{VERSION}"
-    pend = {}
-    # coach.py el ultimo: si algo falla antes, sigue entera la version vieja
-    for ruta, contenido in sorted(nuevos.items(), key=lambda x: x[0] == "coach.py"):
-        destino = DIR / ruta
-        try:
+    cambiar, escritos, hechos, pend = [], [], [], {}
+
+    def deshacer():
+        for ruta in hechos:
+            try:
+                if (copia / ruta).exists():
+                    (DIR / ruta).write_bytes((copia / ruta).read_bytes())
+                else:
+                    (DIR / ruta).unlink()
+            except Exception:
+                pass
+        for tmp in escritos:
+            _borrar(tmp)
+
+    try:
+        # 1) los .nuevo de lo que cambia (lo identico ni se toca: las fuentes, que Windows bloquea si estan cargadas)
+        for ruta, contenido in sorted(nuevos.items(), key=lambda x: x[0] == "coach.py"):
+            destino = DIR / ruta
             if destino.exists() and destino.read_bytes() == contenido:
-                continue                                    # no cambia (las fuentes casi nunca): ni se toca
+                continue
             if destino.exists():
                 (copia / ruta).parent.mkdir(parents=True, exist_ok=True)
                 (copia / ruta).write_bytes(destino.read_bytes())
             destino.parent.mkdir(parents=True, exist_ok=True)
             tmp = destino.with_name(destino.name + ".nuevo")
             tmp.write_bytes(contenido)
+            escritos.append(tmp)
+            cambiar.append((ruta, tmp, contenido))
+        # 2) se cambian; uno en uso (que no sea coach.py) se deja para el proximo arranque
+        for ruta, tmp, contenido in cambiar:
             try:
-                os.replace(tmp, destino)
+                os.replace(tmp, DIR / ruta)
+                hechos.append(ruta)
             except PermissionError:
                 if ruta == "coach.py":
                     raise
-                # en uso (Windows bloquea una fuente cargada): se cambia al arrancar, antes de cargarla
                 pend[ruta] = hashlib.sha256(contenido).hexdigest()
-        except Exception as e:
-            _ACTU["error"] = f"No pude escribir {ruta}: {e}"
-            log(f"Actualizaciones: {_ACTU['error']}")
-            return False
-    if pend:
-        try:
-            (DATOS / "pendientes.json").write_text(json.dumps(pend), encoding="utf-8")
+        if pend:
+            (DATOS / "pendientes.json").write_text(json.dumps({"version": version, "archivos": pend}), encoding="utf-8")
             log(f"Actualizaciones: {', '.join(pend)} en uso; se cambian al reiniciar.")
-        except Exception:
-            pass
+    except Exception as e:
+        deshacer()
+        _ACTU["error"] = f"No pude escribir la versión {version}: {e}"
+        log(f"Actualizaciones: {_ACTU['error']} (sigue la v{VERSION}).")
+        return False
     try:
-        (DATOS / "actualizado.json").write_text(json.dumps({"de": VERSION, "a": str(info.get("version")),
+        (DATOS / "actualizado.json").write_text(json.dumps({"de": VERSION, "a": version,
                                                             "notas": info.get("notas", ""), "ts": time.time()},
                                                            ensure_ascii=False), encoding="utf-8")
     except Exception:
         pass
-    log(f"Actualizado de v{VERSION} a v{info.get('version')}. Copia de la anterior en {copia}.")
+    log(f"Actualizado de v{VERSION} a v{version}. Copia de la anterior en {copia}.")
     return True
 
 
 def aplicar_pendientes():
     """Al arrancar (sin otro coach abierto): pone los archivos que no se pudieron cambiar porque estaban en uso.
-    Solo si el .nuevo esta entero (mismo sha256 que se bajo)."""
+    Solo los de esta misma version y si el .nuevo esta entero (mismo sha256 que se bajo); si no, se tiran."""
     f = DATOS / "pendientes.json"
     try:
         pend = json.loads(f.read_text(encoding="utf-8"))
     except Exception:
         return
-    for ruta, h in pend.items():
-        if ".." in ruta or ruta.startswith(("/", "\\")):
+    archivos = pend.get("archivos") if isinstance(pend, dict) else None
+    vale = isinstance(archivos, dict) and str(pend.get("version")) == VERSION
+    for ruta, h in (archivos if isinstance(archivos, dict) else {}).items():
+        destino = _ruta_segura(ruta)
+        if destino is None:
             continue
-        destino = DIR / ruta
         tmp = destino.with_name(destino.name + ".nuevo")
-        try:
-            if tmp.exists() and hashlib.sha256(tmp.read_bytes()).hexdigest() == h:
-                os.replace(tmp, destino)
-            elif tmp.exists():
-                tmp.unlink()
-        except Exception as e:
-            log(f"Actualizaciones: no pude poner {ruta} ({type(e).__name__}).")
-            return                                          # se reintenta en el proximo arranque
+        if not tmp.exists():
+            continue
+        ok = False
+        for _ in range(3):                                  # otro programa puede tardar un poco en soltarlo
+            try:
+                if vale and hashlib.sha256(tmp.read_bytes()).hexdigest() == h:
+                    os.replace(tmp, destino)
+                else:
+                    tmp.unlink()                            # de otra version o a medias: fuera
+                ok = True
+                break
+            except Exception:
+                time.sleep(0.5)
+        if not ok:
+            log(f"Actualizaciones: no pude poner {ruta}; lo intento en el próximo arranque.")
+            return
     try:
         f.unlink()
     except Exception:

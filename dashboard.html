@@ -1355,7 +1355,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "52";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "53";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -3872,11 +3872,12 @@ async function abrirNovedades(desde, pendiente){
   catch(_){ if(pendiente) toast("No pude leer las novedades. Inténtalo en un rato."); return; }
   const l = r.lista || [];
   if(desde && !l.length) return;
+  if(pendiente && !r.pendiente){ toast("Hay una versión nueva: pulsa Actualizar para tenerla."); return; }
   S.novTodo = false; S.novDatos = {r, desde};
   S.novAntes = document.activeElement;
   pintarNovedades();
   $("#nov").classList.add("on");
-  setTimeout(() => { const b = $("#nov-ok"); if(b) b.focus(); }, 60);
+  setTimeout(() => { const b = pendiente ? $("#nov-c [data-a=nov-cerrar].btn") : $("#nov-ok"); if(b) b.focus(); }, 60);
 }
 function pintarNovedades(){
   const {r, desde} = S.novDatos, l = r.lista || [];
@@ -3913,7 +3914,13 @@ A["nov-cerrar"] = cerrarNovedades;
 A["nov-todo"] = () => { S.novTodo = true; pintarNovedades(); };
 A["novedades"] = () => abrirNovedades();
 A["nov-pend"] = () => abrirNovedades(null, true);
-A["nov-actualizar"] = () => { cerrarNovedades(); return A["actualizar"](); };
+A["nov-actualizar"] = () => {
+  const e = E() || {}, ac = e.actualizacion || {};
+  if(["ChampSelect", "GameStart", "InProgress", "Reconnect"].includes(e.fase)){ toast("Actualiza cuando termine la partida"); return; }
+  cerrarNovedades();
+  if(S.actualizando || ac.aplicando) return;
+  return A["actualizar"]();
+};
 document.addEventListener("keydown", ev => { if(ev.key === "Escape" && $("#nov").classList.contains("on")){ ev.preventDefault(); cerrarNovedades(); } });
 $("#nov").addEventListener("mousedown", ev => { if(ev.target.id === "nov") cerrarNovedades(); });
 

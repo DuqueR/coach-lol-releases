@@ -12,6 +12,14 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v53: actualizar más seguro
+- Si una actualización no se puede completar, el coach deshace lo que había
+  cambiado y sigue entera la versión que tenías (antes podía quedar a medias).
+- Las letras de las tarjetas del juego ya no se descargan en cada versión
+  (no cambian): se acabó el "Acceso denegado" al pulsar Actualizar.
+- La ventana de una versión nueva pone el foco en "Ahora no", para que un
+  Enter sin querer no reinicie el coach.
+
 Lo nuevo en la v52: mira qué trae antes de actualizar
 - El aviso de versión nueva de arriba ya no corta el texto: pulsa "Ver qué
   trae" y se abre la ventana de novedades con todo lo de la versión, con los
