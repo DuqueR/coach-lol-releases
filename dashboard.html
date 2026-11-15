@@ -987,7 +987,7 @@ kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px sol
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "28";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "29";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -2640,7 +2640,7 @@ VISTAS.ajustes = () => {
           <div class="pant" role="group" aria-label="Posición de las tarjetas">${LUGARES.map(([k, n]) => `<button class="${h.lugar === k ? "on" : ""}" data-a="hud-lugar" data-l="${k}" data-tip="${n}" aria-label="${n}" aria-pressed="${h.lugar === k}"><i></i></button>`).join("")}</div></div>
       </div>
       <div class="pie izq"><button class="btn p" data-a="hud-probar">${ic("play", "s")}Probar 14 segundos</button><button class="btn" data-a="hud-mover">${ic("mover", "s")}Colocar a mano</button></div>
-      <p class="nota-p">“Colocar a mano” las deja visibles con datos de ejemplo: arrástralas adonde quieras y se guardan solas. Usan solo tus propios números (oro, objetos, marcador): nada del estado del rival, como pide Riot.</p>
+      <p class="nota-p">“Colocar a mano” las deja visibles con datos de ejemplo: arrástralas adonde quieras y se guardan solas. En plena partida: mantén <b>Ctrl</b> con el ratón encima y arrástralas. Usan solo tus propios números (oro, objetos, marcador): nada del estado del rival, como pide Riot.</p>
     </section></div>
     <div class="c5 pila">
       <section class="card" aria-label="Apariencia"><div class="card-h"><h2>${ic("sol")}Apariencia</h2></div>
@@ -2739,6 +2739,11 @@ async function refrescar(){
     else if(h === "plan" || h === "aviso") await ir("inicio");
     else await ir(TITULO[h.split("/")[0]] ? h.split("/")[0] : "inicio");
     revisarAviso(); return;
+  }
+  if(e.ir && !escribiendo()){                     /* el coach pide enseñar algo en esta ventana en vez de abrir otra */
+    const m = e.ir.match(/^partidas?[\/=](\d+)/);
+    if(e.ir === "aviso"){ S.forzarAviso = true; revisarAviso(); }
+    else if(m && ids.includes(m[1])){ S.vistaNueva = e.ultima_nueva; await ir("partidas", {id: m[1]}); revisarAviso(); return; }
   }
   if(e.ultima_nueva && e.ultima_nueva !== S.vistaNueva){
     S.vistaNueva = e.ultima_nueva; S.prog = null;

@@ -1,4 +1,4 @@
-﻿COACH LOL v28
+﻿COACH LOL v29
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,20 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v29: ventanas que se dejan
+------------------------------------------
+- La ventanita de la selección de campeón cabe siempre en tu pantalla: si es muy larga sube
+  sola y, si aun así no cabe, abajo sale "Más abajo": baja con la rueda del ratón.
+- Las tarjetas de partida se mueven en plena partida: mantén Ctrl con el ratón encima y
+  arrástralas. Al soltar Ctrl vuelven a dejar pasar los clics al juego.
+- El coach ya no abre otra ventana si ya tienes una abierta (al buscar partida con el aviso
+  de parada, al terminar una partida o al abrirlo dos veces): trae delante la que ya está.
+- Si el coach se reinicia en plena partida, sigue usando la build que elegiste en la
+  selección (antes volvía a la fijada o a la de u.gg).
+- La build que elijas está en la tienda del juego como página de objetos "Coach: <campeón>".
+  Lo que la tienda enseña por defecto como "Recomendados" es de Riot, no del coach: elige la
+  página del coach en la tienda.
 
 Lo nuevo en la v28: hechizos de invocador automáticos
 -----------------------------------------------------

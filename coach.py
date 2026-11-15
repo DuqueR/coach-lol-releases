@@ -105,7 +105,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "28"
+VERSION = "29"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -5889,6 +5889,7 @@ class Hud:
         self._img, self._img_ruta = None, None
         self._cache = {}                   # lo ultimo puesto en cada elemento del lienzo
         self._drag = None
+        self._ctrl = False                 # Ctrl pulsado con el raton encima: se pueden arrastrar en partida
         self._t_inicio, self._visto_juego, self._t_estilo = 0.0, False, 0.0
         self._construir()
         self.cv.bind("<ButtonPress-1>", self._ini)
@@ -5989,9 +5990,9 @@ class Hud:
         self._actualizar_ventana()
         self._estilo()                      # al colocarlas tienen que recibir el raton
 
-    # ---------------------------------------------------------------- arrastrar (solo en modo colocar)
+    # ---------------------------------------------------------------- arrastrar (al colocarlas o con Ctrl)
     def _ini(self, ev):
-        if self.mover:
+        if self.mover or self._ctrl:
             self._drag = (ev.x_root - self.win.winfo_x(), ev.y_root - self.win.winfo_y())
 
     def _arrastrar(self, ev):
@@ -6005,6 +6006,23 @@ class Hud:
         if self._drag:
             self._drag = None
             self._guardar_pref()
+            self._ctrl = self._ctrl_encima()
+            self._estilo()
+
+    def _ctrl_encima(self):
+        """True si mantienes Ctrl con el raton encima de las tarjetas: entonces dejan de pasar los clics al
+        juego para que puedas arrastrarlas. Al soltar Ctrl vuelven a dejarlos pasar."""
+        if os.name != "nt" or not self.mapeada:
+            return False
+        try:
+            import ctypes
+            if not ctypes.windll.user32.GetAsyncKeyState(0x11) & 0x8000:
+                return False
+            px, py = self.root.winfo_pointerxy()
+            x, y = self.win.winfo_rootx(), self.win.winfo_rooty()
+            return x <= px < x + self.W and y <= py < y + self.H
+        except Exception:
+            return False
 
     # ---------------------------------------------------------------- lo que llega del coach
     def poner(self, s):
@@ -6054,7 +6072,8 @@ class Hud:
                                        ctypes.c_int, ctypes.c_int, ctypes.c_uint]
             NOACT, TOOL, PASA, TOPMOST = 0x08000000, 0x00000080, 0x00000020, 0x00000008
             ex = u.GetWindowLongW(hwnd, -20)
-            quiero = (ex | NOACT | TOOL | PASA) if not self.mover else ((ex | NOACT | TOOL) & ~PASA)
+            libre = self.mover or self._ctrl or self._drag is not None
+            quiero = (ex | NOACT | TOOL | PASA) if not libre else ((ex | NOACT | TOOL) & ~PASA)
             if quiero != ex:
                 u.SetWindowLongW(hwnd, -20, quiero)
             if not (ex & TOPMOST) or quiero != ex:
@@ -6127,6 +6146,10 @@ class Hud:
             if self.aviso and ahora > self.aviso_hasta:
                 self.aviso = None
             if self.mapeada:
+                ctrl = self._ctrl_encima()
+                if ctrl != self._ctrl and self._drag is None:
+                    self._ctrl = ctrl
+                    self._estilo()
                 if ahora - self._t_estilo > 1.5:
                     self._t_estilo = ahora
                     self._estilo()
@@ -6441,9 +6464,12 @@ class Ventana:
         pref = self._cargar_pref()
         self.pos = pref["pos"]
         self.compacta = pref["compacta"]
+        self._scroll, self._sobra, self._geo = 0, 0, None     # desplazamiento si no cabe en la pantalla
+        self._lbl_mas = tk.Label(self.win, text="▼  Más abajo: usa la rueda del ratón", anchor="center", pady=4)
         self.win.bind_all("<ButtonPress-1>", self._ini_drag)
         self.win.bind_all("<B1-Motion>", self._mover)
         self.win.bind_all("<ButtonRelease-1>", self._fin_drag)
+        self.win.bind_all("<MouseWheel>", self._rueda)
         self.root.after(150, self._procesar)
         self.root.after(3000, self._vigilar)
 
@@ -6476,6 +6502,65 @@ class Ventana:
         self._drag = None
         if movio:
             self._guardar_pref()
+            self._ajustar()
+
+    # -- que quepa en la pantalla
+    def _area(self, x, y):
+        """Zona util del monitor en ese punto, sin la barra de tareas: (izq, arriba, der, abajo)."""
+        if os.name == "nt":
+            try:
+                import ctypes
+                from ctypes import wintypes
+
+                class MI(ctypes.Structure):
+                    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                                ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+                u = ctypes.windll.user32
+                u.MonitorFromPoint.argtypes = [wintypes.POINT, wintypes.DWORD]
+                u.MonitorFromPoint.restype = ctypes.c_void_p
+                u.GetMonitorInfoW.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+                m = u.MonitorFromPoint(wintypes.POINT(int(x), int(y)), 2)       # el monitor mas cercano
+                mi = MI()
+                mi.cbSize = ctypes.sizeof(MI)
+                if m and u.GetMonitorInfoW(m, ctypes.byref(mi)):
+                    r = mi.rcWork
+                    return r.left, r.top, r.right, r.bottom
+            except Exception:
+                pass
+        return 0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight() - 48
+
+    def _ajustar(self, ev=None):
+        """Tamaño y sitio de la ventanita: si no cabe por abajo, sube; si ni asi cabe, se recorta y lo de
+        abajo se ve con la rueda del raton. Tu sitio guardado no cambia."""
+        if self.marco is None or (self._drag and self._drag[2]):
+            return
+        try:
+            w = max(self.marco.winfo_reqwidth(), self.ANCHO - 2) + 2
+            h = self.marco.winfo_reqheight() + 2
+            l, t, r, b = self._area(self.pos[0] + w // 2, self.pos[1] + 20)
+            vis = min(h, max(120, b - t - 8))
+            x = self.pos[0]
+            y = max(t, min(self.pos[1], b - vis))
+            self._sobra = max(0, h - vis)
+            self._scroll = max(0, min(self._scroll, self._sobra))
+            self.marco.place_configure(y=1 - self._scroll, width=w - 2)
+            geo = f"{w}x{vis}+{x}+{y}"
+            if geo != self._geo:
+                self._geo = geo
+                self.win.geometry(geo)
+            if self._sobra - self._scroll > 4:
+                self._lbl_mas.config(bg=self.C["azul2"], fg=self.C["azul"], font=self._f(8, "bold"))
+                self._lbl_mas.place(x=1, rely=1.0, y=-1, anchor="sw", width=w - 2)
+                self._lbl_mas.lift()
+            elif self._lbl_mas.winfo_manager():
+                self._lbl_mas.place_forget()
+        except Exception:
+            pass
+
+    def _rueda(self, e):
+        if self.visible and self._sobra > 0:
+            self._scroll = max(0, min(self._sobra, self._scroll - int(e.delta / 120 * 48)))
+            self._ajustar()
 
     # -- interfaz publica (cualquier hilo)
     def enviar(self, estado):
@@ -6632,7 +6717,8 @@ class Ventana:
         mandaba el juego al escritorio); en 'Sin bordes' _vigilar la mantiene encima sin activarla."""
         if self.visible:
             return
-        self.win.geometry(f"+{self.pos[0]}+{self.pos[1]}")
+        self._geo = None
+        self._ajustar()
         self.win.deiconify()
         self.visible = True
         try:
@@ -6757,6 +6843,8 @@ class Ventana:
         if firma == self.firma and not forzar:
             return            # nada cambio: no se toca la ventana
         self.firma = firma
+        if modo != self.ultimo_modo:
+            self._scroll = 0
         self.ultimo_modo = modo
         self.ultimo_estado = s
 
@@ -6879,9 +6967,15 @@ class Ventana:
             self._lbl_aviso = self.tk.Label(self.marco, text="", font=self._f(10, "bold"),
                                             bg=C["fondo"], fg=C["tinta"], justify="left", anchor="w",
                                             wraplength=self.ANCHO - 46, padx=8, pady=6)
-        self.marco.pack(fill="both", expand=True, padx=1, pady=1)
+        self.marco.place(x=1, y=1 - self._scroll, width=self.ANCHO - 2)
+        self.marco.bind("<Configure>", self._ajustar)        # si crece (un aviso, otro texto) se reajusta sola
         if viejo is not None:
             viejo.destroy()
+        try:
+            self.marco.update_idletasks()
+        except Exception:
+            pass
+        self._ajustar()
         self._imgs_viejas = []
         if modo == "partida" and s.get("aviso"):
             self._mostrar_aviso(s["aviso"], s.get("tono", "azul"))
@@ -6921,6 +7015,7 @@ class Coach:
         self.sync_inicial = False
         self.ultima_nueva = None
         self.ultimo_poll_pagina = 0.0
+        self.ir_a = None              # (destino, hora): adonde debe ir el panel ya abierto en su siguiente consulta
         self.url = ""
         self._t_sync = 0.0
         self._t_rango = 0.0
@@ -7119,9 +7214,11 @@ class Coach:
                 threading.Thread(target=tras_partida, daemon=True).start()
                 self._actualizar_rango()
                 # el navegador solo se abre fuera de partida y de la cola: abrirlo encima del juego lo minimiza
+                # si la pagina sigue abierta y respondiendo, ella sola enseña la partida nueva; si no responde
+                # (ventana minimizada que el navegador dejo dormida) se trae delante esa en vez de abrir otra
                 if (time.time() - self.ultimo_poll_pagina > 90 and self.fase not in
                         EN_JUEGO + ("ChampSelect", "Matchmaking", "ReadyCheck")):
-                    abrir_app(f"{self.url}/#partida={nueva}")
+                    mostrar_panel(self.url, self, f"partida={nueva}")
             self.sync_inicial = True
         finally:
             self._sincronizando = False
@@ -7461,9 +7558,11 @@ class Coach:
             marca = (champ, sel["clave"], tuple(build["orden"]))
             if marca != self._build_puesta:
                 self._build_puesta = marca
-                self._poner_items(champ, nombre, build, f"{sel['titulo']} (Coach LoL)"[:60])
+                en_tienda = self._poner_items(champ, nombre, build, f"{sel['titulo']} (Coach LoL)"[:60])
                 log(f"{nombre}: build \"{sel['titulo']}\": {', '.join(self.rec.item(i) for i in build['orden'])}."
-                    + (f" Adaptada: {'; '.join(cambios)}." if cambios else ""))
+                    + (f" Adaptada: {'; '.join(cambios)}." if cambios else "")
+                    + ("" if en_tienda else " No pude ponerla en la tienda del juego."))
+            guardar_build_partida(champ, build)
         # hechizos de invocador de la build elegida (las fijadas no los guardan: se usan los de Lolalytics)
         hechizos = b.get("hechizos") or (otp or {}).get("hechizos") or (gen or {}).get("hechizos")
         if hechizos and CONFIG.get("importar_hechizos", True):
@@ -7679,7 +7778,8 @@ class Coach:
                 # el coach se abrio con la partida empezada: busca la build por el nombre del campeon
                 nombre = (yo.get("championName") or "").lower()
                 cid = next((int(k) for k, v in self.rec.campeones.items() if v.lower() == nombre), None)
-                self.build_partida = self._build(cid, self.rol_partida, [], poner=False)
+                # la que elegiste en la seleccion (si el coach se reinicio en partida); si no, la fijada o u.gg
+                self.build_partida = leer_build_partida(cid) or self._build(cid, self.rol_partida, [], poner=False)
                 if not self.build_partida:
                     return estado
             tengo = [i.get("itemID") for i in yo.get("items") or []]
@@ -7922,7 +8022,7 @@ class Coach:
                     and previa not in ("Matchmaking", "ChampSelect", "ReadyCheck")
                     and CONFIG["abrir_aviso_al_buscar_partida"] and sesion(self.alm)["parada"]):
                 log("Buscas partida con el aviso de parada activo. Abriendo el aviso.")
-                abrir_app(f"{self.url}/#aviso")
+                mostrar_panel(self.url, self, "aviso")
             if fase == "ChampSelect" or (fase in EN_JUEGO and previa not in EN_JUEGO):
                 self.pantalla, self.pantalla_fuente = modo_pantalla(self.lcu)
             if fase in EN_JUEGO and previa not in EN_JUEGO:
@@ -8042,6 +8142,8 @@ def crear_handler(coach):
                 return self._send(200, {"texto": diagnostico_soporte(coach), "feedback": REPO_WEB + "/issues/new"})
             if ruta == "/api/estado":
                 coach.ultimo_poll_pagina = time.time()
+                ir, coach.ir_a = coach.ir_a, None
+                ir = ir[0] if ir and time.time() - ir[1] < 120 else None
                 plan = plan_actual(alm)
                 with alm.lock:
                     lista = sorted(alm.d["partidas"].values(), key=lambda p: p.get("creacion") or 0, reverse=True)
@@ -8103,6 +8205,7 @@ def crear_handler(coach):
                     "partidas": resumen, "ultima_nueva": coach.ultima_nueva, "fijados": fijados,
                     "revision": stats_revision(alm), "entreno": estado_entreno(alm, plan),
                     "avance": avance(alm), "cabecera": cab, "tema": tema, "hud": hud_pref, "version": VERSION,
+                    "ir": ir,
                     "actualizacion": {"novedades": novedades_actualizacion(), "pendiente": _ACTU["nueva"],
                                       "error": _ACTU["error"]},
                     "notas": {"bien": NOTA_BIEN, "regular": NOTA_REGULAR},
@@ -8518,15 +8621,37 @@ def diagnostico_soporte(coach=None):
     return re.sub(r"(AIza[\w-]{20,}|gsk_\w{20,}|sk-or-[\w-]{20,}|RGAPI-[\w-]{20,})", "[clave]", texto)
 
 
-def _cerrar_ventanas_del_panel():
-    """Cierra las ventanas del panel que dejo abiertas el coach anterior: seguirian mostrando la interfaz vieja.
-    Solo las ventanas de aplicacion del navegador (Chrome o Edge) cuyo titulo es exactamente el del panel."""
+def guardar_build_partida(champ, build):
+    """Guarda la build elegida en la seleccion: si el coach se reinicia en plena partida, sigue usando esa."""
+    try:
+        f = DATOS / "build_partida.json"
+        nuevo = json.dumps({"champ": champ, "t": time.time(), "build": build}, ensure_ascii=False)
+        viejo = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        if viejo.get("champ") != champ or viejo.get("build") != build or time.time() - float(viejo.get("t") or 0) > 600:
+            f.write_text(nuevo, encoding="utf-8")
+    except Exception:
+        pass
+
+
+def leer_build_partida(champ, horas=3):
+    try:
+        d = json.loads((DATOS / "build_partida.json").read_text(encoding="utf-8"))
+        if (champ and d.get("champ") == champ and time.time() - float(d.get("t") or 0) < horas * 3600
+                and (d.get("build") or {}).get("orden")):
+            return d["build"]
+    except Exception:
+        pass
+    return None
+
+
+def _ventanas_del_panel():
+    """Las ventanas del panel abiertas: Chrome o Edge en modo aplicacion con el titulo exacto del panel."""
     if os.name != "nt":
-        return 0
+        return []
     try:
         import ctypes
         from ctypes import wintypes
-        u, cerradas = ctypes.windll.user32, []
+        u, hs = ctypes.windll.user32, []
 
         @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         def cada(h, _):
@@ -8535,14 +8660,55 @@ def _cerrar_ventanas_del_panel():
                 u.GetWindowTextW(h, t, 200)
                 u.GetClassNameW(h, c, 100)
                 if t.value == "Coach LoL" and c.value.startswith("Chrome_WidgetWin"):
-                    u.PostMessageW(h, 0x0010, 0, 0)          # WM_CLOSE
-                    cerradas.append(h)
+                    hs.append(h)
             return True
 
         u.EnumWindows(cada, 0)
-        return len(cerradas)
+        return hs
+    except Exception:
+        return []
+
+
+def _traer_al_frente(h):
+    try:
+        import ctypes
+        u = ctypes.windll.user32
+        if u.IsIconic(h):
+            u.ShowWindow(h, 9)                       # SW_RESTORE
+        u.keybd_event(0x12, 0, 0, 0)                 # un Alt suelto: Windows deja traer la ventana delante
+        u.keybd_event(0x12, 0, 2, 0)
+        u.SetForegroundWindow(h)
+    except Exception:
+        pass
+
+
+def mostrar_panel(url, coach=None, destino=""):
+    """Enseña el panel sin abrir otra ventana si ya hay una: la trae delante y le pide ir a 'destino'
+    (lo recoge en su siguiente /api/estado). Solo si no hay ninguna abre una nueva."""
+    hs = _ventanas_del_panel()
+    if coach is not None:
+        coach.ir_a = (destino, time.time()) if destino and (hs or time.time() - coach.ultimo_poll_pagina < 75) else None
+    if hs:
+        _traer_al_frente(hs[0])
+        return
+    if coach is not None and time.time() - coach.ultimo_poll_pagina < 75:
+        return                                       # abierto en una pestaña normal del navegador
+    abrir_app(url + (f"/#{destino}" if destino else ""))
+
+
+def _cerrar_ventanas_del_panel():
+    """Cierra las ventanas del panel que dejo abiertas el coach anterior: seguirian mostrando la interfaz vieja.
+    Solo las ventanas de aplicacion del navegador (Chrome o Edge) cuyo titulo es exactamente el del panel."""
+    if os.name != "nt":
+        return 0
+    hs = _ventanas_del_panel()
+    try:
+        import ctypes
+        for h in hs:
+            ctypes.windll.user32.PostMessageW(h, 0x0010, 0, 0)          # WM_CLOSE
     except Exception:
         return 0
+    return len(hs)
 
 
 def _puerto_libre(inicio):
@@ -8588,7 +8754,7 @@ def main():
     puerto, ya_corre = _puerto_libre(CONFIG["puerto"])
     url = f"http://127.0.0.1:{puerto}"
     if ya_corre:
-        abrir_app(url)             # ya estaba abierto: solo se muestra su ventana
+        mostrar_panel(url)         # ya estaba abierto: se trae delante su ventana (o se abre si la cerraste)
         return
     info = buscar_actualizacion()
     if info:
@@ -8615,10 +8781,14 @@ def main():
     srv = ThreadingHTTPServer(("127.0.0.1", puerto), crear_handler(coach))
     threading.Thread(target=coach.bucle, daemon=True).start()
     log(f"Dashboard en {url}")
-    if _RELEVO["hubo"] and _cerrar_ventanas_del_panel():
+    relevo = _RELEVO["hubo"] and _cerrar_ventanas_del_panel()
+    if relevo:
         time.sleep(0.6)            # la ventana vieja se cierra antes de abrir la nueva
     if CONFIG["abrir_navegador_al_iniciar"]:
-        abrir_app(url)
+        if relevo:
+            abrir_app(url)
+        else:
+            mostrar_panel(url)     # si quedo abierta una ventana del panel, se reconecta sola: no se abre otra
     try:
         if ventana:
             threading.Thread(target=srv.serve_forever, daemon=True).start()

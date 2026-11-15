@@ -1,6 +1,6 @@
 {
-  "version": "28",
-  "notas": "pone tus hechizos de invocador según la build (Flash no cambia de tecla)",
+  "version": "29",
+  "notas": "la ventanita cabe siempre en pantalla; Ctrl+arrastrar las tarjetas en partida; no abre ventanas repetidas",
   "archivos": [
     "coach.py",
     "dashboard.html",
