@@ -1,6 +1,6 @@
 {
-  "version": "41.1",
-  "notas": "Selección: iconos de línea en vez de huecos vacíos y mejor deducción de la línea de cada rival",
+  "version": "42",
+  "notas": "la regla anti-racha ya no te manda parar si pierdes jugando bien; se puede ajustar o apagar en Ajustes",
   "archivos": [
     "coach.py",
     "dashboard.html",

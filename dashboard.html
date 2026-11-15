@@ -1129,7 +1129,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "41.1";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "42";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -3029,6 +3029,15 @@ VISTAS.ajustes = () => {
   const lugarTxt = (LUGARES.find(l => l[0] === h.lugar) || [0, "Colocada a mano"])[1];
   const av = h.avisos || {}, ant = h.antelacion || 60;
   return `<div class="g"><div class="c7 pila">
+    <section class="card" aria-label="Regla anti-racha">
+      <div class="card-h"><h2>${ic("alerta")}Regla anti-racha</h2><span class="ay">El aviso de “Para por hoy”</span></div>
+      <p class="t2">Te avisa de parar tras varias derrotas seguidas <b>jugando por debajo de tu nivel</b> (si pierdes con buena nota no corta: le da una más), si marcas tilt o al llegar a tu tope de partidas del día.</p>
+      <div class="aj">
+        <div class="aj-f"><div><b>Avisarme de parar</b><small>Si la apagas, el coach no te pedirá parar nunca.</small></div>
+          <button class="sw ${(e.sesion.anti || {}).activa !== false ? "on" : ""}" role="switch" aria-checked="${(e.sesion.anti || {}).activa !== false}" data-a="anti-sw" aria-label="Avisarme de parar"><i></i></button></div>
+        <div class="aj-f"><div><b>Derrotas seguidas</b><small>Cuántas jugando mal hacen falta para el aviso.</small></div>
+          <div class="chips" role="group" aria-label="Derrotas seguidas">${[2, 3, 4].map(x => `<button class="chip ${(e.sesion.anti || {}).derrotas === x ? "az" : "ln"}" data-a="anti-n" data-n="${x}" aria-pressed="${(e.sesion.anti || {}).derrotas === x}" ${(e.sesion.anti || {}).activa === false ? "disabled" : ""}>${x}</button>`).join("")}</div></div>
+      </div></section>
     <section class="card" aria-label="Tarjetas en partida">
       <div class="card-h"><h2>${ic("mando")}Tarjetas en partida</h2><span class="ay">Lo que ves encima del juego</span></div>
       <p class="t2">Durante la partida el coach muestra una tarjeta pequeña con tus números contra la media del rango siguiente. <b>Mantén Tab</b> para ver el detalle: tu misión, tu reto, el siguiente objeto y cuándo volver a base. Encima, los temporizadores del dragón, las larvas o el Heraldo y el Barón, con un aviso antes de que salgan. No reciben clics ni le quitan el foco al juego.</p>
@@ -3078,6 +3087,12 @@ async function hud(cambios, aviso){
   try{ const r = await api("/api/hud", cambios); if(!r.ok) toast(r.msg); else if(aviso) toast(aviso); }
   catch(e){ toast("No pude cambiarlo. ¿Está abierto el coach?"); }
 }
+async function anti(cambios){
+  try{ await api("/api/anti", cambios); await recargarEstado(); pintar(true); revisarAviso(); }
+  catch(_){ toast("No pude cambiarlo. ¿Está abierto el coach?"); }
+}
+A["anti-sw"] = () => anti({activa: (E().sesion.anti || {}).activa === false});
+A["anti-n"] = el => anti({derrotas: +el.dataset.n});
 A["hud-mini"] = () => hud({mini: !(E().hud || {}).mini});
 A["hud-lugar"] = el => hud({lugar: el.dataset.l});
 A["hud-timers"] = () => hud({timers: (E().hud || {}).timers === false});
@@ -3100,16 +3115,18 @@ function revisarAviso(){
   poner($("#aviso-c"), `<p class="et c-rj"><i class="pt"></i>Regla anti-racha</p><h2 class="dz" id="aviso-t">Para por hoy</h2>
     <ul class="motivos">${s.motivos.map(x => `<li>${ic("alerta", "s")}<span>${esc(x.texto)}</span></li>`).join("")}</ul>
     ${s.despues_del_aviso ? `<p class="despues">Ya jugaste ${plural(s.despues_del_aviso, "partida", "partidas")} después de este aviso.</p>` : ""}
-    <p class="t2">Con la cabeza caliente se pierde más LP del que se gana. Lo que juegues ahora va a salir peor que lo que jugaste antes.</p>
+    <p class="t2">Cuando las partidas salen mal seguidas, la siguiente suele salir peor: se juega con prisa y se pierde más LP del que se gana. Es una recomendación; tú decides.</p>
     <div class="av-lista">${s.lista.map(g => `<div class="${g.victoria ? "v" : "d"}">${cp(g.campeon_id, g.campeon, 44)}<span class="tn">${esc(g.kda)}</span></div>`).join("")}</div>
     <div class="av-res"><div><b class="nm">${s.victorias}V – ${s.derrotas}D</b><span>${plural(s.partidas, "partida", "partidas")} hoy</span></div>
       <div><b class="nm">${dec(s.muertes_prom)}</b><span>muertes por partida</span></div><div><b class="nm">${dec(s.nota_prom)}</b><span>nota media del coach</span></div></div>
     <p class="t2">Mañana a partir de las ${esc(s.hora_reinicio)} el contador vuelve a cero.</p>
-    <div class="rev-acc"><button class="btn p gr" data-a="aviso-ok" id="entendido">Entendido, paro</button></div>`);
+    <div class="rev-acc"><button class="btn gr" data-a="aviso-ok" data-seguir="1">Sigo jugando</button><button class="btn p gr" data-a="aviso-ok" id="entendido">Entendido, paro</button></div>
+    <p class="nota-p">Puedes cambiar o apagar esta regla en Ajustes.</p>`);
   m.classList.add("on");
   const b = $("#entendido"); if(b) b.focus();
 }
-A["aviso-ok"] = async () => {
+A["aviso-ok"] = async el => {
+  if(el && el.dataset.seguir) toast("Vale. Si la siguiente sale mal, para de verdad.");
   $("#aviso").classList.remove("on"); S.forzarAviso = false;
   if(location.hash === "#aviso") history.replaceState(null, "", "#" + S.vista);
   try{ await api("/api/aviso-visto", {}); S.estado.sesion.mostrar_aviso = false; S.estadoTxt = ""; }catch(_){}

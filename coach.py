@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "41.1"
+VERSION = "42"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -6297,6 +6297,26 @@ def tope_del_dia(partidas, base):
     return n + 1, ""
 
 
+def anti_pref(alm):
+    """Tu ajuste de la regla anti-racha: {"activa": bool, "derrotas": n}."""
+    x = alm.d.get("anti") or {}
+    return {"activa": x.get("activa", True) is not False,
+            "derrotas": int(x.get("derrotas") or CONFIG["derrotas_seguidas_para_parar"])}
+
+
+def racha_corta(perdidas, limite):
+    """Si las derrotas seguidas de hoy cortan el dia. Al limite solo si en ellas jugaste por debajo de "bien"
+    (perder jugando bien no es tilt: suele ser el draft o el equipo); una derrota mas, siempre."""
+    racha = len(perdidas)
+    if racha < limite:
+        return False
+    if racha > limite:
+        return True
+    notas = [(p.get("veredicto") or {}).get("nota") for p in perdidas]
+    notas = [x for x in notas if x is not None]
+    return not notas or sum(notas) / len(notas) < NOTA_BIEN
+
+
 def sesion(alm):
     with alm.lock:
         ahora = int(time.time() * 1000)
@@ -6307,15 +6327,17 @@ def sesion(alm):
         animos = alm.d["animo"]
         n = len(partidas)
         v = sum(1 for p in partidas if p["victoria"])
-        racha = 0
+        racha, perdidas = 0, []
         for p in reversed(partidas):
             if p["victoria"]:
                 break
             racha += 1
+            perdidas.append(p)
+        pref = anti_pref(alm)
         tope_info = tope_personal(list(alm.d["partidas"].values()))
         tope_base = tope_info["tope"]
         tope, tope_por = tope_del_dia(partidas, tope_base)
-        lim_derr = CONFIG["derrotas_seguidas_para_parar"]
+        lim_derr = pref["derrotas"]
         tilt_dato = dato_tilt(list(alm.d["partidas"].values()), lim_derr)
         tilts = [p for p in partidas if (animos.get(p["id"]) or {}).get("estado") == "tilt"]
         ultimo_animo = None
@@ -6324,11 +6346,17 @@ def sesion(alm):
                 ultimo_animo = animos[p["id"]]["estado"]
                 break
         actuales = []
-        if racha >= lim_derr:
-            actuales.append({"clave": "derrotas", "texto": f"{racha} derrotas seguidas"})
-        if tilts:
+        corta = pref["activa"] and racha_corta(perdidas, lim_derr)
+        nota_racha = None
+        if racha:
+            ns = [(p.get("veredicto") or {}).get("nota") for p in perdidas if (p.get("veredicto") or {}).get("nota") is not None]
+            nota_racha = round(sum(ns) / len(ns), 1) if ns else None
+        if corta:
+            actuales.append({"clave": "derrotas", "texto": f"{racha} derrotas seguidas"
+                             + (f" con nota media {_dec(nota_racha)}" if nota_racha is not None and racha == lim_derr else "")})
+        if pref["activa"] and tilts:
             actuales.append({"clave": "tilt", "texto": f"Marcaste tilt después de la partida con {tilts[-1]['yo']['campeon']}"})
-        if n >= tope:
+        if pref["activa"] and n >= tope:
             por = tope_por if tope > tope_base or tope_por.startswith("es el") else (
                 tope_info["motivo"][:1].lower() + tope_info["motivo"][1:].rstrip(".") if tope_info["fuente"] == "tus partidas" else tope_por)
             actuales.append({"clave": "tope", "texto": f"Llegaste a tu tope de {tope} partidas del día"
@@ -6346,6 +6374,13 @@ def sesion(alm):
             if "tope" in previos and not any(m["clave"] == "tope" for m in actuales):
                 del previos["tope"]
                 cambio = True
+            # las derrotas se quedan aunque luego ganes; se quitan si sigues en la racha pero ya no corta
+            # (jugaste bien en ellas o cambiaste el ajuste) o si apagaste la regla
+            if "derrotas" in previos and not corta and (racha >= 1 or not pref["activa"]):
+                del previos["derrotas"]
+                cambio = True
+            if not pref["activa"] and previos:
+                previos, cambio = {}, True
             for m in actuales:
                 if previos.get(m["clave"]) != m:
                     previos[m["clave"]] = m
@@ -6360,8 +6395,11 @@ def sesion(alm):
         mostrar = parada and aviso.get("visto_clave") != clave
         if parada:
             estado, msg = "parar", "Para por hoy."
-        elif racha == lim_derr - 1 and racha > 0:
-            estado, msg = "ojo", "Una derrota más y toca parar por hoy."
+        elif pref["activa"] and racha >= lim_derr and racha > 0:
+            estado, msg = "ojo", (f"{racha} derrotas seguidas, pero jugaste bien (nota {_dec(nota_racha)}): no es tilt. "
+                                  "Sigue si te apetece; si la siguiente sale mal, para.")
+        elif pref["activa"] and racha == lim_derr - 1 and racha > 0:
+            estado, msg = "ojo", "Una derrota más jugando mal y toca parar por hoy."
         elif n >= tope_base:
             estado, msg = "ojo", (f"Pasaste tu tope de {tope_base}, pero hoy vas {v}V-{n - v}D y jugando bien: "
                                   "te dejo una más. Si pierdes o tu nota baja, para.")
@@ -6375,6 +6413,7 @@ def sesion(alm):
         return {
             "dia": hoy, "partidas": n, "victorias": v, "derrotas": n - v, "racha_derrotas": racha,
             "tope": tope, "tope_base": tope_base, "tope_info": tope_info, "limite_derrotas": lim_derr, "ultimo_animo": ultimo_animo,
+            "anti": pref,
             "estado": estado, "mensaje": msg, "parada": parada, "motivos": motivos,
             "tilt_dato": tilt_dato if (tilt_dato and racha >= max(1, lim_derr - 1)) else None,
             "mostrar_aviso": mostrar, "clave_aviso": clave, "despues_del_aviso": max(0, despues),
@@ -10377,6 +10416,16 @@ def crear_handler(coach):
                 except Exception as e:
                     ok, msg = False, f"No pude abrir la repetición ({e})."
                 return self._send(200, {"ok": ok, "msg": msg})
+            if ruta == "/api/anti":
+                with alm.lock:
+                    x = dict(alm.d.get("anti") or {})
+                    if "activa" in body:
+                        x["activa"] = bool(body["activa"])
+                    if body.get("derrotas") in (2, 3, 4):
+                        x["derrotas"] = int(body["derrotas"])
+                    alm.d["anti"] = x
+                    alm.guardar()
+                return self._send(200, {"ok": True})
             if ruta == "/api/aviso-visto":
                 with alm.lock:
                     s = sesion(alm)

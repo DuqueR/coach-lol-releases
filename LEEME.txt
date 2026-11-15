@@ -12,6 +12,12 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v42: regla anti-racha más justa
+- "Para por hoy" ya no salta por perder 2 seguidas si en ellas jugaste bien (nota 7 o
+  más): eso no es tilt. Te deja una más; si la siguiente también se pierde, avisa.
+- El aviso tiene botón "Sigo jugando" además de "Entendido, paro".
+- En Ajustes → Regla anti-racha: apágala o elige 2, 3 o 4 derrotas seguidas.
+
 Lo nuevo en la v41.1: Selección más clara
 - Sin huecos vacíos ni signos de interrogación: cada puesto sin campeón muestra el
   icono de su línea, y arriba sale el de tu línea hasta que elijas.
