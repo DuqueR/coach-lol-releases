@@ -12,6 +12,15 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v49: vídeos con sonido y una campanita propia
+- Tus jugadas grabadas ahora tienen sonido: el del juego (y también Discord o
+  la música si suenan). Se quita en Ajustes con "Con sonido". Si cambias de
+  altavoces o cascos en plena partida, sigue grabando con los nuevos.
+- Los avisos de objetivos suenan con una campanita propia del coach en vez del
+  sonido de Windows. En Ajustes puedes escucharla con "Escuchar".
+- Tu peso en la victoria: si juegas support, en vez del farmeo cuenta tu
+  visión frente a la del support rival.
+
 Lo nuevo en la v48: la ventanita va pegada al cliente
 - En la selección de campeón, la ventanita del coach (build, runas, misión) se
   pega al lado del cliente de LoL, con su misma altura, y lo sigue si lo

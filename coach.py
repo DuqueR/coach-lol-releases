@@ -107,7 +107,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "48"
+VERSION = "49"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -1791,7 +1791,8 @@ def clips_partida(frames, parts, yo_id, rol, camp):
 VALOR_OBJ = {"DRAGON": 700, "ELDER_DRAGON": 2500, "BARON_NASHOR": 2000, "RIFTHERALD": 700, "HORDE": 250, "ATAKHAN": 1200}
 VALOR_EDIF = {"TOWER_BUILDING": 650, "INHIBITOR_BUILDING": 1000}
 IMPACTO_CAT = {"kills": "kills y asistencias", "muertes": "tus muertes", "objetivos": "objetivos y torres",
-               "farmeo": "farmeo frente a tu rival"}
+               "farmeo": "farmeo frente a tu rival", "vision": "visión frente a tu rival"}
+VALOR_VISION = 25                     # oro de ventaja por cada punto de vision de diferencia con tu rival (support)
 
 
 def _wp(dif, ts):
@@ -1892,7 +1893,9 @@ def impacto_partida(frames, parts, roles, yo_id, camp):
             culpables = sorted({pid for t0, pid in muertes if ts - 40000 <= t0 <= ts})
             for x in culpables:
                 dar(x, "objetivos", d / len(culpables), ts, f"Tu muerte les dio {nombre}")
-    # farmeo: cada minuto, tu CS frente al de tu rival del mismo rol (unos 20 de oro por cada uno de diferencia)
+    # farmeo: cada minuto, tu CS frente al de tu rival del mismo rol (unos 20 de oro por cada uno de diferencia).
+    # El support no se mide por farmeo sino por vision: su puntuacion de vision frente a la del support rival,
+    # repartida por igual a lo largo de la partida (el timeline del cliente no trae los guardianes uno a uno).
     rival = {}
     for pid in nuestros:
         mismo = [x for x in suyos if roles.get(x) and roles.get(x) == roles.get(pid)]
@@ -1902,6 +1905,12 @@ def impacto_partida(frames, parts, roles, yo_id, camp):
         a, b = frames[i - 1], frames[i]
         ts = b.get("timestamp") or 0
         for pid, rv in rival.items():
+            if roles.get(pid) == "support":
+                vs = lambda x: (parts[x].get("stats") or {}).get("visionScore") or 0
+                v = VALOR_VISION * (vs(pid) - vs(rv)) / (len(frames) - 1)
+                if v:
+                    dar(pid, "vision", cambio(v, ts, True) if v > 0 else cambio(-v, ts, False), ts)
+                continue
             cs = lambda f, x: _cs_pf(_pf(f, x) or {})
             dcs = (cs(b, pid) - cs(a, pid)) - (cs(b, rv) - cs(a, rv))
             if dcs:
@@ -1915,7 +1924,8 @@ def impacto_partida(frames, parts, roles, yo_id, camp):
     orden = sorted(nuestros, key=lambda x: -total[x])
     puesto = orden.index(yo_id) + 1
     yo = total[yo_id]
-    cats = {k: round(pts[yo_id][k], 1) for k in IMPACTO_CAT}
+    soporte = roles.get(yo_id) == "support"
+    cats = {k: round(pts[yo_id][k], 1) for k in IMPACTO_CAT if k != ("farmeo" if soporte else "vision")}
     peor = min(cats, key=lambda k: cats[k])
     mejor = max(cats, key=lambda k: cats[k])
     n = lambda v: ("+" if v > 0 else "−" if v < 0 else "") + _dec(abs(v))
@@ -7229,12 +7239,72 @@ def icono_objetivo(nombre):
     return None
 
 
+AVISO_WAV = DATOS / "aviso_v1.wav"
+
+
+def crear_sonido_aviso(ruta=None):
+    """El sonido propio de los avisos: dos notas de campana (mi y si, una quinta hacia arriba) con armonicos,
+    un poco de eco y caida suave. Se genera una vez en datos (no hace falta ningun archivo en la descarga)."""
+    import struct
+    import wave
+    ruta = ruta or AVISO_WAV
+    rate, dur = 44100, 1.15
+    n = int(rate * dur)
+    sen = [0.0] * n
+
+    def nota(f, t0, amp):
+        i0 = int(t0 * rate)
+        for i in range(i0, n):
+            t = (i - i0) / rate
+            env = min(1.0, t / 0.004) * math.exp(-t / 0.28)          # ataque de 4 ms y caida de campana
+            if t > 0.05 and env < 1e-4:
+                break
+            v = (math.sin(2 * math.pi * f * t) + 0.42 * math.sin(2 * math.pi * 2 * f * t) * math.exp(-t / 0.12)
+                 + 0.16 * math.sin(2 * math.pi * 2.76 * f * t) * math.exp(-t / 0.07)
+                 + 0.08 * math.sin(2 * math.pi * 4.07 * f * t) * math.exp(-t / 0.05))
+            sen[i] += amp * env * v
+    nota(659.25, 0.0, 0.55)
+    nota(987.77, 0.11, 0.6)
+    eco = sen[:]
+    for retraso, g in ((0.083, 0.22), (0.161, 0.12), (0.247, 0.06)):
+        d = int(retraso * rate)
+        for i in range(d, n):
+            eco[i] += g * sen[i - d]
+    pico = max(abs(x) for x in eco) or 1
+    k = 0.5 / pico                                                    # unos -6 dB: se oye sin asustar
+    cola = int(0.08 * rate)
+    datos = bytearray()
+    for i, x in enumerate(eco):
+        if i > n - cola:
+            x *= (n - i) / cola
+        v = int(max(-1.0, min(1.0, x * k)) * 32767)
+        datos += struct.pack("<hh", v, v)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    tmp = ruta.with_suffix(".tmp")
+    with wave.open(str(tmp), "wb") as w:
+        w.setnchannels(2)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(bytes(datos))
+    os.replace(tmp, ruta)
+    return ruta
+
+
 def sonar_aviso():
-    """Un sonido corto de Windows con cada aviso de objetivo (se quita en Ajustes)."""
+    """El sonido del coach con cada aviso de objetivo (se quita en Ajustes). Si no se puede, el de Windows."""
     if os.name != "nt":
         return
     try:
         import winsound
+        try:
+            if not AVISO_WAV.exists():
+                crear_sonido_aviso()
+            winsound.PlaySound(str(AVISO_WAV), winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+            return
+        except Exception as e:
+            if not _ICO_OBJ.get("sin_wav"):
+                _ICO_OBJ["sin_wav"] = True
+                log(f"Aviso de objetivo: uso el sonido de Windows ({type(e).__name__}: {e}).")
         for alias in ("Notification.Default", "SystemAsterisk"):
             try:
                 winsound.PlaySound(alias, winsound.SND_ALIAS | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
@@ -7253,8 +7323,8 @@ def sonar_aviso():
 # Mientras juegas, ffmpeg graba la pantalla con la grafica (AMD AMF, NVIDIA NVENC o Intel QSV; si no hay, CPU) en
 # trozos de 10 s y solo se guardan los ultimos 3 minutos. Cuando haces una kill, una asistencia, una multikill, un
 # ace o un objetivo grande, se cortan desde 15 s antes hasta 8 s despues y se guardan en datos\clips. Al abrir la
-# partida en el panel se quedan solo los que coinciden con tus Jugadas. Sin sonido (ffmpeg no puede grabar el del
-# juego sin instalar nada mas).
+# partida en el panel se quedan solo los que coinciden con tus Jugadas. El sonido del PC lo captura SonidoPC
+# (WASAPI loopback con ctypes) y va a ffmpeg por un socket local.
 CLIPS = DATOS / "clips"
 CLIPS_BUF = CLIPS / "buffer"
 FFMPEG_DIR = DATOS / "ffmpeg"
@@ -7351,14 +7421,241 @@ def detectar_codec(forzar=False):
 
 def grabar_pref(alm):
     x = alm.d.get("grabar") or {}
-    return {"activa": bool(x.get("activa", False)), "fps": 60 if x.get("fps") == 60 else 30}
+    return {"activa": bool(x.get("activa", False)), "fps": 60 if x.get("fps") == 60 else 30,
+            "sonido": bool(x.get("sonido", True))}
+
+
+class SonidoPC:
+    """Lo que suena en el PC (el juego, y tambien Discord o musica) con WASAPI en modo loopback, solo con ctypes
+    (sin instalar nada). Va en crudo por un socket local a ffmpeg, que lo mete en el mismo video.
+    - Atado al reloj: si Windows no entrega muestras (nada suena, o se pierden) se rellena con silencio, y si
+      entrega de mas se descartan; asi el sonido no se adelanta ni se retrasa en toda la partida.
+    - Si cambian los altavoces (enchufas unos cascos), se vuelve a abrir el nuevo sin cortar la grabacion.
+    - Todo el trabajo con Windows (COM) va en un solo hilo, y lo libera al terminar."""
+    E_INVALIDO = 0x88890004 - (1 << 32)          # AUDCLNT_E_DEVICE_INVALIDATED
+
+    def __init__(self):
+        self.activo, self.listo = False, threading.Event()
+        self.fmt, self.rate, self.canales, self.bloque = "", 0, 0, 0
+        self._sock = None
+
+    # -- COM a mano
+    @staticmethod
+    def _guid(txt):
+        import ctypes
+        import uuid
+
+        class GUID(ctypes.Structure):
+            _fields_ = [("a", ctypes.c_ubyte * 16)]
+        return GUID.from_buffer_copy(uuid.UUID(txt).bytes_le)
+
+    @staticmethod
+    def _m(obj, i, *args, tipos=()):
+        import ctypes
+        vt = ctypes.cast(obj, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+        return ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, *tipos)(vt[i])(obj, *args)
+
+    @staticmethod
+    def _soltar(*objs):
+        import ctypes
+        for o in objs:
+            if o:
+                try:
+                    vt = ctypes.cast(o, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+                    ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vt[2])(o)
+                except Exception:
+                    pass
+
+    def _por_defecto(self, en):
+        """(IMMDevice, id) de los altavoces por defecto."""
+        import ctypes
+        dev, pid = ctypes.c_void_p(), ctypes.c_void_p()
+        self._m(en, 4, 0, 0, ctypes.byref(dev), tipos=(ctypes.c_int, ctypes.c_int, ctypes.c_void_p))
+        try:
+            self._m(dev, 5, ctypes.byref(pid), tipos=(ctypes.c_void_p,))
+            ident = ctypes.wstring_at(pid)
+        finally:
+            if pid:
+                ctypes.windll.ole32.CoTaskMemFree(pid)
+        return dev, ident
+
+    def _abrir(self, en):
+        """Abre la captura de los altavoces por defecto y la arranca. Devuelve (dev, cli, cap, id, formato)."""
+        import ctypes
+        dev, ident = self._por_defecto(en)
+        cli, cap, pf = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_void_p()
+        try:
+            self._m(dev, 3, ctypes.byref(self._guid("1CB9AD4C-DBFA-4C32-B178-C2F568A703B2")), 0x17, None,
+                    ctypes.byref(cli), tipos=(ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p))
+            self._m(cli, 8, ctypes.byref(pf), tipos=(ctypes.c_void_p,))                                 # GetMixFormat
+            raw = ctypes.string_at(pf, 18)
+            if int.from_bytes(raw[0:2], "little") == 0xFFFE:
+                raw = ctypes.string_at(pf, 40)                        # WAVEFORMATEXTENSIBLE: lleva el subtipo
+            tag, can, rate = (int.from_bytes(raw[0:2], "little"), int.from_bytes(raw[2:4], "little"),
+                              int.from_bytes(raw[4:8], "little"))
+            bloque, bits = int.from_bytes(raw[12:14], "little"), int.from_bytes(raw[14:16], "little")
+            flotante = tag == 3 or (tag == 0xFFFE and raw[24:26] == b"\x03\x00")
+            fmt = {(True, 32): "f32le", (False, 16): "s16le", (False, 32): "s32le", (False, 24): "s24le"}.get((flotante, bits))
+            if not fmt:
+                raise OSError(f"formato de audio raro ({tag}, {bits} bits)")
+            self._m(cli, 3, 0, 0x00020000, 2000000, 0, pf, None,                                        # loopback, 200 ms
+                    tipos=(ctypes.c_int, ctypes.c_uint, ctypes.c_longlong, ctypes.c_longlong, ctypes.c_void_p,
+                           ctypes.c_void_p))
+            self._m(cli, 14, ctypes.byref(self._guid("C8ADBD64-E71E-48A0-A4DE-185C395CD317")), ctypes.byref(cap),
+                    tipos=(ctypes.c_void_p, ctypes.c_void_p))
+            self._m(cli, 10)                                                                            # Start
+        except Exception:
+            self._soltar(cap, cli, dev)
+            raise
+        finally:
+            if pf:
+                ctypes.windll.ole32.CoTaskMemFree(pf)
+        return dev, cli, cap, ident, (fmt, rate, can, bloque)
+
+    def _cerrar(self, dev, cli, cap):
+        try:
+            if cli:
+                self._m(cli, 11)                                                                        # Stop
+        except Exception:
+            pass
+        self._soltar(cap, cli, dev)
+
+    def preparar(self):
+        """Abre la captura y un socket local. Devuelve los argumentos de entrada para ffmpeg, o [] si no hay
+        sonido posible (entonces se graba sin el)."""
+        if os.name != "nt":
+            return []
+        try:
+            import socket
+            self._sock = socket.socket()
+            self._sock.bind(("127.0.0.1", 0))
+            self._sock.listen(1)
+            self._sock.settimeout(40)
+            puerto = self._sock.getsockname()[1]
+            self.activo = True
+            threading.Thread(target=self._correr, daemon=True).start()
+            if not self.listo.wait(6) or not self.fmt:
+                self.parar()
+                return []
+            return ["-thread_queue_size", "4096", "-f", self.fmt, "-ar", str(self.rate), "-ac", str(self.canales),
+                    "-t", "14400", "-i", f"tcp://127.0.0.1:{puerto}"]
+        except Exception as e:
+            log(f"Grabación: sin sonido ({type(e).__name__}: {e}).")
+            self.parar()
+            return []
+
+    def _correr(self):
+        import ctypes
+        import socket
+        ole = ctypes.windll.ole32
+        ole.CoInitializeEx(None, 0)
+        en, dev, cli, cap, con = ctypes.c_void_p(), None, None, None, None
+        try:
+            try:
+                ole.CoCreateInstance(ctypes.byref(self._guid("BCDE0395-E52F-467C-8E3D-C4579291692E")), None, 0x17,
+                                     ctypes.byref(self._guid("A95664D2-9614-4F35-A746-DE8DB63617E6")), ctypes.byref(en))
+                if not en:
+                    raise OSError("sin IMMDeviceEnumerator")
+                dev, cli, cap, ident, f0 = self._abrir(en)
+                self.fmt, self.rate, self.canales, self.bloque = f0
+            except Exception as e:
+                log(f"Grabación: sin sonido ({type(e).__name__}: {e}).")
+                return
+            finally:
+                self.listo.set()
+            try:
+                con, _ = self._sock.accept()                  # ffmpeg abre su entrada de sonido
+            except Exception:
+                log("Grabación: ffmpeg no se conectó al sonido a tiempo.")
+                return
+            finally:
+                try:
+                    self._sock.close()                        # nadie mas puede conectarse
+                except Exception:
+                    pass
+            con.settimeout(2)
+            con.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            rate, bloque = self.rate, self.bloque
+            datos, n, flags, paq = ctypes.c_void_p(), ctypes.c_uint32(), ctypes.c_uint32(), ctypes.c_uint32()
+            tp = (ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)
+
+            def leer():
+                """Todo lo que Windows tiene listo (bytes). Lo silencioso llega como ceros."""
+                trozos = []
+                while cap:
+                    self._m(cap, 5, ctypes.byref(paq), tipos=(ctypes.c_void_p,))                     # GetNextPacketSize
+                    if not paq.value:
+                        break
+                    self._m(cap, 3, ctypes.byref(datos), ctypes.byref(n), ctypes.byref(flags), None, None, tipos=tp)
+                    k = n.value
+                    trozos.append(bytes(k * bloque) if (flags.value & 0x2 or not datos) else ctypes.string_at(datos, k * bloque))
+                    self._m(cap, 4, k, tipos=(ctypes.c_uint32,))                                       # ReleaseBuffer
+                return b"".join(trozos)
+
+            leer()                                            # lo de antes de conectar no vale: se tira
+            t0, hechas, mudo, t_mira = time.perf_counter(), 0, False, time.perf_counter()
+            while self.activo:
+                try:
+                    trozo = b"" if mudo else leer()
+                except OSError as e:
+                    if getattr(e, "winerror", None) != self.E_INVALIDO and (e.args[:1] or [0])[0] != self.E_INVALIDO:
+                        raise
+                    trozo, t_mira = b"", 0                    # altavoces quitados: se busca el nuevo ya
+                ahora = time.perf_counter()
+                objetivo = int((ahora - t0) * rate)
+                va = hechas + len(trozo) // bloque
+                if va < objetivo - int(rate * 0.06):          # va por detras del reloj: silencio hasta el
+                    trozo += bytes((objetivo - va) * bloque)
+                elif va > objetivo + int(rate * 0.15):        # va por delante: se descarta lo que sobra
+                    trozo = trozo[(va - objetivo) * bloque:]
+                if trozo:
+                    try:
+                        con.sendall(trozo)
+                    except socket.timeout:
+                        pass                                  # ffmpeg no lee: se pierde ese trozo, el reloj sigue
+                    hechas += len(trozo) // bloque
+                if ahora - t_mira > 1.5:                      # cambiaste de altavoces o cascos?
+                    t_mira = ahora
+                    try:
+                        d2, id2 = self._por_defecto(en)
+                        self._soltar(d2)
+                        if id2 != ident:
+                            self._cerrar(dev, cli, cap)
+                            dev = cli = cap = None
+                            dev, cli, cap, ident, f2 = self._abrir(en)
+                            mudo = f2 != (self.fmt, self.rate, self.canales, self.bloque)
+                            leer()
+                            log("Grabación: cambiaste de altavoces; " + ("sigo con su sonido." if not mudo else
+                                "tienen otro formato: el resto de la partida va sin sonido."))
+                    except Exception:
+                        mudo = True                           # sin altavoces: silencio hasta que vuelvan
+                time.sleep(0.01)
+        except Exception as e:
+            if self.activo:
+                log(f"Grabación: el sonido se cortó ({type(e).__name__}: {e}).")
+        finally:
+            self._cerrar(dev, cli, cap)
+            self._soltar(en)
+            for x in (con, self._sock):
+                try:
+                    x and x.close()
+                except Exception:
+                    pass
+            ole.CoUninitialize()
+
+    def parar(self):
+        self.activo = False
+        try:
+            self._sock and self._sock.close()
+        except Exception:
+            pass
 
 
 def _trozos():
     """[(inicio en reloj, ruta)] de los trozos del buffer, del mas viejo al mas nuevo. t_ = grafica, c_ = procesador
     (plan B): tienen otro codec y tamano, asi que no se mezclan en un mismo clip."""
     out = []
-    for f in list(CLIPS_BUF.glob("t_*.mp4")) + list(CLIPS_BUF.glob("c_*.mp4")):
+    for f in [f for pre in ("t_", "m_", "c_") for f in CLIPS_BUF.glob(pre + "*.mp4")]:
         try:
             out.append((time.mktime(time.strptime(f.stem[2:], "%Y%m%d_%H%M%S")), f))
         except Exception:
@@ -7512,13 +7809,15 @@ class Grabadora:
         self.plan_b, self.fps = False, 30
         self.lock = threading.RLock()
         self._vigia = None
+        self.sonido, self.con_audio = None, False
         self._hilos = []                  # cortes en marcha (parar los espera antes de vaciar el buffer)
 
     def grabando(self):
         return self.proc is not None and self.proc.poll() is None
 
-    def iniciar(self, partida, campeon, fps=30, cpu=False):
-        """cpu=True: plan B si la captura con la grafica falla (GDI + x264 a 720p)."""
+    def iniciar(self, partida, campeon, fps=30, cpu=False, sonido=True, reintento=False):
+        """cpu=True: plan B si la captura con la grafica falla (GDI + x264 a 720p). reintento=True: sigue la misma
+        partida (no borra lo grabado)."""
         if self.grabando():
             return True
         ff, codec = ruta_ffmpeg(), ("libx264" if cpu else detectar_codec())
@@ -7527,7 +7826,8 @@ class Grabadora:
                 _GRAB.update(estado="error", msg="La grabación se cortó en esta partida. Mira datos\\coach.log.")
             return False
         CLIPS_BUF.mkdir(parents=True, exist_ok=True)
-        if not cpu:
+        nueva = not cpu and not reintento
+        if nueva:
             limpiar_buffer()
         gpu = codec != "libx264"
         if gpu:      # la textura de ddagrab se baja a memoria: AMF no acepta su formato directo (SubmitInput error 18)
@@ -7538,9 +7838,15 @@ class Grabadora:
         calidad = {"h264_amf": ["-quality", "speed", "-rc", "vbr_peak", "-b:v", "12M", "-maxrate", "16M"],
                    "h264_nvenc": ["-preset", "p3", "-b:v", "12M"], "h264_qsv": ["-preset", "veryfast", "-b:v", "12M"],
                    "libx264": ["-preset", "ultrafast", "-crf", "26", "-pix_fmt", "yuv420p", "-vf", "scale=-2:720"]}[codec]
-        cmd = [ff, "-hide_banner", "-loglevel", "error", *entrada, "-c:v", codec, *calidad, "-g", str(fps),
-               "-an", "-f", "segment", "-segment_time", str(TROZO_S), "-reset_timestamps", "1", "-strftime", "1",
-               str(CLIPS_BUF / (("c_" if cpu else "t_") + "%Y%m%d_%H%M%S.mp4"))]
+        self._parar_sonido()
+        audio = []
+        if sonido and not cpu:
+            self.sonido = SonidoPC()
+            audio = self.sonido.preparar()
+        self.con_audio = bool(audio)
+        cmd = [ff, "-hide_banner", "-loglevel", "error", *entrada, *audio, "-c:v", codec, *calidad, "-g", str(fps),
+               *(["-c:a", "aac", "-b:a", "160k", "-ac", "2"] if audio else ["-an"]), "-f", "segment", "-segment_time", str(TROZO_S), "-reset_timestamps", "1", "-strftime", "1",
+               str(CLIPS_BUF / (("c_" if cpu else "t_" if audio else "m_") + "%Y%m%d_%H%M%S.mp4"))]
         try:
             self._err_f = open(CLIPS_BUF / ("ffmpeg_cpu.log" if cpu else "ffmpeg.log"), "wb")
             self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=self._err_f,
@@ -7549,8 +7855,9 @@ class Grabadora:
         except Exception as e:
             log(f"Grabación: no pude empezar ({type(e).__name__}: {e}).")
             self.proc = None
+            self._parar_sonido()
             return False
-        if not cpu:
+        if nueva:
             self.t0, self.partida, self.campeon = time.time(), partida, campeon or ""
             self.pend, self.vistos = [], set()
             self.plan_b, self.err_log = False, 0
@@ -7559,7 +7866,8 @@ class Grabadora:
             self._vigia = threading.Thread(target=self._vigilar, daemon=True)
             self._vigia.start()
         _GRAB["estado"] = "grabando"
-        log(f"Grabación: empieza ({'Procesador' if cpu else _GRAB['codec_txt']}, {fps} fps).")
+        log(f"Grabación: empieza ({'Procesador' if cpu else _GRAB['codec_txt']}, {fps} fps, "
+            f"{'con sonido' if audio else 'sin sonido'}).")
         return True
 
     def evento(self, data, nombres_yo):
@@ -7606,10 +7914,17 @@ class Grabadora:
             msg = (CLIPS_BUF / log_f).read_text(encoding="utf-8", errors="ignore")[-300:].strip()
         except Exception:
             msg = ""
-        if not self.plan_b:
+        if self.con_audio:          # primero se prueba sin sonido con la grafica (el fallo puede ser del sonido)
+            log(f"Grabación: ffmpeg se cerró ({msg or 'sin mensaje'}); sigo sin sonido.")
+            self._cerrar_log()
+            self._parar_sonido()
+            self.proc, self.con_audio = None, False
+            self.iniciar(self.partida, self.campeon, self.fps, sonido=False, reintento=True)
+        elif not self.plan_b:
             self.plan_b = True
             log(f"Grabación: ffmpeg se cerró con la gráfica ({msg or 'sin mensaje'}); sigo con el procesador.")
             self._cerrar_log()
+            self._parar_sonido()
             self.proc = None
             self.iniciar(self.partida, self.campeon, self.fps, cpu=True)
         elif self.err_log < 1:
@@ -7672,6 +7987,11 @@ class Grabadora:
             except Exception:
                 pass
 
+    def _parar_sonido(self):
+        if self.sonido is not None:
+            self.sonido.parar()
+            self.sonido = None
+
     def _cerrar_log(self):
         try:
             self._err_f.close()
@@ -7685,6 +8005,7 @@ class Grabadora:
             pend, self.pend = self.pend, []
         if p is None:
             return
+        self._parar_sonido()                     # antes de cerrar ffmpeg: su socket se cierra y no es un error
         try:
             if p.poll() is None:
                 p.stdin.write(b"q")
@@ -7696,6 +8017,7 @@ class Grabadora:
             except Exception:
                 pass
         self._cerrar_log()
+        self._parar_sonido()
         if _GRAB["estado"] == "grabando":
             _GRAB["estado"] = ""
         for h in list(self._hilos):
@@ -10709,8 +11031,10 @@ class Coach:
                         if self.partida_id is None:
                             return
                     self._grab_intento = True
+                    gp = grabar_pref(self.alm)
                     threading.Thread(target=self.grab.iniciar, daemon=True,
-                                     args=(self.partida_id, yo.get("championName"), grabar_pref(self.alm)["fps"])).start()
+                                     args=(self.partida_id, yo.get("championName"), gp["fps"]),
+                                     kwargs={"sonido": gp["sonido"]}).start()
                     return
             nombres = {x for x in (yo.get("riotIdGameName"), yo.get("summonerName"), yo.get("riotId"),
                                    (yo.get("riotId") or "").split("#")[0]) if x}
@@ -11591,6 +11915,8 @@ def crear_handler(coach):
                         x["activa"] = bool(body["activa"])
                     if body.get("fps") in (30, 60):
                         x["fps"] = int(body["fps"])
+                    if "sonido" in body:
+                        x["sonido"] = bool(body["sonido"])
                     alm.d["grabar"] = x
                     alm.guardar()
                 if x.get("activa") and not ruta_ffmpeg():
@@ -11599,6 +11925,9 @@ def crear_handler(coach):
                     threading.Thread(target=detectar_codec, daemon=True).start()
                 elif coach.grab.proc is not None:
                     threading.Thread(target=coach.grab.parar, daemon=True).start()
+                return self._send(200, {"ok": True})
+            if ruta == "/api/probar-sonido":
+                threading.Thread(target=sonar_aviso, daemon=True).start()
                 return self._send(200, {"ok": True})
             if ruta == "/api/abrir-clips":
                 CLIPS.mkdir(parents=True, exist_ok=True)

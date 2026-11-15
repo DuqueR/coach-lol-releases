@@ -522,6 +522,7 @@ button.chip .i{width:13px;height:13px}
 /* ============================ partidas ============================ */
 .pg{display:grid;grid-template-columns:348px minmax(0,1fr);gap:20px;align-items:start}
 .lista{position:sticky;top:76px;max-height:calc(100vh - 96px);overflow-y:auto;padding-right:6px;margin-right:-6px}
+.aj-b{display:flex;align-items:center;gap:10px}
 .vd-m .vd-c{width:min(1100px,100%);padding:0;overflow:hidden;background:#000;border:0;border-radius:16px;box-shadow:0 30px 80px -10px rgba(0,0,0,.7)}
 .vd-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 18px;background:var(--s1)}
 .vd-h b{font-size:var(--fs-6);font-weight:720}
@@ -1266,7 +1267,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "48";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "49";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -2389,7 +2390,7 @@ function cardPorQue(p){
     <ul class="causas">${pq.causas.map(c => `<li><span class="chip ${et[c.tipo][1]}">${et[c.tipo][0]}</span>${c.cid ? cp(c.cid, "", 24) : `<span></span>`}<span>${esc(c.texto)}</span></li>`).join("")}</ul></section>`;
 }
 /* ---------- tu peso en el resultado ---------- */
-const IMP_CAT = [["kills", "Kills", "fuego"], ["muertes", "Muertes", "muerte"], ["objetivos", "Objetivos", "torre"], ["farmeo", "Farmeo", "oro"]];
+const IMP_CAT = [["kills", "Kills"], ["muertes", "Muertes"], ["objetivos", "Objetivos"], ["farmeo", "Farmeo"], ["vision", "Visión"]];
 function cardImpacto(p){
   const im = p.tiempo && p.tiempo.impacto; if(!im) return "";
   const max = Math.max(1, ...im.equipo.map(x => Math.abs(x.pts)));
@@ -2406,12 +2407,12 @@ function cardImpacto(p){
       <div><span class="t2">${im.gano ? "de lo que ganó la partida salió de ti" : "de lo que se perdió fue tuyo"}</span>
         <span class="imp-yo ${tono(im.yo)}">${pts(im.yo)} de impacto</span></div></div>
     <p class="imp-f">${esc(im.frase)}</p>
-    <div class="imp-cat">${IMP_CAT.map(([k, t]) => `<span class="${tono(im.partes[k])}">${t}<b class="nm">${sig(im.partes[k])}</b></span>`).join("")}</div>
+    <div class="imp-cat">${IMP_CAT.filter(([k]) => k in im.partes).map(([k, t]) => `<span class="${tono(im.partes[k])}">${t}<b class="nm">${sig(im.partes[k])}</b></span>`).join("")}</div>
     <h3 class="imp-h">Tu equipo</h3>
     <ul class="imp-eq">${im.equipo.map(fila).join("")}</ul>
     ${im.momentos.length ? `<h3 class="imp-h">Lo que más pesó</h3><ul class="imp-m">${im.momentos.map(m => `<li><b class="nm">${mmss(m.seg / 60)}</b><span>${esc(m.txt)}</span>
       <b class="nm ${tono(m.pts)}">${sig(m.pts)}</b><button class="btn pq" data-a="ver" data-s="${m.seg}" aria-label="Ver en la repetición: ${esc(m.txt)}">${ic("play", "s")}</button></li>`).join("")}</ul>` : ""}
-    <p class="nota-p">${ic("info", "s")}Puntos de impacto: cuánto movieron tus kills, muertes, objetivos y farmeo la probabilidad de ganar de tu equipo (estimada con el oro y el minuto). Un objetivo perdido cuenta para quien murió justo antes.</p></section>`;
+    <p class="nota-p">${ic("info", "s")}Puntos de impacto: cuánto movieron tus kills, muertes, objetivos y ${"vision" in im.partes ? "visión (eres support)" : "farmeo"} la probabilidad de ganar de tu equipo (estimada con el oro y el minuto). Un objetivo perdido cuenta para quien murió justo antes.</p></section>`;
 }
 function cardSemaforo(p){
   const etq = {verde: ["Bien", "vd"], amarillo: ["Justo", "am"], rojo: ["Mal", "rj"]};
@@ -3277,8 +3278,9 @@ VISTAS.ajustes = () => {
           <div class="chips" role="group" aria-label="Avisos de objetivos">${OBJS_AV.map(([k, n]) => `<button class="chip ${av[k] !== false ? "az" : "ln"}" data-a="hud-av" data-k="${k}" aria-pressed="${av[k] !== false}">${n}</button>`).join("")}</div></div>
         <div class="aj-f"><div><b>Antelación del aviso</b><small>Cuánto antes de que salga el objetivo.</small></div>
           <div class="chips" role="group" aria-label="Antelación del aviso">${[30, 45, 60, 90].map(x => `<button class="chip ${ant === x ? "az" : "ln"}" data-a="hud-ant" data-s="${x}" aria-pressed="${ant === x}">${x} s</button>`).join("")}</div></div>
-        <div class="aj-f"><div><b>Sonido con cada aviso</b><small>Un sonido corto de Windows para que no se te pase.</small></div>
-          <button class="sw ${h.sonido !== false ? "on" : ""}" role="switch" aria-checked="${h.sonido !== false}" data-a="hud-sonido" aria-label="Sonido con cada aviso"><i></i></button></div>
+        <div class="aj-f"><div><b>Sonido con cada aviso</b><small>Una campanita propia del coach para que no se te pase.</small></div>
+          <span class="aj-b"><button class="btn pq" data-a="probar-sonido" aria-label="Escuchar el sonido del aviso">${ic("play", "s")}Escuchar</button>
+          <button class="sw ${h.sonido !== false ? "on" : ""}" role="switch" aria-checked="${h.sonido !== false}" data-a="hud-sonido" aria-label="Sonido con cada aviso"><i></i></button></span></div>
       </div>
       <div class="pie izq"><button class="btn p" data-a="hud-probar">${ic("play", "s")}Probar 14 segundos</button><button class="btn" data-a="hud-mover">${ic("mover", "s")}Colocar a mano</button></div>
       <p class="nota-p">“Colocar a mano” las deja visibles con datos de ejemplo: arrástralas adonde quieras y se guardan solas. En plena partida: mantén <b>Ctrl</b> con el ratón encima y arrástralas. Usan solo lo que ves en la partida: tus números, el marcador del Tab y los objetivos que la partida anuncia a todos. Nada oculto del rival, como pide Riot.</p>
@@ -3321,10 +3323,12 @@ function cardGrabar(e){
     : g.activa && g.ffmpeg ? `<span class="chip vd">${ic("ok")}Lista${g.codec_txt ? " · " + esc(g.codec_txt) : ""}</span>` : "";
   return `<section class="card" aria-label="Grabar tus jugadas">
     <div class="card-h"><h2>${ic("play")}Grabar tus jugadas</h2>${est}</div>
-    <p class="t2">Mientras juegas, el coach graba la pantalla con tu gráfica y guarda en tu PC tus kills, multikills, aces y objetivos (de 15 s antes a 8 s después). Los ves en la pestaña <b>Jugadas</b> de cada partida, sin abrir el cliente. Solo se guardan los vídeos de tus jugadas; el resto se borra solo. Sin sonido.</p>
+    <p class="t2">Mientras juegas, el coach graba la pantalla con tu gráfica y guarda en tu PC tus kills, multikills, aces y objetivos (de 15 s antes a 8 s después). Los ves en la pestaña <b>Jugadas</b> de cada partida, sin abrir el cliente. Solo se guardan los vídeos de tus jugadas; el resto se borra solo.</p>
     <div class="aj">
       <div class="aj-f"><div><b>Grabar jugadas</b><small>${g.ffmpeg ? "Usa ffmpeg (ya descargado)." : "La primera vez descarga ffmpeg (unos 90 MB, gratis)."}</small></div>
         <button class="sw ${g.activa ? "on" : ""}" role="switch" aria-checked="${!!g.activa}" data-a="grabar-sw" aria-label="Grabar jugadas" ${bajando ? "disabled" : ""}><i></i></button></div>
+      <div class="aj-f"><div><b>Con sonido</b><small>Graba lo que suena en el PC: el juego, y también Discord o la música si suenan.</small></div>
+        <button class="sw ${g.sonido !== false ? "on" : ""}" role="switch" aria-checked="${g.sonido !== false}" data-a="grabar-son" aria-label="Grabar con sonido" ${g.activa ? "" : "disabled"}><i></i></button></div>
       <div class="aj-f"><div><b>Fotogramas por segundo</b><small>60 se ve más fluido y ocupa el doble.</small></div>
         <div class="chips" role="group" aria-label="Fotogramas por segundo">${[30, 60].map(x => `<button class="chip ${(g.fps || 30) === x ? "az" : "ln"}" data-a="grabar-fps" data-n="${x}" aria-pressed="${(g.fps || 30) === x}" ${g.activa ? "" : "disabled"}>${x}</button>`).join("")}</div></div>
     </div>
@@ -3336,12 +3340,14 @@ async function grabar(cambios){
 }
 A["grabar-sw"] = () => grabar({activa: !(E().grabar || {}).activa});
 A["grabar-fps"] = el => grabar({fps: +el.dataset.n});
+A["grabar-son"] = () => grabar({sonido: (E().grabar || {}).sonido === false});
 A["abrir-clips"] = async () => { try{ const r = await api("/api/abrir-clips", {}); if(!r.ok) toast(r.msg); }catch(_){ toast("No pude abrir la carpeta."); } };
 A["hud-mini"] = () => hud({mini: !(E().hud || {}).mini});
 A["hud-lugar"] = el => hud({lugar: el.dataset.l});
 A["hud-timers"] = () => hud({timers: (E().hud || {}).timers === false});
 A["hud-equipo"] = () => hud({equipo: (E().hud || {}).equipo === false});
 A["hud-baratija"] = () => hud({baratija: (E().hud || {}).baratija === false});
+A["probar-sonido"] = async () => { try{ await api("/api/probar-sonido", {}); }catch(_){ toast("No pude sonarlo. ¿Está abierto el coach?"); } };
 A["hud-sonido"] = () => hud({sonido: (E().hud || {}).sonido === false});
 A["hud-av"] = el => { const av = Object.assign({}, (E().hud || {}).avisos || {}); av[el.dataset.k] = av[el.dataset.k] === false; hud({avisos: av}); };
 A["hud-ant"] = el => hud({antelacion: +el.dataset.s});
