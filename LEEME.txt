@@ -12,6 +12,15 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v48: la ventanita va pegada al cliente
+- En la selección de campeón, la ventanita del coach (build, runas, misión) se
+  pega al lado del cliente de LoL, con su misma altura, y lo sigue si lo
+  mueves o cambias de tamaño.
+- Se esconde sola cuando miras otra ventana o minimizas el cliente, y vuelve
+  al volver a él: ya no se queda encima del navegador ni de Discord.
+- Si la arrastras, se queda donde la dejes. Para volver a pegarla, pulsa
+  "Pegar" arriba.
+
 Lo nuevo en la v47: tu peso en la victoria (o en la derrota)
 - Nueva tarjeta en el Resumen de cada partida: qué parte de la victoria salió
   de ti, o qué parte de la derrota fue tuya, y tu puesto entre los 5 de tu

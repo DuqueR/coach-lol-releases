@@ -1,6 +1,6 @@
 {
-  "version": "47",
-  "notas": "tu peso en la victoria o en la derrota de cada partida",
+  "version": "48",
+  "notas": "la ventanita de la selección de campeón va pegada al cliente de LoL",
   "archivos": [
     "coach.py",
     "dashboard.html",

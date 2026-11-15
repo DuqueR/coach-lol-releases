@@ -107,7 +107,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "47"
+VERSION = "48"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -8774,6 +8774,73 @@ class Hud:
             self.root.after(15, self._animar_aviso)
 
 
+def cliente_lol():
+    """Estado del cliente de LoL (LeagueClientUx, ventana RCLIENT):
+    {"estado": "cerrado" | "minimizado" | "visible", "rect": (l, t, r, b), "delante": True | False | None}.
+    delante: la ventana activa es del cliente (True), de otro programa (False) o no se sabe (None: ninguna
+    activa, como durante Alt+Tab, o es del propio coach): en ese caso no hay que cambiar nada."""
+    out = {"estado": "cerrado", "rect": None, "delante": None}
+    if os.name != "nt":
+        return out
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.windll.user32
+        u.GetForegroundWindow.restype = wintypes.HWND
+        for fn in (u.IsWindowVisible, u.IsIconic):
+            fn.argtypes = [wintypes.HWND]
+        u.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+        u.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+        u.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        visibles = []                      # el cliente tiene varias RCLIENT ocultas y pequenas: vale la grande
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def cada(hw, _):
+            c = ctypes.create_unicode_buffer(16)
+            if u.IsWindowVisible(hw) and u.GetClassNameW(hw, c, 16) and c.value == "RCLIENT":
+                visibles.append(hw)
+            return True
+        u.EnumWindows(cada, 0)
+        if not visibles:
+            return out
+        grandes = []
+        for h in visibles:
+            if u.IsIconic(h):
+                out["estado"] = "minimizado"
+                continue
+            r = wintypes.RECT()
+            if u.GetWindowRect(h, ctypes.byref(r)) and r.right - r.left >= 400:
+                grandes.append(((r.right - r.left) * (r.bottom - r.top), h, (r.left, r.top, r.right, r.bottom)))
+        if not grandes:
+            return out
+        _, h, rect = max(grandes)
+        pid_c, pid_f = wintypes.DWORD(), wintypes.DWORD()
+        u.GetWindowThreadProcessId(h, ctypes.byref(pid_c))
+        fg = u.GetForegroundWindow()
+        delante = None
+        if fg:
+            u.GetWindowThreadProcessId(fg, ctypes.byref(pid_f))
+            if pid_f.value == pid_c.value:
+                delante = True
+            elif pid_f.value != os.getpid():
+                delante = False
+        return {"estado": "visible", "rect": rect, "delante": delante}
+    except Exception:
+        return out
+
+
+def lado_acoplado(cli, area, w):
+    """x de la ventanita pegada al cliente: a su derecha si cabe; si no, a la izquierda; si tampoco, en el lado
+    donde tape menos (pegada al borde de la pantalla)."""
+    l, t, r, b = cli
+    al, at, ar, ab = area
+    der = min(r + 6, ar - w)
+    izq = max(l - 6 - w, al)
+    tapa_der = max(0, r + 6 - der)
+    tapa_izq = max(0, izq + w - (l - 6))
+    return der if tapa_der <= tapa_izq else izq
+
+
 class Ventana:
     """Ventanita siempre encima para la seleccion de campeon y la pantalla de carga (en partida la sustituyen
     las tarjetas de Hud). Solo se toca desde el hilo principal.
@@ -8825,6 +8892,10 @@ class Ventana:
         pref = self._cargar_pref()
         self.pos = pref["pos"]
         self.compacta = pref["compacta"]
+        self.acoplada = pref["acoplada"]   # en la seleccion, pegada al cliente de LoL (como Blitz o Porofessor)
+        self._cli = None                  # rect del cliente (si esta visible) la ultima vez que se miro
+        self._cli_puesto = None           # rect del cliente con el que se coloco la ventanita
+        self._tapada = False              # oculta porque el cliente no esta delante (vuelve sola)
         self._scroll, self._sobra, self._geo = 0, 0, None     # desplazamiento si no cabe en la pantalla
         self._lbl_mas = tk.Label(self.win, text="▼  Más abajo: usa la rueda del ratón", anchor="center", pady=4)
         self.win.bind_all("<ButtonPress-1>", self._ini_drag)
@@ -8833,19 +8904,22 @@ class Ventana:
         self.win.bind_all("<MouseWheel>", self._rueda)
         self.root.after(150, self._procesar)
         self.root.after(3000, self._vigilar)
+        self.root.after(400, self._seguir_cliente)
 
     # -- preferencias (posicion y tamano)
     def _cargar_pref(self):
         try:
             p = json.loads((DATOS / "ventana.json").read_text(encoding="utf-8"))
-            return {"pos": (int(p["x"]), int(p["y"])), "compacta": bool(p.get("compacta", True))}
+            return {"pos": (int(p["x"]), int(p["y"])), "compacta": bool(p.get("compacta", True)),
+                    "acoplada": bool(p.get("acoplada", True))}
         except Exception:
-            return {"pos": (self.root.winfo_screenwidth() - self.ANCHO - 30, 110), "compacta": True}
+            return {"pos": (self.root.winfo_screenwidth() - self.ANCHO - 30, 110), "compacta": True, "acoplada": True}
 
     def _guardar_pref(self):
         try:
             (DATOS / "ventana.json").write_text(json.dumps(
-                {"x": self.pos[0], "y": self.pos[1], "compacta": self.compacta}), encoding="utf-8")
+                {"x": self.pos[0], "y": self.pos[1], "compacta": self.compacta, "acoplada": self.acoplada}),
+                encoding="utf-8")
         except Exception:
             pass
 
@@ -8855,20 +8929,84 @@ class Ventana:
         if w != str(self.win) and not w.startswith(str(self.win) + "."):
             self._drag = None
             return
-        self._drag = (e.x_root - self.win.winfo_x(), e.y_root - self.win.winfo_y(), False)
+        self._drag = (e.x_root - self.win.winfo_x(), e.y_root - self.win.winfo_y(), False, e.x_root, e.y_root)
 
     def _mover(self, e):
         if self._drag:
-            self.pos = (e.x_root - self._drag[0], e.y_root - self._drag[1])
-            self._drag = (self._drag[0], self._drag[1], True)
+            dx, dy, movio, x0, y0 = self._drag
+            if not movio and abs(e.x_root - x0) + abs(e.y_root - y0) < 6:
+                return                                # un clic con el pulso temblando no es arrastrar
+            self.pos = (e.x_root - dx, e.y_root - dy)
+            self._drag = (dx, dy, True, x0, y0)
             self.win.geometry(f"+{self.pos[0]}+{self.pos[1]}")
 
     def _fin_drag(self, e):
         movio = self._drag and self._drag[2]
         self._drag = None
-        if movio:
+        if movio and self.visible:
+            if self._acoplar_ahora():                  # la moviste tu: se queda donde la dejes
+                self.acoplada = False
+                self.firma = None
+                if self.ultimo_estado:
+                    self._pintar(self.ultimo_estado, forzar=True)
             self._guardar_pref()
             self._ajustar()
+
+    def _acoplar_ahora(self):
+        return self.acoplada and self.ultimo_modo == "seleccion" and self._cli is not None
+
+    def _pegar(self):
+        self.acoplada = True
+        self._guardar_pref()
+        c = cliente_lol()
+        self._cli = c["rect"] if c["estado"] == "visible" else None
+        if self.ultimo_estado:
+            self.firma = None
+            self._pintar(self.ultimo_estado, forzar=True)
+        self._geo = None
+        self._ajustar()
+
+    def _seguir_cliente(self):
+        """En la seleccion de campeon (acoplada): sigue al cliente si lo mueves o cambias de tamano, y se esconde
+        mientras miras otra ventana o lo minimizas (no se queda encima del navegador, de Discord o del juego).
+        Solo vuelve a tu sitio guardado si cierras el cliente."""
+        try:
+            if self.acoplada and self.ultimo_modo == "seleccion" and self.visible:
+                c = cliente_lol()
+                if c["estado"] == "cerrado":
+                    self._cli = None
+                    if self._cli_puesto is not None:
+                        self._geo = None
+                        self._ajustar()
+                    if self._tapada:
+                        self._destapar()
+                elif c["estado"] == "minimizado":
+                    self._tapar()
+                else:
+                    self._cli = c["rect"]
+                    if c["rect"] != self._cli_puesto:          # se recoloca aunque este escondida
+                        self._geo = None
+                        self._ajustar()
+                    if c["delante"] is False:
+                        self._tapar()
+                    elif c["delante"] and self._tapada:
+                        self._destapar()
+        except Exception:
+            pass
+        self.root.after(300, self._seguir_cliente)
+
+    def _tapar(self):
+        if not self._tapada:
+            self._tapada = True
+            self.win.withdraw()
+
+    def _destapar(self):
+        self._tapada = False
+        if self.visible and not d3d_pantalla_completa():
+            self._sin_foco()
+            self.win.deiconify()
+            self._sin_foco()
+            self._encima()
 
     # -- que quepa en la pantalla
     def _area(self, x, y):
@@ -8903,10 +9041,18 @@ class Ventana:
         try:
             w = max(self.marco.winfo_reqwidth(), self.ANCHO - 2) + 2
             h = self.marco.winfo_reqheight() + 2
-            l, t, r, b = self._area(self.pos[0] + w // 2, self.pos[1] + 20)
-            vis = min(h, max(120, b - t - 8))
-            x = max(l, min(self.pos[0], r - w))          # siempre dentro de la pantalla (si no, no se ve)
-            y = max(t, min(self.pos[1], b - vis))
+            self._cli_puesto = self._cli if self._acoplar_ahora() else None
+            if self._acoplar_ahora():                     # pegada al cliente: misma altura que el, arriba del todo
+                cl, ct, cr, cb = self._cli
+                area = self._area((cl + cr) // 2, ct + 20)
+                x = lado_acoplado(self._cli, area, w)
+                vis = min(h, max(160, cb - ct))
+                y = max(area[1], min(ct, area[3] - vis))
+            else:
+                l, t, r, b = self._area(self.pos[0] + w // 2, self.pos[1] + 20)
+                vis = min(h, max(120, b - t - 8))
+                x = max(l, min(self.pos[0], r - w))          # siempre dentro de la pantalla (si no, no se ve)
+                y = max(t, min(self.pos[1], b - vis))
             self._sobra = max(0, h - vis)
             self._scroll = max(0, min(self._scroll, self._sobra))
             self.marco.place_configure(y=1 - self._scroll, width=w - 2)
@@ -9095,6 +9241,8 @@ class Ventana:
         x.pack(side="right", anchor="n")
         x.bind("<ButtonRelease-1>", lambda e: self._cerrar())
         self._boton(fila, "Más" if comp else "Menos", self._alternar).pack(side="right", anchor="n", padx=(0, 8))
+        if not self.acoplada:
+            self._boton(fila, "Pegar", self._pegar).pack(side="right", anchor="n", padx=(0, 8))
         col = tk.Frame(fila, bg=C["fondo"])
         col.pack(side="left", fill="x", expand=True)
         tk.Label(col, text=cab.get("campeon") or "Coach LoL", font=self._f(11, "bold"), fg=C["tinta"], bg=C["fondo"],
@@ -9245,6 +9393,7 @@ class Ventana:
     def _cerrar(self):
         self.oculta_hasta_cambio = True
         self.visible = False
+        self._tapada = False
         self.win.withdraw()
 
     def _mostrar(self):
@@ -9252,10 +9401,17 @@ class Ventana:
         mandaba el juego al escritorio); en 'Sin bordes' _vigilar la mantiene encima sin activarla."""
         if self.visible:
             return
+        c = None
+        if self.acoplada and self.ultimo_modo == "seleccion":
+            c = cliente_lol()
+            self._cli = c["rect"] if c["estado"] == "visible" else None
         self._geo = None
         self._ajustar()
-        self.win.deiconify()
         self.visible = True
+        if c and (c["estado"] == "minimizado" or (c["estado"] == "visible" and c["delante"] is False)):
+            self._tapada = True                    # el cliente no esta delante: sale cuando vuelvas a el
+            return
+        self.win.deiconify()
         try:
             self.win.update_idletasks()
         except Exception:
@@ -9340,18 +9496,22 @@ class Ventana:
             if self.visible:
                 self.win.withdraw()
                 self.visible = False
+            self._tapada = False
             self.ultimo_modo, self.ultimo_estado, self.firma, self._lbl_estado = modo, s, None, None
             return
         if self.hud is not None:
             self.hud.quitar()
         if modo != self.ultimo_modo:
             self.oculta_hasta_cambio = False
+            if self._tapada:
+                self._tapada, self.visible = False, False
         if modo == "oculto" or not modo:
             self.ultimo_modo = modo
             self.firma = None
             if self.visible:
                 self.win.withdraw()       # si ya estaba oculta no se toca (nada de llamadas en plena partida)
             self.visible = False
+            self._tapada = False
             return
         if self.oculta_hasta_cambio and not forzar:
             return
