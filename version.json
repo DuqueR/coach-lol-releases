@@ -1,6 +1,6 @@
 {
-  "version": "33",
-  "notas": "tarjetas de partida nuevas: CS contra tu rival de línea, qué habilidad subir y la build con iconos y barra de oro",
+  "version": "34",
+  "notas": "scouting de los 10 en la pantalla de carga y por dónde empieza su jungla (con aviso en partida si va a tu línea)",
   "archivos": [
     "coach.py",
     "dashboard.html",

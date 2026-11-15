@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "33"
+VERSION = "34"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -3907,46 +3907,247 @@ def texto_historial(h, nombre):
     return s
 
 
-def explorar_rival(lcu, rec, puuid, cid):
-    """Datos publicos del rival de linea. Solo despues de la pantalla de carga (nombres visibles)."""
+# =============================================================== SCOUTING DE LOS 10
+_FICHAS = {}                  # puuid -> (momento, ficha): no repetir peticiones si vuelve a salir
+# el bufo de cada mitad de la jungla segun el lado del equipo (azul = 100, abajo a la izquierda)
+_BUFO = {(100, "arriba"): "azul", (100, "abajo"): "rojo", (200, "arriba"): "rojo", (200, "abajo"): "azul"}
+POS_CORTA = {"TOP": "top", "JUNGLE": "jungla", "MIDDLE": "mid", "BOTTOM": "adc", "UTILITY": "support"}
+
+
+def zona_mapa(x, y):
+    """Zona de la Grieta por coordenadas: base, top, bot, mid, o la mitad de jungla de arriba / abajo (la
+    diagonal de mid separa la mitad de arriba, y > x, de la de abajo)."""
+    if (x < 3600 and y < 3600) or (x > 11200 and y > 11200):
+        return "base"
+    # cada linea: su tramo recto pegado al borde y el triangulo de la esquina (los campamentos quedan fuera:
+    # el gromp azul esta en ~(2100, 8400), el rojo en ~(12700, 6400))
+    if x < 1900 or y > 12900 or (x < 4200 and y > 10600 and y - x > 8500):
+        return "top"
+    if y < 1900 or x > 12900 or (x > 10600 and y < 4200 and x - y > 8500):
+        return "bot"
+    if abs(x - y) < 1500:
+        return "mid"
+    return "arriba" if y > x else "abajo"
+
+
+def perfil_jugador(games, cid):
+    """Resumen de las ultimas partidas de la Grieta de un jugador (lista del historial de la LCU)."""
+    gs = sorted(games or [], key=lambda g: g.get("gameCreation") or 0, reverse=True)
+    f = {"n": 0, "v": 0, "con": 0, "v_con": 0, "kda_con": None, "racha": 0, "jungla": []}
+    k = d = a = 0
+    res = []
+    for g in gs:
+        if g.get("mapId") not in (None, 11) or (g.get("gameDuration") or 999) < 300:
+            continue                                   # ARAM, modos raros y partidas rehechas no cuentan
+        p = (g.get("participants") or [{}])[0]
+        st = p.get("stats") or {}
+        win = bool(st.get("win"))
+        f["n"] += 1
+        f["v"] += win
+        res.append(win)
+        if p.get("championId") == cid:
+            f["con"] += 1
+            f["v_con"] += win
+            k, d, a = k + (st.get("kills") or 0), d + (st.get("deaths") or 0), a + (st.get("assists") or 0)
+        if SMITE in (p.get("spell1Id"), p.get("spell2Id")):
+            f["jungla"].append({"gid": g.get("gameId"), "pid": p.get("participantId"), "team": p.get("teamId")})
+    if f["con"]:
+        f["kda_con"] = round((k + a) / max(d, 1), 1)
+    for x in res:
+        if x != res[0]:
+            break
+        f["racha"] += 1 if res[0] else -1
+    return f
+
+
+def etiquetas_jugador(f, enemigo=True):
+    """Chips cortos de un jugador: [(texto, tono)]. El tono es para ti: 'mal' = cuidado, 'bien' = a tu favor."""
+    t = []
+    n, con = f.get("n") or 0, f.get("con") or 0
+    fuerte, flojo = ("mal", "bien") if enemigo else ("bien", "mal")
+    if n >= 8 and con >= max(6, n // 2):
+        t.append((f"OTP {con}/{n}", fuerte))
+    elif n >= 5 and con == 0:
+        t.append(("1ª vez con él", flojo))
+    elif con >= 5:
+        wr = round(100 * f["v_con"] / con)
+        if wr >= 60 or wr <= 40:
+            t.append((f"{wr}% con él", fuerte if wr >= 60 else flojo))
+    r = f.get("racha") or 0
+    if r >= 3:
+        t.append((f"gana {r} seguidas", fuerte))
+    elif r <= -3:
+        t.append((f"pierde {-r} seguidas", flojo))
+    if f.get("nivel") and f["nivel"] < 50 and n >= 8 and f["v"] / n >= 0.7:
+        t.append(("posible smurf", fuerte))
+    return t
+
+
+def lineas_ficha(f, nombre):
+    """Lo que se sabe de tu rival de linea, en frases."""
     lineas = []
-    nombre = rec.campeon(cid)
+    if f.get("rango"):
+        lineas.append(f"Rango: {f['rango']}")
+    n, con = f.get("n") or 0, f.get("con") or 0
+    if n:
+        if con >= max(6, n // 2):
+            lineas.append(f"Es main de {nombre}: {con} de sus últimas {n} partidas.")
+        elif not con:
+            lineas.append(f"No ha jugado {nombre} en sus últimas {n} partidas.")
+        else:
+            lineas.append(f"{con} de sus últimas {n} partidas con {nombre}.")
+        r = f.get("racha") or 0
+        if abs(r) >= 3:
+            lineas.append(f"Viene de {abs(r)} {'victorias' if r > 0 else 'derrotas'} seguidas.")
+    return lineas
+
+
+def ficha_jugador(lcu, puuid, cid):
+    """Rango, nivel y ultimas 20 partidas de un jugador. Solo despues de la pantalla de carga (antes la LCU
+    esconde a los rivales)."""
+    c = _FICHAS.get(puuid)
+    if c and time.time() - c[0] < 1800 and c[1].get("cid") == cid:
+        return c[1]
+    f = {"cid": cid, "rango": "", "nivel": None}
     try:
         r = lcu.get(f"/lol-ranked/v1/ranked-stats/{puuid}", timeout=5)
         q = (r.get("queueMap") or {}).get("RANKED_SOLO_5x5") or {}
         tier = (q.get("tier") or "").upper()
         if tier and tier != "NONE":
             div = q.get("division") or ""
-            lineas.append(f"Rango: {TIERS.get(tier, tier.title())}{'' if div in ('', 'NA') else ' ' + div}")
+            f["rango"] = f"{TIERS.get(tier, tier.title())}{'' if div in ('', 'NA') or tier in ('MASTER', 'GRANDMASTER', 'CHALLENGER') else ' ' + div}"
     except Exception:
         pass
     try:
-        h = lcu.get(f"/lol-match-history/v1/products/lol/{puuid}/matches?begIndex=0&endIndex=19", timeout=6)
-        gs = sorted(((h.get("games") or {}).get("games")) or [], key=lambda g: g.get("gameCreation") or 0,
-                    reverse=True)
-
-        def p0(g):
-            return (g.get("participants") or [{}])[0]
-
-        if gs:
-            con = [g for g in gs if p0(g).get("championId") == cid]
-            if len(con) >= max(6, len(gs) // 2):
-                lineas.append(f"Es main de {nombre}: {len(con)} de sus últimas {len(gs)} partidas.")
-            elif not con:
-                lineas.append(f"No ha jugado {nombre} en sus últimas {len(gs)} partidas.")
-            else:
-                lineas.append(f"{len(con)} de sus últimas {len(gs)} partidas con {nombre}.")
-            res = [bool((p0(g).get("stats") or {}).get("win")) for g in gs]
-            racha = 0
-            for x in res:
-                if x != res[0]:
-                    break
-                racha += 1
-            if racha >= 3:
-                lineas.append(f"Viene de {racha} {'victorias' if res[0] else 'derrotas'} seguidas.")
+        f["nivel"] = (lcu.get(f"/lol-summoner/v2/summoners/puuid/{puuid}", timeout=5) or {}).get("summonerLevel")
     except Exception:
         pass
-    return lineas
+    try:
+        h = lcu.get(f"/lol-match-history/v1/products/lol/{puuid}/matches?begIndex=0&endIndex=19", timeout=8)
+        f.update(perfil_jugador((h.get("games") or {}).get("games") or [], cid))
+    except Exception:
+        pass
+    _FICHAS[puuid] = (time.time(), f)
+    return f
+
+
+def explorar_rival(lcu, rec, puuid, cid):
+    """Datos publicos del rival de linea, en frases."""
+    return lineas_ficha(ficha_jugador(lcu, puuid, cid), rec.campeon(cid))
+
+
+def timelines_jungla(lcu, juegos, puuid, maximo=5):
+    """Las lineas de tiempo de sus ultimas partidas de jungla (en paralelo)."""
+    def campamentos(fr, pid):
+        return int((((fr[3].get("participantFrames") or {}).get(str(pid)) or {}).get("jungleMinionsKilled") or 0)
+                   if len(fr) > 3 and pid else 0)
+
+    def una(j):
+        try:
+            tl = lcu.get(f"/lol-match-history/v1/game-timelines/{j['gid']}", timeout=15)
+            fr = (tl or {}).get("frames") or []
+            pid, team = j.get("pid"), j.get("team")
+            if not campamentos(fr, pid):
+                # el id del historial no cuadra con la partida (o no viene): se busca por su puuid
+                g = lcu.get(f"/lol-match-history/v1/games/{j['gid']}", timeout=8)
+                pid = next((x.get("participantId") for x in g.get("participantIdentities") or []
+                            if (x.get("player") or {}).get("puuid") == puuid), None)
+                team = next((x.get("teamId") for x in g.get("participants") or [] if x.get("participantId") == pid), None)
+                if not campamentos(fr, pid):
+                    return None
+            return {"team": team or (100 if int(pid) <= 5 else 200), "pid": int(pid), "frames": fr}
+        except Exception:
+            return None
+    hilos, out = [], [None] * min(maximo, len(juegos))
+    for i, j in enumerate(juegos[:maximo]):
+        t = threading.Thread(target=lambda i=i, j=j: out.__setitem__(i, una(j)), daemon=True)
+        t.start()
+        hilos.append(t)
+    for t in hilos:
+        t.join(25)
+    return [x for x in out if x and x["frames"]]
+
+
+def plan_jungla(juegos):
+    """Como empieza un jungla: con que bufo (por donde esta en el minuto 1-2) y donde hace su primera jugada
+    (la primera kill, asistencia o muerte en una linea antes del 6; si no, la primera vez que aparece en una
+    linea entre el 3 y el 5). La jugada se guarda relativa a su inicio: en la linea de su mismo lado (gank
+    temprano) o en la del otro (tras limpiar toda la jungla). juegos: [{"team", "pid", "frames"}]."""
+    bufos, jugadas = Counter(), []
+    for j in juegos:
+        fr, pid, team = j.get("frames") or [], int(j["pid"]), j.get("team")
+        if len(fr) < 6 or team not in (100, 200):
+            continue
+
+        def zona(m):
+            pos = ((fr[m].get("participantFrames") or {}).get(str(pid)) or {}).get("position") or {}
+            return zona_mapa(pos.get("x", 0), pos.get("y", 0)) if pos else None
+        lado = next((z for z in (zona(1), zona(2)) if z in ("arriba", "abajo")), None)
+        if not lado:
+            continue
+        bufos[_BUFO[(team, lado)]] += 1
+        donde = minuto = None
+        for f in fr[:8]:
+            for e in f.get("events") or []:
+                if e.get("type") != "CHAMPION_KILL" or (e.get("timestamp") or 0) > 360000:
+                    continue
+                if pid in [e.get("killerId"), e.get("victimId")] + list(e.get("assistingParticipantIds") or []):
+                    p = e.get("position") or {}
+                    z = zona_mapa(p.get("x", 0), p.get("y", 0))
+                    if z in ("top", "mid", "bot"):
+                        donde, minuto = z, e["timestamp"] / 60000
+                        break
+            if donde:
+                break
+        if not donde:
+            for m in (3, 4, 5):            # por posicion solo top/bot: en mid casi siempre es que cruza el rio
+                if zona(m) in ("top", "bot"):
+                    donde, minuto = zona(m), float(m)
+                    break
+        if donde:
+            rel = "mid" if donde == "mid" else ("mismo" if (donde == "top") == (lado == "arriba") else "otro")
+            jugadas.append((rel, minuto))
+    n = sum(bufos.values())
+    plan = {"n": n}
+    if n < 3:
+        return plan
+    plan["bufo"], plan["n_bufo"] = bufos.most_common(1)[0]
+    rels = Counter(r for r, _ in jugadas)
+    if rels:
+        rel, nr = rels.most_common(1)[0]
+        if nr >= max(2, 0.4 * n):
+            mins = sorted(m for r, m in jugadas if r == rel)
+            plan.update(jugada=rel, n_jugada=nr, minuto=round(mins[len(mins) // 2], 1))
+    return plan
+
+
+def _min_seg(m):
+    s = int(round(m * 60))
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def texto_plan_jungla(plan, team, nombre, mi_rol=""):
+    """El plan del jungla rival para ESTA partida. team: su lado ahora (100 azul / 200 rojo)."""
+    if not plan or (plan.get("n") or 0) < 3 or team not in (100, 200):
+        return None
+    lado = next(l for (t, l), b in _BUFO.items() if t == team and b == plan["bufo"])
+    txt = (f"{nombre} empieza en su bufo {plan['bufo']} ({plan['n_bufo']} de sus {plan['n']} últimas de jungla): "
+           f"aquí, por {'arriba' if lado == 'arriba' else 'abajo'}.")
+    out = {"txt": txt, "alerta": False, "linea": None, "minuto": None, "lado": lado}
+    if plan.get("jugada"):
+        if plan["jugada"] == "mid":
+            linea = "mid"
+        elif plan["jugada"] == "mismo":
+            linea = "top" if lado == "arriba" else "bot"
+        else:
+            linea = "bot" if lado == "arriba" else "top"
+        out.update(linea=linea, minuto=plan["minuto"])
+        out["txt"] += f" Su primera jugada suele ser en {linea} hacia el {_min_seg(plan['minuto'])} ({plan['n_jugada']} de {plan['n']})."
+        mia = {"top": "top", "mid": "mid", "bot": "bot", "support": "bot"}.get(mi_rol)
+        if mia == linea:
+            out["alerta"] = True
+            out["txt"] += " Es tu línea: ward en el río antes de ese minuto y no pases de la mitad."
+    return out
 
 
 # =============================================================== REPETICIONES
@@ -7085,6 +7286,32 @@ class Ventana:
         else:
             self._clic(fila, lambda k=o["clave"]: self.al_elegir and self.al_elegir(k))
 
+    def _fila_jugador(self, x):
+        """Un jugador en la pantalla de carga: icono, campeon, linea, rango y sus chips (rojo = cuidado)."""
+        C, tk = self.C, self.tk
+        fila = tk.Frame(self.marco, bg=C["fondo"])
+        fila.pack(fill="x", pady=(5, 0))
+        img = self._foto(x.get("ico"), 26)
+        if img:
+            tk.Label(fila, image=img, bg=C["fondo"]).pack(side="left", anchor="n", padx=(0, 8))
+        col = tk.Frame(fila, bg=C["fondo"])
+        col.pack(side="left", fill="x", expand=True)
+        l1 = tk.Frame(col, bg=C["fondo"])
+        l1.pack(fill="x")
+        tk.Label(l1, text=x["nombre"], font=self._f(9, "bold"), fg=C["tinta"], bg=C["fondo"]).pack(side="left")
+        if x.get("pos"):
+            tk.Label(l1, text=x["pos"], font=self._f(8), fg=C["gris"], bg=C["fondo"]).pack(side="left", padx=(5, 0))
+        rango = x.get("rango") or ("…" if x.get("cargando") else "sin rango")
+        tk.Label(l1, text=rango, font=self._f(8, "bold"), fg=C["oro"] if x.get("rango") else C["gris"],
+                 bg=C["fondo"]).pack(side="right")
+        chips = x.get("chips") or []
+        for k in range(0, min(len(chips), 4), 2):
+            l2 = tk.Frame(col, bg=C["fondo"])
+            l2.pack(fill="x", pady=(2, 0))
+            for t, tono in chips[k:k + 2]:
+                tk.Label(l2, text=t, font=self._f(8, "bold"), fg={"mal": C["rojo"], "bien": C["verde"]}.get(tono, C["gris"]),
+                         bg=C["chip"], padx=5, pady=0).pack(side="left", padx=(0, 4))
+
     def _plegable(self, clave, titulo, resumen, lineas, color=None, iconos=None):
         C, tk = self.C, self.tk
         abierto = clave in self._abiertos
@@ -7268,6 +7495,12 @@ class Ventana:
                                12 if comp else 18, "bold", pady=(3, 3), voz="num")
             if s.get("nota_matchup"):
                 self._lbl(s["nota_matchup"], 9, "bold", C["tinta"], bg=C["azul2"], pady=(2, 4))
+            if s.get("jungla"):              # su jungla: se ve tambien en compacta
+                jg = s["jungla"]
+                self._fila_ico(jg.get("ico"), jg["txt"], 24, 9, "bold", C["tinta"],
+                               bg=C["rojo2"] if jg.get("alerta") else C["azul2"], pady=(2, 4))
+            elif s.get("jungla_pend") and not comp:
+                self._lbl("Mirando por dónde suele empezar su jungla…", 8, color=C["gris"], pady=(0, 3))
             if not comp:
                 for linea in s.get("rival_info", []):
                     self._lbl(linea, 9, color=C["gris"])
@@ -7286,11 +7519,22 @@ class Ventana:
                     self._lbl(s["plan"], 9)
                 for x in s.get("checklist", []):
                     self._lbl("✓  " + x, 9, color=C["gris"], pady=(3, 0))
-                if s.get("scout"):
+                eq = s.get("equipos") or {}
+                if eq.get("rivales"):
                     self.tk.Frame(self.marco, bg=C["linea"], height=1).pack(fill="x", pady=(10, 7))
-                    self._seccion("Sus otros jugadores")
-                    for x in s["scout"][:4]:
-                        self._fila_ico(x.get("ico"), x["txt"], 22, 9, color=C["gris"], pady=(3, 0))
+                    self._seccion("Rivales")
+                    for x in eq["rivales"]:
+                        self._fila_jugador(x)
+                if eq.get("aliados"):
+                    self.tk.Frame(self.marco, bg=C["fondo"], height=8).pack(fill="x")
+                    lin, malos = [], 0
+                    for x in eq["aliados"]:
+                        malos += sum(1 for _, tono in x.get("chips") or [] if tono == "mal")
+                        extra = " · ".join([x.get("rango") or ""] + [t for t, _ in x.get("chips") or []]).strip(" ·")
+                        lin.append(f"{x['nombre']}{' (' + x['pos'] + ')' if x.get('pos') else ''}"
+                                   f"{': ' + extra if extra else (' …' if x.get('cargando') else '')}")
+                    self._plegable("aliados", "Tu equipo", f"{malos} a vigilar" if malos else "", lin,
+                                   C["rojo"] if malos else None)
                 if s.get("dano_txt"):
                     self._fila_ico(s.get("dano_iconos") or [], s["dano_txt"], 26, 9, "bold", C["tinta"],
                                    bg=C["azul2"], pady=(8, 0))
@@ -7383,6 +7627,7 @@ class Coach:
         self.envivo = None
         self._sel_clave = None
         self.carga = None
+        self.plan_jungla, self._aviso_jungla = None, False
         self.rol_partida = ""
         self._hud_reto, self._hud_base = None, None
         self.repeticion = None
@@ -8028,34 +8273,123 @@ class Coach:
         tablas = {c: self._tabla_rivales(c, rol) or {} for c in pool_ids}
         return mejor_pick(pool_ids, enemigos, tablas, self.rec.campeon)
 
-    def _scout_enemigos(self, estado, enemigos):
-        """En la carga: una etiqueta corta por cada enemigo (se piden aparte y se añaden al llegar)."""
+    def _scout(self, estado, rival, su_lado, ses):
+        """En la pantalla de carga: rango, racha y campeon de los 10 (cada uno se pinta al llegar) y como empieza
+        su jungla, sacado de sus ultimas partidas de jungla. Todo en segundo plano: el bucle no se para."""
+        eq = estado["equipos"]
+        filas = [f for f in eq["rivales"] + eq["aliados"] if f["puuid"]]
+        rival_puuid = (rival or {}).get("puuid")
+        lock = threading.Lock()              # los hilos tocan estado; la ventanita recibe una copia
+
+        def vigente():
+            return self.carga is estado
+
+        def pintar():
+            if vigente():
+                with lock:
+                    copia = json.loads(json.dumps(estado, ensure_ascii=False))
+                self._ventana(copia)
+
+        def jungla(f, ficha):
+            if not ficha.get("jungla"):
+                return
+            with lock:
+                estado["jungla_pend"] = True
+            pintar()
+            plan = plan_jungla(timelines_jungla(self.lcu, ficha["jungla"], f["puuid"]))
+            tp = texto_plan_jungla(plan, su_lado, f["nombre"], self.rol_partida)
+            with lock:
+                estado.pop("jungla_pend", None)
+                if tp and vigente():
+                    estado["jungla"] = dict(tp, ico=f["ico"])
+                    self.plan_jungla = dict(tp, plan=plan, nombre=f["nombre"], su_lado=su_lado)
+            if tp:
+                log("Plan de su jungla: " + tp["txt"])
+            pintar()
+
+        def muestra():
+            # lo que da la LCU en la carga, para afinar (solo una vez; se queda en datos/, que no se publica)
+            arch = DATOS / "scout_muestra.json"
+            if arch.exists():
+                return
+            try:
+                otro = next(f for f in eq["rivales"] if f["puuid"])
+                h = self.lcu.get(f"/lol-match-history/v1/products/lol/{otro['puuid']}/matches?begIndex=0&endIndex=4", timeout=8)
+                gs = (h.get("games") or {}).get("games") or []
+                tl = self.lcu.get(f"/lol-match-history/v1/game-timelines/{gs[0]['gameId']}", timeout=15) if gs else None
+                arch.write_text(json.dumps({"sesion": ses, "historial": h, "timeline": tl}), encoding="utf-8")
+            except Exception:
+                pass
+
         def pedir():
-            lineas = []
-            for x in enemigos:
+            threading.Thread(target=muestra, daemon=True).start()
+            fichas = {}
+            jg = next((f for f in eq["rivales"] if f["pos"] == "jungla" or f["smite"]), None)
+
+            def una(f):
                 try:
-                    info = explorar_rival(self.lcu, self.rec, x["puuid"], x["championId"])
+                    ficha = ficha_jugador(self.lcu, f["puuid"], f["cid"])
                 except Exception:
-                    info = []
-                tags = []
-                for l in info:
-                    if l.startswith("Es main"):
-                        tags.append("solo juega ese campeón")
-                    elif l.startswith("No ha jugado"):
-                        tags.append("primera vez con el campeón")
-                    elif l.startswith("Viene de") and "derrotas" in l:
-                        tags.append("en racha de " + l.split()[2] + " derrotas")
-                    elif l.startswith("Viene de") and "victorias" in l:
-                        tags.append("en racha de " + l.split()[2] + " victorias")
-                    elif l.startswith("Rango:"):
-                        tags.insert(0, l[7:])
-                if tags:
-                    lineas.append({"ico": self._ico("campeon", x["championId"]),
-                                   "txt": f"{self.rec.campeon(x['championId'])}: " + ", ".join(tags)})
-            if lineas and self.carga is estado:
-                estado["scout"] = lineas
-                self._ventana(dict(estado))
+                    ficha = {}
+                with lock:
+                    fichas[f["puuid"]] = ficha
+                    f["rango"] = ficha.get("rango") or ""
+                    f["chips"] = etiquetas_jugador(ficha, f["enemigo"])
+                    f["cargando"] = False
+                    if f["puuid"] == rival_puuid:
+                        estado["rival_info"] = lineas_ficha(ficha, f["nombre"]) + list(estado.get("rival_info") or [])
+                if f is jg:
+                    jungla(f, ficha)
+                pintar()
+            hilos = [threading.Thread(target=una, args=(f,), daemon=True) for f in filas]
+            for t in hilos:
+                t.start()
+            fin = time.time() + 45
+            for t in hilos:
+                t.join(max(0.1, fin - time.time()))
+            if jg is None and vigente():
+                # no se sabe quien va de jungla: el rival que mas partidas recientes juega con Castigo
+                cand = [(len(fichas.get(f["puuid"], {}).get("jungla") or []) / max(1, fichas.get(f["puuid"], {}).get("n") or 1), f)
+                        for f in eq["rivales"] if f["puuid"] in fichas]
+                cand = [c for c in cand if c[0] >= 0.5]
+                if cand:
+                    f = max(cand, key=lambda c: c[0])[1]
+                    jungla(f, fichas[f["puuid"]])
         threading.Thread(target=pedir, daemon=True).start()
+
+    def _con_jungla(self, estado, data):
+        """Un aviso unos segundos antes de que su jungla suela aparecer por tu linea."""
+        try:
+            pj = self.plan_jungla
+            if not pj or self._aviso_jungla or not estado or estado.get("modo") != "partida":
+                return estado
+            if not pj.get("lado_ok"):
+                # el lado de cada equipo se confirma con la partida en vivo (ORDER = azul / 100, CHAOS = rojo / 200)
+                yo = _yo_en_vivo(data or {}, ((self.alm.d.get("jugador") or {}).get("nombre") or ""))
+                real = {"ORDER": 200, "CHAOS": 100}.get((yo or {}).get("team"))
+                pj["lado_ok"] = bool(real)
+                if real and real != pj.get("su_lado"):
+                    log(f"El lado de su jungla no era el que creía ({pj.get('su_lado')} -> {real}): recalculo su plan.")
+                    tp = texto_plan_jungla(pj.get("plan"), real, pj.get("nombre") or "Su jungla", self.rol_partida)
+                    if not tp:
+                        self.plan_jungla = None
+                        return estado
+                    pj.update(tp, su_lado=real)
+            if not pj.get("alerta") or estado.get("aviso"):
+                return estado
+            t = float(((data or {}).get("gameData") or {}).get("gameTime") or 0)
+            lim = (pj.get("minuto") or 3.25) * 60
+            if lim - 50 <= t <= lim:
+                self._aviso_jungla = True
+                return dict(estado, aviso=f"Su jungla suele llegar a tu línea hacia el {_min_seg(pj['minuto'] or 3.25)}: "
+                                          "ward en el río y no pases de la mitad.", tono="rojo")
+            if t > lim:
+                self._aviso_jungla = True
+            return estado
+        except Exception as e:
+            log(f"Plan de su jungla en partida: {type(e).__name__}: {e}")
+            self.plan_jungla = None
+            return estado
 
     def _con_dano(self, estado, enemigos, champ):
         """Añade a la ventanita de que tipo es el daño de su equipo y que defensa comprar."""
@@ -8132,30 +8466,35 @@ class Coach:
                 precio = ((self.rec.items.get(str(estado["objeto_id"])) or {}).get("precio") or 0)
                 if precio:
                     hud["oro_pct"] = round(max(0.0, min(1.0, 1 - estado["objeto_falta"] / precio)), 2)
-            # tu rival de linea, con lo que tambien ves en la tabla del Tab: CS y nivel
-            rv = None
-            pos = (yo.get("position") or "").upper()
-            enem = [x for x in data.get("allPlayers") or [] if x.get("team") != yo.get("team")]
-            if pos and pos != "NONE":
-                rv = next((x for x in enem if (x.get("position") or "").upper() == pos), None)
-            if not rv and self.rival_partida:
-                nr = (self.rec.campeon(self.rival_partida) or "").lower()
-                rv = next((x for x in enem if (x.get("championName") or "").lower() == nr), None)
-            if rv:
-                rsc = rv.get("scores") or {}
-                niv, rniv = int(yo.get("level") or 0), int(rv.get("level") or 0)
-                if self.rol_partida == "support":
-                    filas.append({"et": "Nivel vs " + (rv.get("championName") or "rival")[:9], "yo": f"{niv - rniv:+d}",
-                                  "ref": f"{niv}/{rniv}", "tono": "bien" if niv >= rniv else "mal"})
-                else:
-                    rcs = int(rsc.get("creepScore") or 0)
-                    filas.append({"et": "CS vs " + (rv.get("championName") or "rival")[:9], "yo": f"{cs - rcs:+d}",
-                                  "ref": f"niv {niv}/{rniv}", "tono": "bien" if cs >= rcs else "mal"})
-            # habilidad que toca subir (orden de la build en uso)
-            orden_h = [x.strip() for x in ((self.build_partida or {}).get("hab_corta") or "").replace("›", ">").split(">") if x.strip()]
-            sube = habilidad_a_subir(ap.get("abilities") or {}, ap.get("level") or yo.get("level"), orden_h)
-            if sube:
-                filas.append({"et": "Sube habilidad", "yo": sube, "ref": " › ".join(orden_h) if orden_h else "", "tono": "azul"})
+            try:                 # filas extra: si algo falla aqui, el resto de las tarjetas sigue
+                # tu rival de linea, con lo que tambien ves en la tabla del Tab: CS y nivel
+                rv = None
+                pos = (yo.get("position") or "").upper()
+                enem = [x for x in data.get("allPlayers") or [] if x.get("team") != yo.get("team")]
+                if pos and pos != "NONE":
+                    rv = next((x for x in enem if (x.get("position") or "").upper() == pos), None)
+                if not rv and self.rival_partida:
+                    nr = (self.rec.campeon(self.rival_partida) or "").lower()
+                    rv = next((x for x in enem if (x.get("championName") or "").lower() == nr), None)
+                if rv:
+                    rsc = rv.get("scores") or {}
+                    niv, rniv = int(yo.get("level") or 0), int(rv.get("level") or 0)
+                    if self.rol_partida == "support":
+                        filas.append({"et": "Nivel vs " + (rv.get("championName") or "rival")[:9], "yo": f"{niv - rniv:+d}",
+                                      "ref": f"{niv}/{rniv}", "tono": "bien" if niv >= rniv else "mal"})
+                    else:
+                        rcs = int(rsc.get("creepScore") or 0)
+                        filas.append({"et": "CS vs " + (rv.get("championName") or "rival")[:9], "yo": f"{cs - rcs:+d}",
+                                      "ref": f"niv {niv}/{rniv}", "tono": "bien" if cs >= rcs else "mal"})
+                # habilidad que toca subir (orden de la build en uso)
+                orden_h = [x.strip() for x in ((self.build_partida or {}).get("hab_corta") or "").replace("›", ">").split(">") if x.strip()]
+                sube = habilidad_a_subir(ap.get("abilities") or {}, ap.get("level") or yo.get("level"), orden_h)
+                if sube:
+                    filas.append({"et": "Sube habilidad", "yo": sube, "ref": " › ".join(orden_h) if orden_h else "", "tono": "azul"})
+            except Exception as e:
+                if not getattr(self, "_hud_err2", False):
+                    self._hud_err2 = True
+                    log(f"Tarjetas de partida (rival/habilidad): {type(e).__name__}: {e}")
             cb = None
             if self.build_partida:
                 cb = compra_base(self.rec, self.build_partida["orden"], [i.get("itemID") for i in its], oro)
@@ -8299,19 +8638,23 @@ class Coach:
             return
         self.carga = {}
         yo_eq, rival, sus_campeones, sus_jugadores = None, None, [], []
+        mios, suyos, su_lado, ses = [], [], None, None
         try:
             ses = self.lcu.get("/lol-gameflow/v1/session", timeout=5)
             gd = ses.get("gameData") or {}
             if ((gd.get("queue") or {}).get("gameMode") or "").upper() == "PRACTICETOOL":
                 return
             t1, t2 = gd.get("teamOne") or [], gd.get("teamTwo") or []
-            for eq, otro in ((t1, t2), (t2, t1)):
+            for eq, otro, lado_otro in ((t1, t2, 200), (t2, t1, 100)):
                 yo = next((x for x in eq if x.get("puuid") and x.get("puuid") == self.puuid), None)
                 if yo:
                     yo_eq = yo
+                    su_lado = lado_otro
                     sus_campeones = [x.get("championId") for x in otro if x.get("championId")]
                     sus_jugadores = [{"puuid": x.get("puuid"), "championId": x.get("championId")} for x in otro
                                      if x.get("puuid") and x.get("championId")]
+                    mios = [x for x in eq if x is not yo]
+                    suyos = list(otro)
                     pos = (yo.get("selectedPosition") or "").lower()
                     if pos and pos not in ("none", "fill"):
                         rival = next((x for x in otro if (x.get("selectedPosition") or "").lower() == pos), None)
@@ -8340,9 +8683,7 @@ class Coach:
             if con:
                 info.append(f"Hace daño {con['dano']}.")
                 estado["consejos"] = con["contra"]
-            if rival.get("puuid"):
-                info = explorar_rival(self.lcu, self.rec, rival["puuid"], cid) + info
-            estado["rival_info"] = info
+            estado["rival_info"] = info          # lo de su historial llega aparte (_scout), sin parar el bucle
             with self.alm.lock:
                 h = historial_contra(list(self.alm.d["partidas"].values()), cid)
             if h:
@@ -8357,11 +8698,19 @@ class Coach:
         if dtx and estado.get("dano_txt"):
             estado["dano_txt"] = estado["dano_txt"].split(" Por ejemplo:")[0].split(" después de tu primer")[0].rstrip(":") + ". " + dtx
             estado["dano_iconos"] = []
+        def fila(x, enemigo):
+            cid = x.get("championId")
+            return {"puuid": x.get("puuid"), "cid": cid, "nombre": self.rec.campeon(cid) or "?",
+                    "ico": self._ico("campeon", cid), "pos": POS_CORTA.get((x.get("selectedPosition") or "").upper(), ""),
+                    "enemigo": enemigo, "cargando": bool(x.get("puuid")), "chips": [],
+                    "smite": SMITE in (x.get("spell1Id"), x.get("spell2Id"))}
+        orden = {"top": 0, "jungla": 1, "mid": 2, "adc": 3, "support": 4, "": 5}
+        estado["equipos"] = {"rivales": sorted([fila(x, True) for x in suyos if x.get("championId")], key=lambda f: orden[f["pos"]]),
+                             "aliados": sorted([fila(x, False) for x in mios if x.get("championId")], key=lambda f: orden[f["pos"]])}
         self.carga = estado
-        self._ventana(estado)
-        otros = [x for x in sus_jugadores if not rival or x["puuid"] != rival.get("puuid")]
-        if otros:
-            self._scout_enemigos(estado, otros)
+        self._ventana(json.loads(json.dumps(estado, ensure_ascii=False)))     # los hilos de _scout tocan estado
+        if any(f["puuid"] for f in estado["equipos"]["rivales"] + estado["equipos"]["aliados"]):
+            self._scout(estado, rival, su_lado, ses)
 
     # -- partida en vivo
     def _guardar_entreno(self, cs, campeon):
@@ -8407,7 +8756,7 @@ class Coach:
             self.envivo = EnVivo(self.mision_partida, self.rol_partida,
                                  ((self.alm.d.get("jugador") or {}).get("nombre") or ""),
                                  [self.rec.campeon(rv), (getattr(self.rec, "alias", {}) or {}).get(str(rv))] if rv else None)
-        estado = self._con_hud(self._con_objeto(self.envivo.actualizar(data), data), data)
+        estado = self._con_hud(self._con_jungla(self._con_objeto(self.envivo.actualizar(data), data), data), data)
         t = float((data.get("gameData") or {}).get("gameTime") or 0)
         if self.carga and t < 75:
             return      # sigue mostrando el plan de partida durante el primer minuto
@@ -8463,6 +8812,7 @@ class Coach:
                 self._runas_txt = None
                 self.carga = None
                 self.rival_partida = None
+                self.plan_jungla, self._aviso_jungla = None, False
             if fase not in ("ChampSelect", "GameStart", "InProgress", "Reconnect"):
                 self._ventana({"modo": "oculto"})
                 self.envivo = None

@@ -1,4 +1,4 @@
-﻿COACH LOL v33
+﻿COACH LOL v34
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,15 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v34: scouting de los 10 en la pantalla de carga
+--------------------------------------------------------------
+- En la pantalla de carga la ventanita enseña a los 5 rivales con su rango y etiquetas: OTP, primera vez con
+  ese campeón, rachas de victorias o derrotas, posible smurf. En rojo lo que te complica, en verde lo que te ayuda.
+  Tu equipo sale plegado debajo (pulsa "Tu equipo" para verlo).
+- Su jungla: mira sus últimas partidas de jungla y te dice con qué bufo suele empezar (y por qué lado sería en esta
+  partida) y en qué línea suele hacer su primera jugada. Si es la tuya, te avisa unos segundos antes en la partida.
+- Todo se pide en segundo plano: cada jugador aparece cuando llega su información.
 
 Lo nuevo en la v33: tarjetas de partida más completas
 ----------------------------------------------------
