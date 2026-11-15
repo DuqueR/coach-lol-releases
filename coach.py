@@ -22,6 +22,7 @@ import json
 import math
 import os
 import queue
+import hashlib
 import re
 import ssl
 import shutil
@@ -107,7 +108,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "50"
+VERSION = "51"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -12357,20 +12358,36 @@ def aplicar_actualizacion(info):
         log(f"Actualizaciones: {_ACTU['error']}")
         return False
     copia = DATOS / "respaldo" / f"v{VERSION}"
-    for ruta, contenido in nuevos.items():
+    pend = {}
+    # coach.py el ultimo: si algo falla antes, sigue entera la version vieja
+    for ruta, contenido in sorted(nuevos.items(), key=lambda x: x[0] == "coach.py"):
         destino = DIR / ruta
         try:
+            if destino.exists() and destino.read_bytes() == contenido:
+                continue                                    # no cambia (las fuentes casi nunca): ni se toca
             if destino.exists():
                 (copia / ruta).parent.mkdir(parents=True, exist_ok=True)
                 (copia / ruta).write_bytes(destino.read_bytes())
             destino.parent.mkdir(parents=True, exist_ok=True)
             tmp = destino.with_name(destino.name + ".nuevo")
             tmp.write_bytes(contenido)
-            os.replace(tmp, destino)
+            try:
+                os.replace(tmp, destino)
+            except PermissionError:
+                if ruta == "coach.py":
+                    raise
+                # en uso (Windows bloquea una fuente cargada): se cambia al arrancar, antes de cargarla
+                pend[ruta] = hashlib.sha256(contenido).hexdigest()
         except Exception as e:
             _ACTU["error"] = f"No pude escribir {ruta}: {e}"
             log(f"Actualizaciones: {_ACTU['error']}")
             return False
+    if pend:
+        try:
+            (DATOS / "pendientes.json").write_text(json.dumps(pend), encoding="utf-8")
+            log(f"Actualizaciones: {', '.join(pend)} en uso; se cambian al reiniciar.")
+        except Exception:
+            pass
     try:
         (DATOS / "actualizado.json").write_text(json.dumps({"de": VERSION, "a": str(info.get("version")),
                                                             "notas": info.get("notas", ""), "ts": time.time()},
@@ -12379,6 +12396,33 @@ def aplicar_actualizacion(info):
         pass
     log(f"Actualizado de v{VERSION} a v{info.get('version')}. Copia de la anterior en {copia}.")
     return True
+
+
+def aplicar_pendientes():
+    """Al arrancar (sin otro coach abierto): pone los archivos que no se pudieron cambiar porque estaban en uso.
+    Solo si el .nuevo esta entero (mismo sha256 que se bajo)."""
+    f = DATOS / "pendientes.json"
+    try:
+        pend = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    for ruta, h in pend.items():
+        if ".." in ruta or ruta.startswith(("/", "\\")):
+            continue
+        destino = DIR / ruta
+        tmp = destino.with_name(destino.name + ".nuevo")
+        try:
+            if tmp.exists() and hashlib.sha256(tmp.read_bytes()).hexdigest() == h:
+                os.replace(tmp, destino)
+            elif tmp.exists():
+                tmp.unlink()
+        except Exception as e:
+            log(f"Actualizaciones: no pude poner {ruta} ({type(e).__name__}).")
+            return                                          # se reintenta en el proximo arranque
+    try:
+        f.unlink()
+    except Exception:
+        pass
 
 
 def _reiniciar():
@@ -12692,6 +12736,7 @@ def main():
         if not _instancia_unica(20):
             log("Ya hay un coach abierto que no se cierra: no abro otro.")
             return
+    aplicar_pendientes()
     puerto, ya_corre = _puerto_libre(CONFIG["puerto"])
     url = f"http://127.0.0.1:{puerto}"
     if ya_corre:

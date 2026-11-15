@@ -1,6 +1,6 @@
 {
-  "version": "50",
-  "notas": "estudio de vídeos con tus jugadas y el contador de la selección arreglado",
+  "version": "51",
+  "notas": "el botón Actualizar ya no falla con «Acceso denegado» en las fuentes",
   "archivos": [
     "coach.py",
     "dashboard.html",
