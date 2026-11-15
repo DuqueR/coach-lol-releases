@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "41"
+VERSION = "41.1"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -691,7 +691,7 @@ def draft_equipos(ses, ahora_ms=None):
     for grupo in ses.get("actions") or []:
         for a in grupo or []:
             tipo = a.get("type")
-            if tipo == "ban" and a.get("completed") and a.get("championId"):
+            if tipo == "ban" and a.get("completed") and (a.get("championId") or 0) > 0:
                 (bans_n if a.get("actorCellId") in aliados_celdas else bans_s).append(a["championId"])
             if a.get("isInProgress"):
                 if not accion:
@@ -703,8 +703,8 @@ def draft_equipos(ses, ahora_ms=None):
                     hover[a.get("actorCellId")] = a["championId"]
     b = ses.get("bans") or {}
     if not bans_n and not bans_s:
-        bans_n = [c for c in b.get("myTeamBans") or [] if c]
-        bans_s = [c for c in b.get("theirTeamBans") or [] if c]
+        bans_n = [c for c in b.get("myTeamBans") or [] if c and c > 0]
+        bans_s = [c for c in b.get("theirTeamBans") or [] if c and c > 0]
 
     def fila(m, mio):
         cid = m.get("championId") or 0
@@ -776,40 +776,40 @@ POS_CORTO = {"top": "Top", "jungla": "Jungla", "mid": "Mid", "bot": "ADC", "supp
 
 
 def posiciones_rivales(aliados, rivales, gen_de, minimo=200):
-    """En clasificatoria no se ve la linea de los rivales: se deduce con Lolalytics. Para cada linea donde hay un
-    aliado, cuantas partidas tiene ese campeon contra cada rival EN esa linea; se asignan de mayor a menor.
-    aliados/rivales: [{"cid", "pos"}]. Devuelve {cid_rival: pos}."""
-    puntos = []
+    """En clasificatoria no se ve la linea de los rivales: se deduce con Lolalytics. Pesa sobre todo en que linea
+    se juega mas ese campeon (sus partidas en cada linea) y, de apoyo, cuantas partidas tiene cada aliado contra el
+    en su linea. aliados/rivales: [{"cid", "pos"}]. Devuelve {cid_rival: pos}."""
+    mu = {}
     for a in aliados:
         if not a.get("cid") or a.get("pos") not in POS_ORDEN:
             continue
-        g = gen_de(a["cid"], a["pos"]) or {}
-        tabla = g.get("enemigos") or {}
+        tabla = (gen_de(a["cid"], a["pos"]) or {}).get("enemigos") or {}
+        tot = sum(v[1] for v in tabla.values()) or 1
         for r in rivales:
-            if not r.get("cid"):
-                continue
-            x = tabla.get(str(r["cid"])) or tabla.get(r["cid"])
-            if x and x[1] >= minimo:
-                puntos.append((x[1], r["cid"], a["pos"]))
+            x = tabla.get(str(r.get("cid"))) or tabla.get(r.get("cid"))
+            if r.get("cid") and x and x[1] >= minimo:
+                mu[(r["cid"], a["pos"])] = x[1] / tot
+    puntos = []
+    for r in rivales:
+        if not r.get("cid"):
+            continue
+        datos = {pos: gen_de(r["cid"], pos) for pos in POS_ORDEN}
+        ns = {pos: (g or {}).get("total") or (g or {}).get("n") or 0 for pos, g in datos.items()}   # partidas en esa linea
+        tot = sum(ns.values())
+        for pos in POS_ORDEN:
+            m = mu.get((r["cid"], pos), 0)
+            if tot >= 500:
+                puntos.append((ns[pos] / tot + 0.25 * m, r["cid"], pos))
+            elif m:
+                puntos.append((m, r["cid"], pos))
     out, usadas = {}, set()
     for r in rivales:                        # si el cliente ya dice su linea (partidas normales), manda eso
         if r.get("cid") and r.get("pos") in POS_ORDEN and r["pos"] not in usadas:
             out[r["cid"]] = r["pos"]
             usadas.add(r["pos"])
-    for n, cid, pos in sorted(puntos, reverse=True):
-        if cid not in out and pos not in usadas:
+    for sc, cid, pos in sorted(puntos, reverse=True):
+        if sc > 0.05 and cid not in out and pos not in usadas:
             out[cid] = pos
-            usadas.add(pos)
-    # los que quedan: la linea libre en la que ese campeon se juega mas
-    for r in rivales:
-        if not r.get("cid") or r["cid"] in out:
-            continue
-        libres = [pos for pos in POS_ORDEN if pos not in usadas]
-        datos = [(pos, gen_de(r["cid"], pos)) for pos in libres]
-        con = [(g.get("n") or 0, pos) for pos, g in datos if g]
-        if con and max(con)[0] >= 1000:
-            pos = max(con)[1]
-            out[r["cid"]] = pos
             usadas.add(pos)
     return out
 
@@ -8918,9 +8918,18 @@ class Coach:
         pool = pool[:8]
         lola = rol in LOLA_LINEA
         tabla_de = (lambda c: self._tabla_rivales(c, rol)) if lola else (lambda c: None)
-        rival = None
-        if lola and enemigos:
-            for c in ([mi_cid] if mi_cid else []) + [x["cid"] for x in pool[:3]]:
+        def gen_de(c, pos):            # datos, {} si Lolalytics no tiene, None mientras se piden
+            if not c or pos not in LOLA_LINEA:
+                return {}
+            g = self._lola_pedir(("gen", c, pos), lambda: lola_build(self.rec, c, pos, "emerald_plus"))
+            return None if g is None else (g or {})
+        al = [{"cid": f["cid"] or f["intento"], "pos": f["pos"] or (rol if f["yo"] else ""), "nombre": f["nombre"]}
+              for f in d["aliados"] if f["cid"] or f["intento"]]
+        rv = [{"cid": f["cid"], "pos": f["pos"], "nombre": f["nombre"]} for f in d["rivales"] if f["cid"]]
+        pos_r = posiciones_rivales(al, rv, gen_de) if lola else {}
+        rival = next((c for c, pos in pos_r.items() if pos == rol), None)
+        if lola and enemigos and not rival and not any(a["pos"] == rol for a in al):
+            for c in [x["cid"] for x in pool[:3]]:
                 rival = self._rival_probable(c, rol, enemigos)
                 if rival:
                     break
@@ -8957,15 +8966,7 @@ class Coach:
                     contras.append({"cid": rid, "nombre": nombre(rid), "wr": round(100 - wr, 1)})
                 if len(contras) >= 3:
                     break
-        def gen_de(c, pos):            # datos, {} si Lolalytics no tiene, None mientras se piden
-            if not c or pos not in LOLA_LINEA:
-                return {}
-            g = self._lola_pedir(("gen", c, pos), lambda: lola_build(self.rec, c, pos, "emerald_plus"))
-            return None if g is None else (g or {})
         dano_de = lambda c: self.rec.tipo_dano(c)
-        al = [{"cid": f["cid"] or f["intento"], "pos": f["pos"] or (rol if f["yo"] else ""), "nombre": f["nombre"]}
-              for f in d["aliados"] if f["cid"] or f["intento"]]
-        rv = [{"cid": f["cid"], "pos": f["pos"], "nombre": f["nombre"]} for f in d["rivales"] if f["cid"]]
 
         def propio_de(c):
             x = por_cid.get(c)

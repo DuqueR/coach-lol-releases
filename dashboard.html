@@ -177,6 +177,11 @@ main.entra>*{animation:funde .15s ease-out both}       /* se cambia de pantalla 
 .dr-fac{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 22px;margin-top:14px}
 .dr-fac li{display:flex;justify-content:space-between;gap:12px;font-size:var(--fs-4);color:var(--t2);padding:4px 0;border-bottom:1px solid var(--linea)}
 .dr-fac b{font-size:var(--fs-6)}
+.pos-i{width:var(--z);height:var(--z);border-radius:50%;display:grid;place-items:center;flex:none;color:var(--t3);
+  background:var(--pozo);box-shadow:inset 0 0 0 1px var(--linea2)}
+.pos-i svg,.pos-i .i{width:56%;height:56%}
+.pos-i.yo{color:var(--az);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--az) 50%,transparent)}
+.pos-i.grande{border-radius:var(--r);color:var(--az);background:color-mix(in srgb,var(--az) 10%,var(--pozo))}
 .dr-vacio{width:36px;height:36px;border-radius:50%;background:var(--s3);box-shadow:inset 0 0 0 1px var(--linea2);flex:none}
 @media (max-width:900px){.dr-cab{grid-template-columns:1fr}.dr-eq{grid-template-columns:1fr}}
 .sep{height:1px;background:var(--linea);margin:14px 0}
@@ -1124,7 +1129,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "41";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "41.1";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -3112,6 +3117,10 @@ A["aviso-ok"] = async () => {
 
 /* =========================================== SELECCION DE CAMPEON =========================================== */
 const POS_TXT = {top: "Top", jungla: "Jungla", mid: "Mid", bot: "ADC", support: "Support"};
+/* iconos oficiales de cada línea (CommunityDragon), en el color del tema */
+const POS_SVG = {"top": "<path opacity=\"0.5\" fill-rule=\"evenodd\" d=\"M21,14H14v7h7V14Zm5-3V26L11.014,26l-4,4H30V7.016Z\"/> <polygon points=\"4 4 4.003 28.045 9 23 9 9 23 9 28.045 4.003 4 4\"/>", "jungla": "<path fill-rule=\"evenodd\" d=\"M25,3c-2.128,3.3-5.147,6.851-6.966,11.469A42.373,42.373,0,0,1,20,20a27.7,27.7,0,0,1,1-3C21,12.023,22.856,8.277,25,3ZM13,20c-1.488-4.487-4.76-6.966-9-9,3.868,3.136,4.422,7.52,5,12l3.743,3.312C14.215,27.917,16.527,30.451,17,31c4.555-9.445-3.366-20.8-8-28C11.67,9.573,13.717,13.342,13,20Zm8,5a15.271,15.271,0,0,1,0,2l4-4c0.578-4.48,1.132-8.864,5-12C24.712,13.537,22.134,18.854,21,25Z\"/>", "mid": "<path opacity=\"0.5\" fill-rule=\"evenodd\" d=\"M30,12.968l-4.008,4L26,26H17l-4,4H30ZM16.979,8L21,4H4V20.977L8,17,8,8h8.981Z\"/> <polygon points=\"25 4 4 25 4 30 9 30 30 9 30 4 25 4\"/>", "bot": "<path opacity=\"0.5\" fill-rule=\"evenodd\" d=\"M13,20h7V13H13v7ZM4,4V26.984l3.955-4L8,8,22.986,8l4-4H4Z\"/> <polygon points=\"29.997 5.955 25 11 25 25 11 25 5.955 29.997 30 30 29.997 5.955\"/>", "support": "<path fill-rule=\"evenodd\" d=\"M26,13c3.535,0,8-4,8-4H23l-3,3,2,7,5-2-3-4h2ZM22,5L20.827,3H13.062L12,5l5,6Zm-5,9-1-1L13,28l4,3,4-3L18,13ZM11,9H0s4.465,4,8,4h2L7,17l5,2,2-7Z\"/>"};
+const posIco = (pos, z = 36, cls = "") => `<span class="pos-i ${cls}" style="--z:${z}px" ${POS_TXT[pos] ? `data-tip="${POS_TXT[pos]}"` : ""}>${POS_SVG[pos]
+  ? `<svg viewBox="0 0 34 34" fill="currentColor" aria-hidden="true">${POS_SVG[pos]}</svg>` : ic("campeones")}</span>`;
 function segRestantes(fin){ return fin ? Math.max(0, Math.ceil((fin - Date.now()) / 1000)) : null; }
 VISTAS.seleccion = () => {
   const d = S.draft;
@@ -3124,7 +3133,7 @@ VISTAS.seleccion = () => {
   const sub = [d.rol_txt ? `Tu línea: <b>${esc(POS_TXT[d.rol] || d.rol_txt)}</b>` : "", miCamp ? `${yo.cid ? "Tu campeón" : "Pensando en"}: <b>${esc(yo.nombre)}</b>` : "Aún sin campeón",
     d.rival ? `Rival probable: <b>${esc(d.rival.nombre)}</b>` : ""].filter(Boolean).join(" · ");
   const cab = `<section class="dr-cab ${turno ? "turno" : ""}" aria-label="Fase de la selección">
-      ${cp(miCamp, yo.nombre || "", 64, miCamp && !yo.cid ? "pens" : "")}
+      ${miCamp ? cp(miCamp, yo.nombre || "", 64, yo.cid ? "" : "pens") : posIco(d.rol, 64, "grande")}
       <div><span class="et ${turno ? "c-or" : "c-az"}">${turno ? "Te toca" : "Selección de campeón"}</span><h2 class="dz">${esc(d.fase_txt)}</h2><p class="sub">${sub}</p></div>
       ${seg != null ? `<div class="dr-reloj ${seg <= 10 ? "poco" : ""}" role="timer" aria-label="Segundos restantes"><b class="nm tn" data-fin="${d.t_fin}">${seg}</b><span class="et">segundos</span></div>` : ""}
     </section>`;
@@ -3150,10 +3159,10 @@ VISTAS.seleccion = () => {
       ${(c.matchup || []).length ? `<ul class="lst" style="margin-top:10px">${c.matchup.map(t => `<li>${ic("libro")}<span>${esc(t)}</span></li>`).join("")}</ul>` : ""}</section>` : "";
   const jug = (f, propio) => {
     const id = f.cid || f.intento;
-    return `<div class="dr-j ${f.yo ? "yo" : ""}">${id ? cp(id, f.nombre, 36, f.cid ? "" : "pens") : `<i class="dr-vacio"></i>`}
+    return `<div class="dr-j ${f.yo ? "yo" : ""}">${id ? cp(id, f.nombre, 36, f.cid ? "" : "pens") : posIco(f.pos || f.pos_prob, 36, f.yo ? "yo" : "")}
       <div><span>${f.yo ? "Tú" : id ? esc(f.nombre) : propio ? "Eligiendo…" : "Sin elegir"}</span><small>${[POS_TXT[f.pos] || (f.pos_prob ? POS_TXT[f.pos_prob] + " (probable)" : ""), f.yo && id ? esc(f.nombre) : "", id && !f.cid ? "pensando" : ""].filter(Boolean).join(" · ") || "&nbsp;"}</small></div></div>`;
   };
-  const banTira = ids => ids.length ? `<div class="dr-bans" aria-label="Bloqueos">${ids.map(i => cp(i, (d.nombres || {})[i] ? "Bloqueado: " + d.nombres[i] : "Bloqueado", 26)).join("")}</div>` : "";
+  const banTira = ids => ids.length ? `<div class="dr-bans" aria-label="Bloqueos">${ids.map(i => cp(i, (d.nombres || {})[i] || "", 26)).join("")}</div>` : "";
   const cardEq = `<section class="card" aria-label="Equipos"><div class="card-h"><h2>${ic("equipo")}Equipos</h2></div>
       <div class="dr-eq"><div><h3 class="et c-az">Tu equipo</h3>${(d.aliados || []).map(f => jug(f, true)).join("")}${banTira(d.bans_nuestros || [])}</div>
       <div><h3 class="et c-rj">Rivales</h3>${(d.rivales || []).map(f => jug(f, false)).join("")}${banTira(d.bans_suyos || [])}</div></div></section>`;

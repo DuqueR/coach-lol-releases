@@ -12,6 +12,13 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v41.1: Selección más clara
+- Sin huecos vacíos ni signos de interrogación: cada puesto sin campeón muestra el
+  icono de su línea, y arriba sale el de tu línea hasta que elijas.
+- Los bloqueos que nadie hizo ya no salen como un icono roto.
+- La línea de cada rival se deduce sobre todo por dónde se juega más ese campeón,
+  así tu rival de línea y la probabilidad usan el mismo emparejamiento.
+
 Lo nuevo en la v41: actualizar con un botón
 - Con el coach abierto, cada 20 minutos mira si hay versión nueva. Si la hay, arriba
   sale "Versión X disponible" con lo que trae y el botón Actualizar: baja la versión,
