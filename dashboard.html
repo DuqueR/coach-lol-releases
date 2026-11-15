@@ -170,6 +170,13 @@ main.entra>*{animation:funde .15s ease-out both}       /* se cambia de pantalla 
 .dr-contras{display:flex;gap:8px;flex-wrap:wrap}
 .dr-c{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:var(--r2);background:var(--pozo);box-shadow:inset 0 0 0 1px var(--linea)}
 .dr-c b{display:block;font-size:var(--fs-4);line-height:1.2}.dr-c small{font-size:var(--fs-3);font-weight:700}
+.dr-pb{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center}
+.dr-pb>b{font-size:30px}
+.dr-barra{height:12px;border-radius:6px;background:color-mix(in srgb,var(--rj) 70%,var(--s3));overflow:hidden}
+.dr-barra i{display:block;height:100%;background:var(--az);border-radius:6px 0 0 6px;transition:width .4s var(--ease-out)}
+.dr-fac{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 22px;margin-top:14px}
+.dr-fac li{display:flex;justify-content:space-between;gap:12px;font-size:var(--fs-4);color:var(--t2);padding:4px 0;border-bottom:1px solid var(--linea)}
+.dr-fac b{font-size:var(--fs-6)}
 .dr-vacio{width:36px;height:36px;border-radius:50%;background:var(--s3);box-shadow:inset 0 0 0 1px var(--linea2);flex:none}
 @media (max-width:900px){.dr-cab{grid-template-columns:1fr}.dr-eq{grid-template-columns:1fr}}
 .sep{height:1px;background:var(--linea);margin:14px 0}
@@ -1105,7 +1112,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "39.1";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "40";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -3098,7 +3105,7 @@ VISTAS.seleccion = () => {
       ${seg != null ? `<div class="dr-reloj ${seg <= 10 ? "poco" : ""}" role="timer" aria-label="Segundos restantes"><b class="nm tn" data-fin="${d.t_fin}">${seg}</b><span class="et">segundos</span></div>` : ""}
     </section>`;
   const picks = (d.picks || []).length ? (d.picks || []).map(x => `<div class="dr-fila ${x.mejor ? "mejor" : ""}">${cp(x.cid, x.nombre, 40)}
-      <div><b>${esc(x.nombre)}</b>${x.mejor ? ` <span class="chip vd">${ic("ok")}Recomendado</span>` : ""}<small>${esc(x.motivo || "Sin partidas tuyas en esta línea")}</small></div>
+      <div><b>${esc(x.nombre)}</b>${x.mejor ? ` <span class="chip vd">${ic("ok")}Recomendado</span>` : ""}<small>${esc(x.motivo || "Sin partidas tuyas en esta línea")}${x.p != null ? ` · <b class="${x.p >= 50 ? "c-az" : "c-rj"}">con él, ${nat(x.p)} % de ganar</b>` : ""}</small></div>
       <div class="pct nm tn ${x.vs == null ? "t3" : x.vs >= 51 ? "c-vd" : x.vs <= 49 ? "c-rj" : ""}">${x.vs != null ? nat(x.vs) + "%" : x.n ? x.wr + "%" : "—"}<small>${x.vs != null ? "vs su campeón" : x.n ? "tus victorias" : ""}</small></div></div>`).join("")
     : `<p class="vacio">${d.rol ? "Aún no tienes campeones jugados en esta línea. Elige uno sencillo y quédate con él varias partidas." : "En cuanto se sepa tu línea, aquí salen tus mejores picks."}</p>`;
   const cardPicks = `<section class="card" aria-label="Picks para tu línea"><div class="card-h"><h2>${ic("campeones")}Picks para tu línea</h2>
@@ -3120,7 +3127,7 @@ VISTAS.seleccion = () => {
   const jug = (f, propio) => {
     const id = f.cid || f.intento;
     return `<div class="dr-j ${f.yo ? "yo" : ""}">${id ? cp(id, f.nombre, 36, f.cid ? "" : "pens") : `<i class="dr-vacio"></i>`}
-      <div><span>${f.yo ? "Tú" : id ? esc(f.nombre) : propio ? "Eligiendo…" : "Sin elegir"}</span><small>${[POS_TXT[f.pos] || "", f.yo && id ? esc(f.nombre) : "", id && !f.cid ? "pensando" : ""].filter(Boolean).join(" · ") || "&nbsp;"}</small></div></div>`;
+      <div><span>${f.yo ? "Tú" : id ? esc(f.nombre) : propio ? "Eligiendo…" : "Sin elegir"}</span><small>${[POS_TXT[f.pos] || (f.pos_prob ? POS_TXT[f.pos_prob] + " (probable)" : ""), f.yo && id ? esc(f.nombre) : "", id && !f.cid ? "pensando" : ""].filter(Boolean).join(" · ") || "&nbsp;"}</small></div></div>`;
   };
   const banTira = ids => ids.length ? `<div class="dr-bans" aria-label="Bloqueos">${ids.map(i => cp(i, (d.nombres || {})[i] ? "Bloqueado: " + d.nombres[i] : "Bloqueado", 26)).join("")}</div>` : "";
   const cardEq = `<section class="card" aria-label="Equipos"><div class="card-h"><h2>${ic("equipo")}Equipos</h2></div>
@@ -3135,7 +3142,13 @@ VISTAS.seleccion = () => {
       ${c.dano_txt ? `<p class="t2" style="margin-top:10px"><b>Su daño:</b> ${esc(c.dano_txt)}</p>` : ""}${c.opciones_nota ? `<p class="nota-p">${esc(c.opciones_nota)}</p>` : ""}</section>` : "";
   const cardRev = c.revision || c.nota_rol ? `<section class="card" aria-label="Recuerda"><div class="card-h"><h2>${ic("info")}Recuerda</h2></div>
       ${c.revision ? `<p class="t2">${esc(c.revision)}</p>` : ""}${c.nota_rol ? `<p class="t2" style="margin-top:8px">${esc(c.nota_rol)}</p>` : ""}</section>` : "";
-  return `${cab}<div class="g" style="margin-top:18px"><div class="c7 pila">${d.accion === "ban" ? cardBans + cardPicks : cardPicks + cardBans}${cardRival}</div>
+  const pr = d.prob;
+  const cardProb = pr ? `<section class="card dr-prob" aria-label="Probabilidad de victoria del draft">
+      <div class="card-h"><h2>${ic("progreso")}Probabilidad de ganar con este draft</h2><span class="ay">estimación con Lolalytics Esmeralda+ y tus partidas${pr.faltan ? ` · cargando ${pr.faltan} campeón${pr.faltan > 1 ? "es" : ""}…` : ""}</span></div>
+      <div class="dr-pb"><b class="nm tn c-az">${nat(pr.p)}%</b><div class="dr-barra" role="img" aria-label="Tu equipo ${nat(pr.p)} %, rivales ${nat(100 - pr.p)} %"><i style="width:${pr.p}%"></i></div><b class="nm tn c-rj">${nat(Math.round((100 - pr.p) * 10) / 10)}%</b></div>
+      <ul class="dr-fac">${pr.factores.slice(0, 6).map(f => `<li><span>${esc(f.txt)}</span><b class="nm tn ${f.d > 0 ? "c-vd" : f.d < 0 ? "c-rj" : "t3"}">${f.d > 0 ? "+" : f.d < 0 ? "−" : ""}${nat(Math.abs(f.d))}</b></li>`).join("")}</ul>
+      <p class="nota-p">No sabe quién juega mejor: mide campeones, enfrentamientos, composición y tu experiencia. Úsalo para elegir, no para rendirte.</p></section>` : "";
+  return `${cab}${cardProb ? `<div style="margin-top:18px">${cardProb}</div>` : ""}<div class="g" style="margin-top:18px"><div class="c7 pila">${d.accion === "ban" ? cardBans + cardPicks : cardPicks + cardBans}${cardRival}</div>
     <div class="c5 pila">${cardEq}${cardMision}${cardAplica}${cardRev}</div></div>`;
 };
 /* la selección cambia cada segundo: se pide aparte, ligera, solo mientras dura */

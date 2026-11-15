@@ -12,6 +12,14 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v40: probabilidad de ganar con tu draft
+- En la pantalla Selección, una barra azul/roja con tu probabilidad de ganar según los
+  campeones elegidos (Lolalytics Esmeralda+): cada enfrentamiento de línea, la fuerza de
+  los campeones sin pareja, si un equipo hace casi todo un solo tipo de daño y tu
+  experiencia con tu campeón. Debajo, qué suma y qué resta.
+- Cada pick sugerido dice con qué probabilidad ganarías si lo eliges.
+- La línea de cada rival (en clasificatoria no se ve) se deduce y sale como "probable".
+
 Lo nuevo en la v39.1: repeticiones al minuto clave
 - El botón "Ver" de una jugada o una muerte abría la repetición desde el principio:
   el juego trae apagada la opción que deja saltar a un minuto (EnableReplayApi en

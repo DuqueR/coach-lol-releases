@@ -1,6 +1,6 @@
 {
-  "version": "39.1",
-  "notas": "las repeticiones ya saltan solas al minuto clave",
+  "version": "40",
+  "notas": "probabilidad de ganar con tu draft en la pantalla Selección y cuánto sube o baja con cada pick",
   "archivos": [
     "coach.py",
     "dashboard.html",

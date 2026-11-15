@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "39.1"
+VERSION = "40"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -768,6 +768,108 @@ def draft_sugerencias(pool_rol, tabla_de, rival, ocupados, mi_cid=None, maximo=5
             if len(bans) >= 3:
                 break
     return {"picks": picks[:maximo], "bans": bans}
+
+
+
+POS_ORDEN = ["top", "jungla", "mid", "bot", "support"]
+POS_CORTO = {"top": "Top", "jungla": "Jungla", "mid": "Mid", "bot": "ADC", "support": "Support"}
+
+
+def posiciones_rivales(aliados, rivales, gen_de, minimo=200):
+    """En clasificatoria no se ve la linea de los rivales: se deduce con Lolalytics. Para cada linea donde hay un
+    aliado, cuantas partidas tiene ese campeon contra cada rival EN esa linea; se asignan de mayor a menor.
+    aliados/rivales: [{"cid", "pos"}]. Devuelve {cid_rival: pos}."""
+    puntos = []
+    for a in aliados:
+        if not a.get("cid") or a.get("pos") not in POS_ORDEN:
+            continue
+        g = gen_de(a["cid"], a["pos"]) or {}
+        tabla = g.get("enemigos") or {}
+        for r in rivales:
+            if not r.get("cid"):
+                continue
+            x = tabla.get(str(r["cid"])) or tabla.get(r["cid"])
+            if x and x[1] >= minimo:
+                puntos.append((x[1], r["cid"], a["pos"]))
+    out, usadas = {}, set()
+    for r in rivales:                        # si el cliente ya dice su linea (partidas normales), manda eso
+        if r.get("cid") and r.get("pos") in POS_ORDEN and r["pos"] not in usadas:
+            out[r["cid"]] = r["pos"]
+            usadas.add(r["pos"])
+    for n, cid, pos in sorted(puntos, reverse=True):
+        if cid not in out and pos not in usadas:
+            out[cid] = pos
+            usadas.add(pos)
+    # los que quedan: la linea libre en la que ese campeon se juega mas
+    for r in rivales:
+        if not r.get("cid") or r["cid"] in out:
+            continue
+        libres = [pos for pos in POS_ORDEN if pos not in usadas]
+        datos = [(pos, gen_de(r["cid"], pos)) for pos in libres]
+        con = [(g.get("n") or 0, pos) for pos, g in datos if g]
+        if con and max(con)[0] >= 1000:
+            pos = max(con)[1]
+            out[r["cid"]] = pos
+            usadas.add(pos)
+    return out
+
+
+def prob_draft(aliados, rivales, gen_de, dano_de=None, propio=None):
+    """Probabilidad estimada de ganar con los campeones elegidos (Lolalytics Esmeralda+):
+    - linea con los dos campeones conocidos: el % de tu campeon contra el suyo en esa linea;
+    - campeon sin pareja: su % de victorias general en su linea (a favor o en contra);
+    - composicion: un equipo que hace casi todo un tipo de daño se contrarresta facil;
+    - tu experiencia con tu campeon (propio = {"nombre", "n", "v"}).
+    Devuelve {"p", "factores": [{"txt", "d"}], "faltan", "pos_rivales"} o None si no hay nada que medir."""
+    pos_r = posiciones_rivales(aliados, rivales, gen_de)
+    al = {a["pos"]: a for a in aliados if a.get("cid") and a.get("pos") in POS_ORDEN}
+    ri = {pos: next((r for r in rivales if r.get("cid") == cid), {"cid": cid}) for cid, pos in pos_r.items()}
+    factores, faltan = [], 0
+    for pos in POS_ORDEN:
+        a, r = al.get(pos), ri.get(pos)
+        if a and r:
+            g = gen_de(a["cid"], pos) or {}
+            x = (g.get("enemigos") or {}).get(str(r["cid"])) or (g.get("enemigos") or {}).get(r["cid"])
+            if x and x[1] >= 100:
+                factores.append({"txt": f"{POS_CORTO[pos]}: {a.get('nombre', '')} contra {r.get('nombre', '')}".strip(),
+                                 "d": (x[0] - 50) * 0.55, "pos": pos, "a": a["cid"], "r": r["cid"], "tipo": "linea"})
+                continue
+        for lado, c, signo in (("a", a, 1), ("r", r, -1)):
+            if not c:
+                continue
+            g = gen_de(c["cid"], pos)
+            if g is None:
+                faltan += 1
+                continue
+            wr = (g or {}).get("wr_total")
+            if wr is not None:
+                factores.append({"txt": f"{POS_CORTO[pos]}: {c.get('nombre', '')}".strip(), "d": signo * (wr - 50) * 0.55,
+                                 "pos": pos, lado: c["cid"], "tipo": "campeon"})
+    for lado, eq, signo in (("tu equipo", [a["cid"] for a in aliados if a.get("cid")], 1),
+                            ("su equipo", [r["cid"] for r in rivales if r.get("cid")], -1)):
+        if dano_de and len(eq) >= 4:
+            tipos = [dano_de(c) for c in eq]
+            fis = sum(1 for t in tipos if t == "físico") + 0.5 * sum(1 for t in tipos if t == "mixto")
+            mag = sum(1 for t in tipos if t == "mágico") + 0.5 * sum(1 for t in tipos if t == "mixto")
+            if max(fis, mag) >= len(eq) - 0.5:
+                cual = "físico" if fis > mag else "mágico"
+                factores.append({"txt": f"Casi todo el daño de {lado} es {cual}: se contrarresta con un solo tipo de defensa",
+                                 "d": -2.0 * signo, "tipo": "comp"})
+    if propio and propio.get("nombre"):
+        n, v = propio.get("n") or 0, propio.get("v") or 0
+        if n == 0:
+            factores.append({"txt": f"Primera partida con {propio['nombre']} en esta línea", "d": -1.5, "tipo": "tuyo"})
+        else:
+            tu = (v + 2.5) / (n + 5) * 100
+            factores.append({"txt": f"Tu experiencia con {propio['nombre']} ({v}V {n - v}D)", "d": (tu - 50) * 0.25,
+                             "tipo": "tuyo"})
+    if not factores:
+        return None
+    p = 50 + sum(f["d"] for f in factores)
+    for f in factores:
+        f["d"] = round(f["d"], 1)
+    return {"p": round(max(25.0, min(75.0, p)), 1), "factores": sorted(factores, key=lambda f: -abs(f["d"])),
+            "faltan": faltan, "pos_rivales": pos_r}
 
 
 def build_web(cid, rol):
@@ -8855,6 +8957,30 @@ class Coach:
                     contras.append({"cid": rid, "nombre": nombre(rid), "wr": round(100 - wr, 1)})
                 if len(contras) >= 3:
                     break
+        def gen_de(c, pos):            # datos, {} si Lolalytics no tiene, None mientras se piden
+            if not c or pos not in LOLA_LINEA:
+                return {}
+            g = self._lola_pedir(("gen", c, pos), lambda: lola_build(self.rec, c, pos, "emerald_plus"))
+            return None if g is None else (g or {})
+        dano_de = lambda c: self.rec.tipo_dano(c)
+        al = [{"cid": f["cid"] or f["intento"], "pos": f["pos"] or (rol if f["yo"] else ""), "nombre": f["nombre"]}
+              for f in d["aliados"] if f["cid"] or f["intento"]]
+        rv = [{"cid": f["cid"], "pos": f["pos"], "nombre": f["nombre"]} for f in d["rivales"] if f["cid"]]
+
+        def propio_de(c):
+            x = por_cid.get(c)
+            return {"nombre": nombre(c), "n": (x or {}).get("n", 0), "v": (x or {}).get("v", 0)} if c else None
+        prob = prob_draft(al, rv, gen_de, dano_de, propio_de(mi_cid)) if (al or rv) else None
+        if prob:
+            for f in d["rivales"]:
+                f["pos_prob"] = prob["pos_rivales"].get(f["cid"]) or ""
+            d["prob"] = {k: prob[k] for k in ("p", "factores", "faltan")}
+        if sug["picks"] and rol:
+            sin_mi = [a for a in al if a["pos"] != rol]
+            for x in sug["picks"]:
+                q = prob_draft(sin_mi + [{"cid": x["cid"], "pos": rol, "nombre": x["nombre"]}], rv, gen_de, dano_de,
+                               propio_de(x["cid"]))
+                x["p"] = q["p"] if q else None
         d.update({"rol": rol, "rol_txt": ROL_TXT.get(rol, rol) if rol else "", "yo_cid": mi_cid,
                   "picks": sug["picks"], "bans_sug": sug["bans"], "rival": riv, "contras": contras,
                   "nombres": {str(x): nombre(x) for x in d["bans_nuestros"] + d["bans_suyos"]},
