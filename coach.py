@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "39"
+VERSION = "39.1"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -4272,21 +4272,90 @@ def texto_plan_jungla(plan, team, nombre, mi_rol=""):
 
 
 # =============================================================== REPETICIONES
+def activar_replay_api_cfg(txt):
+    """game.cfg con EnableReplayApi=1 en [General]. Devuelve (texto nuevo, cambio?)."""
+    nl = "\r\n" if "\r\n" in txt else "\n"
+    lineas = txt.split(nl)
+    sec, gen = None, None
+    for i, l in enumerate(lineas):
+        t = l.strip()
+        if t.startswith("[") and t.endswith("]"):
+            sec = t[1:-1].strip().lower()
+            if sec == "general" and gen is None:
+                gen = i
+            continue
+        if sec == "general" and t.split("=", 1)[0].strip().lower() == "enablereplayapi":
+            if t.split("=", 1)[-1].strip() == "1":
+                return txt, False
+            lineas[i] = "EnableReplayApi=1"
+            return nl.join(lineas), True
+    if gen is None:
+        return "[General]" + nl + "EnableReplayApi=1" + nl + txt, True
+    lineas.insert(gen + 1, "EnableReplayApi=1")
+    return nl.join(lineas), True
+
+
+def activar_replay_api():
+    """La Replay API del juego (la que deja saltar a un minuto de la repetición) viene apagada en game.cfg.
+    Se enciende antes de abrir una repetición. True si quedó encendida."""
+    for r in _rutas_instalacion():
+        cfg = Path(r) / "Config" / "game.cfg"
+        try:
+            if not cfg.exists():
+                continue
+            crudo = cfg.read_bytes()
+            bom = crudo.startswith(b"\xef\xbb\xbf")
+            txt = crudo.decode("utf-8-sig", errors="replace")
+            nuevo, cambio = activar_replay_api_cfg(txt)
+            if cambio:
+                cfg.write_bytes((b"\xef\xbb\xbf" if bom else b"") + nuevo.encode("utf-8"))
+                log(f"Repeticiones: activé EnableReplayApi en {cfg} para poder saltar al minuto.")
+            return True
+        except Exception as e:
+            log(f"Repeticiones: no pude activar la Replay API ({type(e).__name__}: {e}).")
+            return False
+    return False
+
+
 def _saltar_en_repeticion(segundo):
-    """Si tienes activada la Replay API del juego, salta al momento de la muerte."""
+    """Espera a que la repetición esté cargada y corriendo (la API responde ya en la pantalla de carga, y ahí
+    el salto se pierde) y salta unos segundos antes del momento. Comprueba que el salto se hizo."""
     base = os.environ.get("COACH_LIVE_URL", "https://127.0.0.1:2999").rstrip("/")
     ctx = _CTX if base.startswith("https") else None
-    fin = time.time() + 180
+    meta = max(0, segundo - 15)
+
+    def pedir(metodo, cuerpo=None):
+        req = urllib.request.Request(base + "/replay/playback", method=metodo,
+                                     data=json.dumps(cuerpo).encode() if cuerpo is not None else None,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, context=ctx, timeout=3) as r:
+            return json.loads(r.read().decode("utf-8") or "{}")
+
+    fin, previo, intentos, vio_api = time.time() + 300, None, 0, False
     while time.time() < fin:
-        time.sleep(3)
+        time.sleep(2)
         try:
-            req = urllib.request.Request(base + "/replay/playback", method="POST",
-                                         data=json.dumps({"time": max(0, segundo - 15), "paused": False}).encode(),
-                                         headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, context=ctx, timeout=3):
-                return
+            st = pedir("GET")
         except Exception:
             continue
+        vio_api = True
+        t, largo = st.get("time") or 0, st.get("length") or 0
+        if largo <= 0 or previo is None or t <= previo:      # aun cargando: el tiempo no avanza
+            previo = t
+            continue
+        if abs(t - meta) < 8:
+            log(f"Repeticiones: salté al {int(meta) // 60}:{int(meta) % 60:02d}.")
+            return
+        try:
+            pedir("POST", {"time": min(meta, max(0, largo - 1)), "paused": False})
+        except Exception:
+            pass
+        intentos += 1
+        previo = None
+        if intentos >= 5:
+            break
+    log("Repeticiones: no pude saltar al minuto " + ("(la repetición no avanzó)." if vio_api else
+        "(el juego no abrió la Replay API: reinicia el cliente de LoL para que lea EnableReplayApi=1)."))
 
 
 def abrir_repeticion(lcu, gid, segundo):
@@ -4319,13 +4388,15 @@ def abrir_repeticion(lcu, gid, segundo):
                 return False, malos[s]
             if time.time() > fin:
                 return False, "La descarga de la repetición tardó demasiado. Inténtalo otra vez."
+    activar_replay_api()
     try:
         lcu.post(f"/lol-replays/v1/rofls/{gid}/watch", {"contextData": "coach-lol"})
     except Exception:
         return False, "El cliente no pudo abrir la repetición."
     threading.Thread(target=_saltar_en_repeticion, args=(segundo,), daemon=True).start()
-    return True, (f"Abriendo la repetición. Si no salta sola al {int(segundo) // 60}:{int(segundo) % 60:02d}, "
-                  "arrastra la barra de tiempo hasta ahí.")
+    m = max(0, int(segundo) - 15)
+    return True, (f"Abriendo la repetición: cuando termine de cargar salta sola al {m // 60}:{m % 60:02d}, "
+                  "unos segundos antes del momento.")
 
 
 # =============================================================== PROGRESO

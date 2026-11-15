@@ -12,6 +12,13 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v39.1: repeticiones al minuto clave
+- El botón "Ver" de una jugada o una muerte abría la repetición desde el principio:
+  el juego trae apagada la opción que deja saltar a un minuto (EnableReplayApi en
+  game.cfg). El coach ahora la enciende sola antes de abrir la repetición, espera a que
+  termine de cargar y salta 15 segundos antes del momento.
+- La primera vez puede hacer falta cerrar y abrir el cliente de LoL para que lo lea.
+
 Lo nuevo en la v39: la selección de campeón, en el panel
 - Al entrar en la selección, el panel abre solo la pantalla "Selección" (y vuelve a
   Inicio al terminar). Arriba: la fase, si te toca bloquear o elegir y la cuenta atrás.

@@ -1,6 +1,6 @@
 {
-  "version": "39",
-  "notas": "nueva pantalla Selección: picks y bloqueos para tu línea, tu rival probable, equipos y cuenta atrás; interfaz más pulida",
+  "version": "39.1",
+  "notas": "las repeticiones ya saltan solas al minuto clave",
   "archivos": [
     "coach.py",
     "dashboard.html",
