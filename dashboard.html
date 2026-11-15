@@ -879,6 +879,75 @@ main>.card,main>.kpis{margin-bottom:16px}
 .vs-v b:last-child{text-align:right;color:var(--t2)}
 .vs-v .duelo{min-width:0}
 
+/* ============================ v26: movimiento y detalles ============================ */
+:root{--ease-out:cubic-bezier(.23,1,.32,1)}
+/* pulsar: el botón se hunde un poco (se nota que te ha oído) */
+.btn{transition:background .12s,border-color .12s,filter .12s,transform .16s var(--ease-out)}
+.btn:active:not(:disabled),button.chip:active{transform:scale(.97)}
+/* botón que pasa por cargando / hecho / error sin cambiar de tamaño */
+.btn[data-est]{position:relative;color:transparent!important;pointer-events:none}
+.btn[data-est]>*:not(.btn-est){visibility:hidden}
+.btn-est{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--t1);animation:est-in .18s var(--ease-out)}
+.btn.p .btn-est{color:#fff}
+.btn[data-est="ok"]{background:var(--vds)!important;border-color:color-mix(in srgb,var(--vd) 45%,transparent)!important}
+.btn[data-est="ok"] .btn-est{color:var(--vd)}
+.btn[data-est="error"]{background:var(--rjs)!important;border-color:color-mix(in srgb,var(--rj) 45%,transparent)!important}
+.btn[data-est="error"] .btn-est{color:var(--rj)}
+@keyframes est-in{from{opacity:0;transform:scale(.92);filter:blur(2px)}}
+/* pestañas y filtros: una sola marca que se desliza a la opción elegida */
+.tabs,.filtros{position:relative}
+.tabs-ind{position:absolute;left:0;bottom:-1px;width:100px;height:2px;border-radius:2px;background:var(--az);transform-origin:0 0;pointer-events:none;opacity:0}
+.fil-ind{position:absolute;left:0;top:0;width:100px;height:28px;border-radius:8px;background:var(--azs);pointer-events:none;opacity:0}
+.tabs-ind.listo,.fil-ind.listo{opacity:1}
+.tabs-ind.anima{transition:transform .22s var(--ease-out)}
+.fil-ind.anima{transition:transform .22s var(--ease-out),width .22s var(--ease-out)}
+.tabs:has(.tabs-ind.listo) button.on::after{display:none}
+.filtros:has(.fil-ind.listo) button.chip{position:relative;z-index:1}
+.filtros:has(.fil-ind.listo) button.chip.az{background:transparent}
+/* mini gráfica: pasa el ratón por encima para ver cada partida */
+.ch-p rect{fill:transparent}
+.ch-p .ch-d{opacity:0;transition:opacity .1s}
+.ch-p:hover .ch-d{opacity:1}
+/* cuándo juegas mejor */
+.franjas{display:grid;grid-template-columns:24px repeat(6,minmax(0,1fr));gap:5px;max-width:560px}
+.franjas span{display:grid;place-items:center;font-size:11px;color:var(--t3)}
+.franjas i{height:30px;border-radius:7px;display:grid;place-items:center;font-style:normal;font-size:12.5px;font-weight:700;background:var(--pozo);box-shadow:inset 0 0 0 1px var(--linea);color:var(--t1)}
+.franjas i.w3{background:var(--az);color:var(--en-az);box-shadow:none}
+.franjas i.w2{background:color-mix(in srgb,var(--az) 36%,var(--s1));box-shadow:none}
+.franjas i.w1{background:color-mix(in srgb,var(--rj) 36%,var(--s1));box-shadow:none}
+.franjas i.w0{background:var(--rj);color:var(--en-rj);box-shadow:none}
+.franjas i.poco{opacity:.55}
+/* texto en camino mientras escribe la IA */
+.sk-txt{display:grid;gap:9px;margin:14px 0 4px}
+.sk-txt .sk{height:11px;border-radius:5px}
+/* aviso con "Deshacer" */
+#toast.acc{pointer-events:auto;display:flex;align-items:center;gap:14px;padding-right:10px;overflow:hidden}
+.tst-b{border:0;background:color-mix(in srgb,var(--bg) 14%,transparent);color:inherit;font-weight:750;height:28px;padding:0 11px;border-radius:7px;transition:transform .16s var(--ease-out)}
+.tst-b:hover{background:color-mix(in srgb,var(--bg) 24%,transparent)}
+.tst-b:active{transform:scale(.96)}
+.tst-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--az);transform-origin:0 0;animation:tst-bar linear forwards}
+#toast:hover .tst-bar{animation-play-state:paused}
+@keyframes tst-bar{to{transform:scaleX(0)}}
+/* buscador rápido (Ctrl+K): sin animación, se usa mucho */
+#cmd{position:fixed;inset:0;z-index:140;display:none;align-items:flex-start;justify-content:center;padding-top:12vh;background:rgba(3,6,11,.55)}
+html[data-tema="claro"] #cmd{background:rgba(20,28,44,.35)}
+#cmd.on{display:flex}
+.cmd-c{width:min(620px,calc(100vw - 32px));background:var(--s1);border:1px solid var(--linea2);border-radius:14px;box-shadow:var(--sombra);overflow:hidden}
+.cmd-c input{width:100%;height:52px;border:0;border-bottom:1px solid var(--linea);background:transparent;padding:0 18px;font-size:15.5px;outline:none}
+.cmd-l{max-height:min(420px,60vh);overflow:auto;padding:6px}
+.cmd-l button{width:100%;display:flex;align-items:center;gap:11px;height:40px;padding:0 12px;border:0;border-radius:8px;background:none;text-align:left;color:var(--t2);font-size:13.5px}
+.cmd-l button .i{color:var(--t3)}
+.cmd-l button.on{background:var(--azs);color:var(--t1)}
+.cmd-l button .k{margin-left:auto;font-size:11.5px;color:var(--t3)}
+.cmd-l .vac{padding:16px 12px;color:var(--t3);font-size:13px}
+.cmd-pie{display:flex;gap:14px;padding:8px 14px;border-top:1px solid var(--linea);font-size:11.5px;color:var(--t3)}
+kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid var(--linea2);background:var(--s2);color:var(--t2)}
+.bus-b{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 11px;border-radius:8px;border:1px solid var(--linea);background:var(--s1);color:var(--t3);font-size:12.5px}
+.bus-b:hover{border-color:var(--linea2);color:var(--t1)}
+#confeti{position:fixed;inset:0;z-index:150;pointer-events:none}
+@media (prefers-reduced-motion:reduce){
+  .tabs-ind.anima,.fil-ind.anima{transition:none} .btn-est{animation:none} .btn:active:not(:disabled),button.chip:active{transform:none}
+}
 </style>
 </head>
 <body>
@@ -892,8 +961,13 @@ main>.card,main>.kpis{margin-bottom:16px}
 <div class="modal" id="conf" role="alertdialog" aria-modal="true" aria-labelledby="conf-t"><div class="modal-c" id="conf-c"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="tip" role="tooltip"></div>
+<div id="cmd" role="dialog" aria-modal="true" aria-label="Buscar"><div class="cmd-c">
+  <input id="cmd-q" type="text" placeholder="Busca una pantalla, un campeón o una partida…" autocomplete="off" spellcheck="false" aria-controls="cmd-l">
+  <div class="cmd-l" id="cmd-l" role="listbox"></div>
+  <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
+</div></div>
 <script>
-const UI_V = "25";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "26";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1085,7 +1159,27 @@ function medir(){
   return cambio;
 }
 function cerrarConf(v){ $("#conf").classList.remove("on"); const r = confirmar._r; confirmar._r = null; if(r) r(v); }
-function toast(t){ const el = $("#toast"); if(!t) return; el.textContent = t; el.classList.add("on"); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("on"), 3200); }
+/* aviso abajo. Con "deshacer" (una función) lleva el botón Deshacer y dura 6 s; con el ratón encima no se va */
+function toast(t, deshacer){
+  const el = $("#toast"); if(!t) return;
+  const ms = deshacer ? 6000 : 3200;
+  el.innerHTML = esc(t) + (deshacer ? `<button class="tst-b" type="button">Deshacer</button><i class="tst-bar" style="animation-duration:${ms}ms"></i>` : "");
+  el.classList.toggle("acc", !!deshacer); el.classList.add("on");
+  let resta = ms, desde = Date.now();
+  const cerrar = () => { el.classList.remove("on", "acc"); el.onmouseenter = el.onmouseleave = null; const b = el.querySelector(".tst-b"); if(b) b.onclick = null; };
+  const programar = () => { clearTimeout(toast._t); desde = Date.now(); toast._t = setTimeout(cerrar, resta); };
+  programar();
+  if(deshacer){
+    el.onmouseenter = () => { clearTimeout(toast._t); resta -= Date.now() - desde; };
+    el.onmouseleave = () => programar();
+    el.querySelector(".tst-b").onclick = () => { clearTimeout(toast._t); cerrar(); deshacer(); };
+  } else el.onmouseenter = el.onmouseleave = null;
+}
+async function deshacerCon(token, luego){
+  try{ const r = await api("/api/deshacer", {token}); toast(r.msg, r.reintentar ? () => deshacerCon(token, luego) : null); }catch(_){ toast("No se pudo deshacer."); }
+  if(luego) await luego();
+  await recargarEstado(); pintar(true);
+}
 (function(){
   const tip = () => $("#tip");
   let actual = null;
@@ -1180,7 +1274,7 @@ function htmlTope(){
       <div class="rg">${r ? esc(r.texto) + (r.tier && r.tier !== "NONE" ? ` · ${r.lp} LP` : "") : ""}${j.nivel ? ` · nivel ${j.nivel}` : ""}</div></div></div>` : "";
   const estado = S.caido ? `<span class="chip rj" role="alert">${ic("alerta")}El coach está cerrado: ábrelo con INICIAR_COACH.bat</span>`
     : `<span class="est-c ${e.conectado ? "on" : ""}"><i></i>${esc(e.conectado ? e.fase_texto : "Cliente de LoL cerrado")}</span>`;
-  return `<h1>${TITULO[S.vista] || ""}</h1>${miga}<div class="der">${estado}${perfil}</div>`;
+  return `<h1>${TITULO[S.vista] || ""}</h1>${miga}<div class="der"><button class="bus-b" data-a="cmd" aria-label="Buscar (Ctrl+K)">${ic("lupa", "s")}Buscar <kbd>Ctrl K</kbd></button>${estado}${perfil}</div>`;
 }
 function pintar(forzar){
   if(!S.estado) return;
@@ -1191,7 +1285,40 @@ function pintar(forzar){
   poner(main, B(vista));
   if(medir()) poner(main, B(vista));        /* segunda pasada en el mismo instante, ya con los anchos reales: no se ve ningún salto */
   document.body.dataset.vista = S.vista;
+  try{ efectos(); }catch(e){ console.error(e); }
 }
+
+/* ---------- detalles de movimiento tras cada repintado ---------- */
+const MENOS_MOV = matchMedia("(prefers-reduced-motion: reduce)");
+const _contados = new WeakSet();
+function efectos(){
+  /* números que suben hasta su valor la primera vez que aparecen (EasyUI "Stat Card") */
+  for(const n of $$("[data-cu]")){
+    if(_contados.has(n)) continue;
+    _contados.add(n);
+    const fin = +n.dataset.cu, d = +(n.dataset.dec || 0);
+    if(MENOS_MOV.matches || !isFinite(fin) || fin === 0) continue;
+    const t0 = performance.now(), dur = 650;
+    const paso = ahora => {
+      if(!n.isConnected) return;
+      const k = Math.min(1, (ahora - t0) / dur), e = 1 - Math.pow(1 - k, 3), meta = +n.dataset.cu;   /* el repintado puede cambiarlo */
+      n.textContent = dec(k < 1 ? meta * e : meta, d);
+      if(k < 1) requestAnimationFrame(paso);
+    };
+    requestAnimationFrame(paso);
+  }
+  /* marca de la pestaña o filtro elegido: se desliza en vez de saltar */
+  for(const ind of $$(".tabs-ind, .fil-ind")){
+    const caja = ind.parentElement, on = caja.querySelector(ind.classList.contains("tabs-ind") ? "button.on" : "button.chip.az");
+    if(!on){ ind.classList.remove("listo"); continue; }
+    const x = on.offsetLeft, y = on.offsetTop, w = on.offsetWidth;
+    if(ind.classList.contains("tabs-ind")) ind.style.transform = `translateX(${x}px) scaleX(${w / 100})`;
+    else { ind.style.transform = `translate(${x}px,${y}px)`; ind.style.width = w + "px"; ind.style.height = on.offsetHeight + "px"; }
+    if(!ind.classList.contains("listo")){ ind.classList.add("listo"); void ind.offsetWidth; }
+    ind.classList.add("anima");                 /* la primera vez se coloca sin moverse; desde ahí, se desliza */
+  }
+}
+const IND_TAB = `<i class="tabs-ind" data-k="ind-tab" data-fijo aria-hidden="true"></i>`, IND_FIL = `<i class="fil-ind" data-k="ind-fil" data-fijo aria-hidden="true"></i>`;
 window.addEventListener("resize", () => { clearTimeout(pintar._t); pintar._t = setTimeout(() => { if(S.estado) pintar(); }, 90); });
 function animar(){ const m = $("#main"); m.classList.remove("entra"); void m.offsetWidth; m.classList.add("entra"); }
 
@@ -1235,13 +1362,97 @@ document.addEventListener("mousedown", ev => {          /* clic fuera de la vent
 });
 document.addEventListener("click", ev => {
   const el = ev.target.closest && ev.target.closest("[data-a]");
-  if(!el || el.disabled) return;
+  if(!el || el.disabled || _ocupados.has(el)) return;
   const fn = A[el.dataset.a];
-  if(fn){ ev.preventDefault(); try{ const r = fn(el, ev); if(r && r.catch) r.catch(e => console.error(e)); }catch(e){ console.error(e); } }
+  if(fn){ ev.preventDefault(); try{ const r = fn(el, ev); if(r && r.then) estadoBoton(el, r); }catch(e){ console.error(e); } }
 });
+/* Botones con estado (EasyUI "Morphing Button"): si la acción tarda, gira; al acabar, ✓ o ✕ un momento, sin cambiar de tamaño.
+   La acción dice cómo fue devolviendo true / false; si no devuelve nada, solo se quita el giro. */
+const _ocupados = new WeakSet();
+const BTN_ESTADO = new Set(["fijar", "reto", "desfijar", "copiar", "diagnostico", "mu-guardar"]);
+function estadoBoton(el, promesa){
+  const usa = el.classList.contains("btn") && BTN_ESTADO.has(el.dataset.a);
+  const poner = (est, html) => {
+    if(!el.isConnected) return;
+    el.setAttribute("data-fijo", ""); el.dataset.est = est;          /* data-fijo: el repintado no lo toca mientras tanto */
+    let c = el.querySelector(".btn-est"); if(!c){ c = document.createElement("span"); c.className = "btn-est"; el.appendChild(c); }
+    c.innerHTML = html;
+  };
+  const quitar = () => {
+    _ocupados.delete(el);
+    if(!el.isConnected) return;
+    el.removeAttribute("data-fijo"); delete el.dataset.est;
+    const c = el.querySelector(".btn-est"); if(c) c.remove();
+    pintar(true);
+  };
+  if(usa) _ocupados.add(el);
+  const t = usa ? setTimeout(() => poner("cargando", `<span class="gira"></span>`), 150) : 0;   /* lo rápido no parpadea */
+  promesa.then(r => {
+    clearTimeout(t); if(!usa) return;
+    if(r === true || r === false){ poner(r ? "ok" : "error", ic(r ? "ok" : "no", "s") + (r ? "Hecho" : "No se pudo")); setTimeout(quitar, 1100); }
+    else quitar();
+  }, e => { clearTimeout(t); console.error(e); if(usa){ poner("error", ic("no", "s") + "No se pudo"); setTimeout(quitar, 1100); } });
+}
 document.addEventListener("keydown", ev => {
   if(ev.key === "Escape"){ if($("#conf").classList.contains("on")) cerrarConf(false); else if($("#rev").classList.contains("on")) A["rev-cerrar"](); }
 });
+
+/* ---------- buscador rápido, Ctrl+K (EasyUI "Command Menu"): sin animación, porque se usa mucho ---------- */
+const CMD = {items: [], sel: 0};
+const norm = t => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+function cmdItems(){
+  const e = E() || {partidas: []}, L = [];
+  const ICV = {inicio: "inicio", partidas: "partidas", retos: "retos", builds: "builds", progreso: "progreso", ia: "ia", ajustes: "ajustes"};
+  for(const [v, t] of Object.entries(TITULO)) L.push({ic: ICV[v], t, k: "Pantalla", ir: () => ir(v)});
+  L.push({ic: temaActual() === "oscuro" ? "sol" : "luna", t: temaActual() === "oscuro" ? "Cambiar a tema claro" : "Cambiar a tema oscuro", k: "Acción", ir: () => A.tema()});
+  L.push({ic: "copiar", t: "Copiar diagnóstico", k: "Acción", ir: () => A.diagnostico()});
+  for(const p of e.partidas || []) L.push({ic: "partidas", t: `${p.campeon}${p.rival ? " contra " + p.rival : ""} · ${p.victoria ? "Victoria" : "Derrota"}`,
+    k: fechaCorta(p.fecha), extra: `${p.cola || ""} ${p.rol || ""} ${p.fecha || ""}`, ir: () => ir("partidas", {id: p.id})});
+  return L;
+}
+function cmdPintar(){
+  const q = norm($("#cmd-q").value).split(/\s+/).filter(Boolean);
+  CMD.items = cmdItems().filter(x => { const h = norm(x.t + " " + x.k + " " + (x.extra || "")); return q.every(w => h.includes(w)); }).slice(0, 40);
+  CMD.sel = Math.min(CMD.sel, Math.max(0, CMD.items.length - 1));
+  $("#cmd-l").innerHTML = CMD.items.length ? CMD.items.map((x, i) => `<button type="button" role="option" id="cmd-${i}" data-i="${i}" class="${i === CMD.sel ? "on" : ""}" aria-selected="${i === CMD.sel}">${ic(x.ic)}<span>${esc(x.t)}</span><span class="k">${esc(x.k)}</span></button>`).join("")
+    : `<p class="vac">Nada con «${esc($("#cmd-q").value)}».</p>`;
+  $("#cmd-q").setAttribute("aria-activedescendant", CMD.items.length ? "cmd-" + CMD.sel : "");
+  const on = $("#cmd-l .on"); if(on) on.scrollIntoView({block: "nearest"});
+}
+function cmdAbrir(){ if(!S.estado) return; $("#cmd").classList.add("on"); $("#cmd-q").value = ""; CMD.sel = 0; cmdPintar(); $("#cmd-q").focus(); }
+function cmdCerrar(){ $("#cmd").classList.remove("on"); }
+function cmdUsar(i){ const x = CMD.items[i]; cmdCerrar(); if(x) x.ir(); }
+A.cmd = () => cmdAbrir();
+document.addEventListener("keydown", ev => {
+  if((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k"){ ev.preventDefault(); $("#cmd").classList.contains("on") ? cmdCerrar() : cmdAbrir(); return; }
+  if(!$("#cmd").classList.contains("on")) return;
+  if(ev.key === "Escape"){ ev.preventDefault(); ev.stopPropagation(); cmdCerrar(); }
+  else if(ev.key === "ArrowDown" || ev.key === "ArrowUp"){ ev.preventDefault(); const n = CMD.items.length; if(n){ CMD.sel = (CMD.sel + (ev.key === "ArrowDown" ? 1 : n - 1)) % n; cmdPintar(); } }
+  else if(ev.key === "Enter"){ ev.preventDefault(); cmdUsar(CMD.sel); }
+}, true);
+document.addEventListener("input", ev => { if(ev.target.id === "cmd-q"){ CMD.sel = 0; cmdPintar(); } });
+document.addEventListener("mousedown", ev => {
+  if(ev.target.id === "cmd") return cmdCerrar();
+  const b = ev.target.closest && ev.target.closest("#cmd-l button"); if(b){ ev.preventDefault(); cmdUsar(+b.dataset.i); }
+});
+
+/* ---------- confeti al superar un reto o una tarea (solo si pasa con la página abierta) ---------- */
+function logrosDe(e){ return e.logros != null ? e.logros : ((e.avance && e.avance.n_superadas) || 0); }
+function confeti(){
+  if(MENOS_MOV.matches) return;
+  const cv = document.createElement("canvas"); cv.id = "confeti"; document.body.appendChild(cv);
+  const dpr = devicePixelRatio || 1, W = cv.width = innerWidth * dpr, H = cv.height = innerHeight * dpr, c = cv.getContext("2d");
+  const cs = getComputedStyle(document.documentElement), col = ["--az", "--vd", "--or", "--vi", "--rj"].map(v => cs.getPropertyValue(v).trim());
+  const P = Array.from({length: 140}, (_, i) => { const iz = i % 2 === 0, a = (iz ? -60 : -120) * Math.PI / 180 + (Math.random() - .5) * .9, v = (9 + Math.random() * 9) * dpr;
+    return {x: iz ? 0 : W, y: H * .75, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: Math.random() * 6, vr: (Math.random() - .5) * .4, w: (5 + Math.random() * 5) * dpr, h: (3 + Math.random() * 4) * dpr, c: col[i % col.length]}; });
+  const t0 = performance.now();
+  (function cuadro(t){
+    const k = (t - t0) / 1800; c.clearRect(0, 0, W, H);
+    for(const p of P){ p.vy += .32 * dpr; p.vx *= .985; p.vy *= .985; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      c.save(); c.globalAlpha = Math.max(0, 1 - Math.max(0, k - .6) / .4); c.translate(p.x, p.y); c.rotate(p.r); c.fillStyle = p.c; c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); c.restore(); }
+    if(k < 1) requestAnimationFrame(cuadro); else cv.remove();
+  })(t0);
+}
 
 /* =========================================== INICIO =========================================== */
 VISTAS.inicio = () => {
@@ -1298,16 +1509,22 @@ function cardHoy(){
       ${s.despues_del_aviso ? `<div><dt>Jugadas después del aviso</dt><dd><b class="c-rj">${s.despues_del_aviso}</b></dd></div>` : ""}
     </dl></section>`;
 }
-function chispa(vals, tono = "az", W = 132, H = 34){
-  const v = vals.filter(x => x != null);
+function chispa(vals, tono = "az", W = 132, H = 34, tips = null){
+  const idx = vals.map((x, i) => x != null ? i : -1).filter(i => i >= 0), v = idx.map(i => vals[i]);
   if(v.length < 3) return "";
   let lo = Math.min(...v), hi = Math.max(...v); if(hi === lo){ hi += 1; lo -= 1; }
   const X = i => 3 + (W - 9) * i / (v.length - 1), Y = x => 4 + (H - 8) * (1 - (x - lo) / (hi - lo));
   const d = v.map((x, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(x).toFixed(1)).join(" ");
-  return `<svg class="chispa" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
+  /* con "tips": cada punto tiene su franja invisible; al pasar el ratón se marca el punto y sale su partida */
+  const paso = (W - 9) / (v.length - 1);
+  const zonas = tips ? v.map((x, i) => `<g class="ch-p" data-tip="${esc(tips[idx[i]] || "")}"><rect x="${Math.max(0, X(i) - paso / 2).toFixed(1)}" y="0" width="${paso.toFixed(1)}" height="${H}"/>
+      <circle class="ch-d" cx="${X(i).toFixed(1)}" cy="${Y(x).toFixed(1)}" r="3.5" fill="var(--t1)" stroke="var(--s1)" stroke-width="1.5"/></g>`).join("") : "";
+  return `<svg class="chispa" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ${tips ? 'role="img" aria-label="Tu nota en cada partida"' : 'aria-hidden="true"'}>
     <path d="${d}" fill="none" stroke="var(--t4)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="${X(v.length - 1).toFixed(1)}" cy="${Y(v[v.length - 1]).toFixed(1)}" r="4" fill="var(--${tono})" stroke="var(--s1)" stroke-width="2"/></svg>`;
+    <circle cx="${X(v.length - 1).toFixed(1)}" cy="${Y(v[v.length - 1]).toFixed(1)}" r="4" fill="var(--${tono})" stroke="var(--s1)" stroke-width="2"/>${zonas}</svg>`;
 }
+/* número que sube hasta su valor la primera vez que se ve (lo anima efectos()) */
+const cu = (x, d = 1) => x == null || isNaN(x) ? dec(x, d) : `<span data-cu="${x}" data-dec="${d}">${dec(x, d)}</span>`;
 function filaKpi(){
   const e = E(), c = e.cabecera, av = e.avance, ps = e.partidas;
   if(!c) return "";
@@ -1315,24 +1532,28 @@ function filaKpi(){
   const forma = `<span class="forma" aria-label="Tus últimas ${ult.length} partidas">${ult.map(p => `<i class="${p.victoria ? "v" : "d"}" data-tip="${p.victoria ? "Victoria" : "Derrota"} con ${esc(p.campeon)}, ${fechaCorta(p.fecha)}"></i>`).join("")}</span>`;
   const m = k => { const xs = ps.slice(0, c.n).map(p => p[k]).filter(x => x != null); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };
   const notas = ps.slice(0, c.n).map(p => p.nota).reverse();
+  const tipsNota = ps.slice(0, c.n).map(p => `${p.victoria ? "Victoria" : "Derrota"} con ${p.campeon} · nota ${dec(p.nota)} · ${fechaCorta(p.fecha)}`).reverse();
+  /* nota de tus 10 últimas frente a las 10 anteriores */
+  const n10 = media(ps.slice(0, 10).map(p => p.nota).filter(x => x != null)), n20 = media(ps.slice(10, 20).map(p => p.nota).filter(x => x != null));
+  const dNota = ps.length >= 15 && n10 != null && n20 != null ? Math.round((n10 - n20) * 10) / 10 : null;
   const dAv = av && av.media != null && av.media_antes != null ? Math.round((av.media - av.media_antes) * 10) / 10 : null;
   const colas = [...new Set(ps.map(p => p.cola).filter(Boolean))];
   if(S.filtroCola && !colas.includes(S.filtroCola)) S.filtroCola = "";
   const psF = S.filtroCola ? ps.filter(p => p.cola === S.filtroCola) : ps;
   const nF = psF.length, vF = psF.filter(p => p.victoria).length, wrF = nF ? Math.round(100 * vF / nF) : 0;
-  const filtroCola = colas.length > 1 ? `<div class="filtros"><button class="chip ${S.filtroCola ? "ln" : "az"}" data-a="filtro-cola" data-q="">Todas</button>${colas.map(q =>
+  const filtroCola = colas.length > 1 ? `<div class="filtros">${IND_FIL}<button class="chip ${S.filtroCola ? "ln" : "az"}" data-a="filtro-cola" data-q="">Todas</button>${colas.map(q =>
     `<button class="chip ${S.filtroCola === q ? "az" : "ln"}" data-a="filtro-cola" data-q="${esc(q)}">${esc(q)} <b>${ps.filter(p => p.cola === q).length}</b></button>`).join("")}</div>` : "";
   const t = (et, valor, tono, pie, extra = "") => `<div class="kpi"><span class="et">${et}</span>
     <div class="kv"><b class="nm ${tono ? "c-" + tono : ""}">${valor}</b>${extra}</div><div class="kp">${pie}</div></div>`;
   return `<section class="kpis" aria-label="Tus números: victorias de todo el historial, el resto de las últimas ${c.n} partidas">
     ${c.wr_total != null
-      ? t("Victorias", `${wrF}<small>%</small>`, wrF >= 50 ? "az" : "rj",
+      ? t("Victorias", `${cu(wrF, 0)}<small>%</small>`, wrF >= 50 ? "az" : "rj",
           `<span class="tn">${vF}V ${nF - vF}D · ${nF} partidas${S.filtroCola ? " · " + esc(S.filtroCola) : ""}</span> ${forma}${filtroCola}`)
       : t("Victorias", `${c.wr}<small>%</small>`, c.wr >= 50 ? "az" : "rj", forma)}
-    ${t("KDA", dec(c.kda), "", `<span class="tn">${dec(m("k"))} / <span class="c-rj">${dec(m("d"))}</span> / ${dec(m("a"))}</span> de media`)}
-    ${t("Nota media", dec(c.nota), tonoNota(c.nota), `sobre 10, últimas ${c.n} partidas`, chispa(notas, tonoNota(c.nota) || "az"))}
-    ${c.puesto != null ? t("Puesto medio", `${dec(c.puesto)}<small>.º</small>`, c.puesto <= 4 ? "vd" : c.puesto > 6.5 ? "rj" : "", "de 10 jugadores por rendimiento") : ""}
-    ${av && av.media != null ? t("Errores caros", dec(av.media), av.media <= 1 ? "vd" : av.media >= 2 ? "rj" : "am",
+    ${t("KDA", cu(c.kda), "", `<span class="tn">${dec(m("k"))} / <span class="c-rj">${dec(m("d"))}</span> / ${dec(m("a"))}</span> de media`)}
+    ${t("Nota media", cu(c.nota), tonoNota(c.nota), `sobre 10, últimas ${c.n} partidas${dNota ? ` <span class="chip ${dNota > 0 ? "vd" : "rj"}" data-tip="Tus 10 últimas partidas frente a las 10 anteriores">${ic(dNota > 0 ? "sube" : "baja")}${dec(Math.abs(dNota))}</span>` : ""}`, chispa(notas, tonoNota(c.nota) || "az", 132, 34, tipsNota))}
+    ${c.puesto != null ? t("Puesto medio", `${cu(c.puesto)}<small>.º</small>`, c.puesto <= 4 ? "vd" : c.puesto > 6.5 ? "rj" : "", "de 10 jugadores por rendimiento") : ""}
+    ${av && av.media != null ? t("Errores caros", cu(av.media), av.media <= 1 ? "vd" : av.media >= 2 ? "rj" : "am",
         "por partida, últimas 10", dAv ? `<span class="chip ${dAv < 0 ? "vd" : "rj"}">${ic(dAv < 0 ? "baja" : "sube")}${dec(Math.abs(dAv))}</span>` : "") : ""}
   </section>`;
 }
@@ -1476,7 +1697,7 @@ function htmlLista(){
   const todas = E().partidas;
   const roles = [...new Set(todas.map(p => p.rol).filter(Boolean))];
   const ps = S.filtroRol ? todas.filter(p => p.rol === S.filtroRol) : todas;
-  const filtros = roles.length > 1 ? `<div class="filtros"><button class="chip ${S.filtroRol ? "ln" : "az"}" data-a="filtro-rol" data-r="">Todas <b>${todas.length}</b></button>${roles.map(r =>
+  const filtros = roles.length > 1 ? `<div class="filtros">${IND_FIL}<button class="chip ${S.filtroRol ? "ln" : "az"}" data-a="filtro-rol" data-r="">Todas <b>${todas.length}</b></button>${roles.map(r =>
     `<button class="chip ${S.filtroRol === r ? "az" : "ln"}" data-a="filtro-rol" data-r="${r}">${ROL[r] || r} <b>${todas.filter(p => p.rol === r).length}</b></button>`).join("")}</div>` : "";
   return filtros + `<div class="filas">` + ps.map(p => {
     const sel = String(p.id) === String(S.selId), tn = tonoNota(p.nota), mvp = (p.premios || []).includes("MVP");
@@ -1502,7 +1723,7 @@ function htmlRevision(){
     ["linea", p.rival ? "Tú contra " + esc(p.rival.campeon) : "Línea", ""], ["equipo", "Los 10 jugadores", p.puesto ? `<span class="n">${p.puesto}.º</span>` : ""], ["build", "Runas y build", ""]];
   if(!tabs.some(t => t[0] === S.tab)) S.tab = "resumen";
   const cuerpo = {resumen: tabResumen, muertes: tabMuertes, linea: tabLinea, equipo: tabEquipo, build: tabBuild}[S.tab];
-  return B(banda, p) + `<div class="tabs" role="tablist">${tabs.map(([k, t, n]) => `<button role="tab" data-a="tab" data-t="${k}" class="${S.tab === k ? "on" : ""}" aria-selected="${S.tab === k}">${t}${n}</button>`).join("")}
+  return B(banda, p) + `<div class="tabs" role="tablist">${IND_TAB}${tabs.map(([k, t, n]) => `<button role="tab" data-a="tab" data-t="${k}" class="${S.tab === k ? "on" : ""}" aria-selected="${S.tab === k}">${t}${n}</button>`).join("")}
       <span style="margin-left:auto;align-self:center"><button class="btn pq" data-a="copiar" data-tip="Copia un resumen en texto para pegarlo en un chat con Claude">${ic("copiar", "s")}<span>Copiar resumen</span></button></span></div>
     <div data-k="tab-${S.tab}">${B(cuerpo, p)}</div>`;
 }
@@ -1763,8 +1984,8 @@ function objSupport(p){
 A["mu-guardar"] = async () => {
   const p = S.partida, t = $("#mu-txt").value;
   try{ await api("/api/matchup", {yo: p.yo.campeon_id, rival: p.rival.campeon_id, texto: t}); p.nota_matchup = t.trim();
-    toast(p.nota_matchup ? "Nota guardada: la verás contra " + p.rival.campeon : "Nota borrada"); }
-  catch(e){ toast("No se pudo guardar la nota."); }
+    toast(p.nota_matchup ? "Nota guardada: la verás contra " + p.rival.campeon : "Nota borrada"); return true; }
+  catch(e){ toast("No se pudo guardar la nota."); return false; }
 };
 
 /* ---------- pestaña Los 10 jugadores ---------- */
@@ -1808,8 +2029,8 @@ function tabBuild(p){
 }
 A.fijar = async el => {
   try{ await api("/api/fijar", {id: S.partida.id, modo: el.dataset.m}); await recargarPartida(); await recargarEstado(); pintar(true);
-    toast(el.dataset.m === "vs" ? "Runas y build fijadas para este enfrentamiento" : "Runas y build fijadas"); }
-  catch(e){ toast("No se pudo fijar."); }
+    toast(el.dataset.m === "vs" ? "Runas y build fijadas para este enfrentamiento" : "Runas y build fijadas"); return true; }
+  catch(e){ toast("No se pudo fijar."); return false; }
 };
 A.ver = async el => {
   const txt = el.innerHTML; el.disabled = true; el.textContent = "Abriendo…";
@@ -1823,8 +2044,8 @@ async function alPortapapeles(t){
   catch(e){ const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
 }
 A.diagnostico = async () => {
-  try{ const r = await (await fetch("/api/diagnostico")).json(); await alPortapapeles(r.texto); toast("Diagnóstico copiado. Pégalo en tu comentario."); }
-  catch(e){ toast("No pude sacar el diagnóstico. ¿Está abierto el coach?"); }
+  try{ const r = await (await fetch("/api/diagnostico")).json(); await alPortapapeles(r.texto); toast("Diagnóstico copiado. Pégalo en tu comentario."); return true; }
+  catch(e){ toast("No pude sacar el diagnóstico. ¿Está abierto el coach?"); return false; }
 };
 A.feedback = async () => {
   try{ await api("/api/abrir-feedback", {}); toast("Abriendo la página de comentarios en tu navegador…"); }
@@ -1835,6 +2056,7 @@ A.copiar = async () => {
   try{ await navigator.clipboard.writeText(t); }
   catch(e){ const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
   toast("Copiado. Pégalo en un chat con Claude.");
+  return true;
 };
 
 /* ---------- revisar una muerte (ventana) ---------- */
@@ -1897,7 +2119,7 @@ VISTAS.retos = () => {
     <div class="retos-g">${act.map(tarjetaReto).join("")}${Array.from({length: Math.max(0, R.max - act.length)}, (_, i) => `<div class="hueco" data-k="hueco-${i}">${ic("mas", "l")}<b>Hueco libre</b>
       <span>Activa un reto del catálogo${i === 0 ? ` o pulsa “${ia ? "Que la IA elija uno" : "Que el coach elija uno"}”` : ""}.</span></div>`).join("")}</div>
     <h3 class="sec-t">${ic("retos")}Catálogo<small>${resto.length} retos</small></h3>
-    <div class="filtros"><button class="chip ${S.retoHab ? "ln" : "az"}" data-a="reto-hab" data-h="">Todos <b>${resto.length}</b></button>
+    <div class="filtros">${IND_FIL}<button class="chip ${S.retoHab ? "ln" : "az"}" data-a="reto-hab" data-h="">Todos <b>${resto.length}</b></button>
       ${rec.length ? `<button class="chip ${S.retoHab === "rec" ? "az" : "ln"}" data-a="reto-hab" data-h="rec" data-tip="Donde más te falta según tus últimas partidas">Recomendados <b>${rec.length}</b></button>` : ""}
       ${habs.map(h => `<button class="chip ${S.retoHab === h ? "az" : "ln"}" data-a="reto-hab" data-h="${esc(h)}">${ic(HAB_IC[h] || "retos")}${esc(h)} <b>${resto.filter(r => r.hab === h).length}</b></button>`).join("")}</div>
     ${grupos.map(([h, rs]) => `<section class="card pl cat" data-k="g-${esc(h)}" aria-label="Retos de ${esc(h)}">
@@ -1945,10 +2167,14 @@ function tarjetaReto(r){
 }
 A["reto-hab"] = el => { S.retoHab = el.dataset.h || ""; pintar(); };
 A.reto = async el => {
-  el.disabled = true;
-  try{ const r = await api("/api/reto", {clave: el.dataset.c, activar: el.dataset.on === "1"}); if(!r.ok) toast(r.msg); else toast(el.dataset.on === "1" ? "Reto activado: se mide solo desde tu próxima partida" : "Reto dejado"); }
+  el.disabled = true; let ok = false;
+  try{ const r = await api("/api/reto", {clave: el.dataset.c, activar: el.dataset.on === "1"}); ok = !!r.ok;
+    if(!r.ok) toast(r.msg);
+    else if(el.dataset.on === "1") toast("Reto activado: se mide solo desde tu próxima partida");
+    else toast("Reto dejado", r.deshacer ? () => deshacerCon(r.deshacer, cargarRetos) : null); }
   catch(e){ toast("No se pudo cambiar el reto."); }
   await cargarRetos(); await recargarEstado(); pintar(true);
+  return ok;
 };
 A["reto-auto"] = async el => {
   el.disabled = true; el.innerHTML = `<span class="gira"></span>Eligiendo…`;
@@ -2000,8 +2226,9 @@ A.opcion = async el => {
   setTimeout(async () => { await recargarEstado(); pintar(true); }, 1600);
 };
 A.desfijar = async el => {
-  try{ await api("/api/desfijar", {campeon_id: el.dataset.c, rival_id: el.dataset.r || null}); await recargarEstado(); pintar(true); toast("Quitada"); }
-  catch(e){ toast("No se pudo quitar."); }
+  try{ const r = await api("/api/desfijar", {campeon_id: el.dataset.c, rival_id: el.dataset.r || null}); await recargarEstado(); pintar(true);
+    toast("Build quitada", r.deshacer ? () => deshacerCon(r.deshacer) : null); return true; }
+  catch(e){ toast("No se pudo quitar."); return false; }
 };
 
 /* =========================================== PROGRESO =========================================== */
@@ -2030,7 +2257,7 @@ VISTAS.progreso = () => {
   return `${conAv ? `<div class="g est"><div class="c5">${B(cardAvance, P.avance)}</div><div class="c7">${B(cardPerfil, P)}</div></div>` : B(cardPerfil, P) + `<div style="height:16px"></div>`}
     ${B(cardTendencias, P)}
     <div class="g"><div class="c7 pila">${B(cardCampeones, P.campeones)}${B(cardPatrones, P)}${B(cardInsignias, P)}</div>
-      <div class="c5 pila">${B(cardCalendario, P.calendario)}${B(cardMapa, P)}</div></div>
+      <div class="c5 pila">${B(cardCalendario, P.calendario)}${B(cardFranjas)}${B(cardMapa, P)}</div></div>
     ${(cs => cs.length ? `<div class="g est">${cs.map(c => `<div class="c${12 / cs.length}">${c}</div>`).join("")}</div>` : "")([B(cardTope, P.tope_dia), B(cardReferencia, P), B(cardEntreno, P.entreno)].filter(Boolean))}
     ${B(cardLP, P.lp)}`;
 };
@@ -2134,6 +2361,32 @@ function cardCalendario(c){
     <div class="ley cal-l"><span><i class="w3"></i>60% o más</span><span><i class="w2"></i>50 a 59%</span><span><i class="w1"></i>40 a 49%</span><span><i class="w0"></i>Menos de 40%</span></div>
     <p class="nota-p">Días jugados: <b>${jug.length}</b> · días en positivo: <b>${buenos}</b>.</p></section>`;
 }
+/* Cuándo juegas mejor (EasyUI "Activity Heatmap"): día de la semana por franja de 4 horas, con tu % de victorias */
+function cardFranjas(){
+  const ps = (E().partidas || []).filter(p => p.fecha);
+  if(ps.length < 8) return "";
+  const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"], FR = [0, 4, 8, 12, 16, 20];
+  const g = DIAS.map(() => FR.map(() => ({n: 0, v: 0})));
+  for(const p of ps){
+    const f = new Date(String(p.fecha).replace(" ", "T"));
+    if(isNaN(f)) continue;
+    const c = g[(f.getDay() + 6) % 7][Math.floor(f.getHours() / 4)]; c.n++; if(p.victoria) c.v++;
+  }
+  const cls = c => !c.n ? "" : ((w => w >= 60 ? "w3" : w >= 50 ? "w2" : w >= 40 ? "w1" : "w0")(100 * c.v / c.n)) + (c.n < 3 ? " poco" : "");
+  const fr = k => `${String(FR[k]).padStart(2, "0")}–${String(FR[k] + 4).padStart(2, "0")} h`;
+  /* mejor y peor franja (todas las de la semana juntas), solo con 4 partidas o más */
+  const porFr = FR.map((_, k) => g.reduce((a, d) => ({n: a.n + d[k].n, v: a.v + d[k].v}), {n: 0, v: 0}));
+  const val = porFr.map((c, k) => ({k, n: c.n, wr: c.n ? Math.round(100 * c.v / c.n) : null})).filter(x => x.n >= 4).sort((a, b) => b.wr - a.wr);
+  const mejor = val[0], peor = val.length > 1 ? val[val.length - 1] : null;
+  const resumen = mejor && peor && mejor.wr - peor.wr >= 15
+    ? `Ganas más de <b>${fr(mejor.k)}</b> (${mejor.wr}% en ${mejor.n}) que de <b>${fr(peor.k)}</b> (${peor.wr}% en ${peor.n}).`
+    : "Todavía no se ve una franja claramente mejor que otra.";
+  return `<section class="card" aria-label="Cuándo juegas mejor">
+    <div class="card-h"><h2>${ic("cal")}Cuándo juegas mejor</h2><span class="ay">Tus ${ps.length} partidas por día y hora. El número, cuántas; el color, cuánto ganaste.</span></div>
+    <div class="franjas"><span></span>${FR.map((_, k) => `<span>${String(FR[k]).padStart(2, "0")}</span>`).join("")}
+      ${DIAS.map((d, i) => `<span>${d[0] === "M" && i === 2 ? "X" : d[0]}</span>${g[i].map((c, k) => `<i class="${cls(c)}" data-tip="${d} de ${fr(k)}: ${c.n ? `${plural(c.v, "victoria", "victorias")} de ${c.n}${c.n < 3 ? " (pocas partidas: orientativo)" : ""}` : "sin partidas"}">${c.n || ""}</i>`).join("")}`).join("")}</div>
+    <p class="nota-p">${resumen} Las casillas más tenues tienen menos de 3 partidas.</p></section>`;
+}
 A["mapa-fase"] = el => { S.mapaFase = el.dataset.f || ""; pintar(); };
 function cardMapa(P){
   const todo = P.mapa || []; if(todo.length < 5) return "";
@@ -2146,7 +2399,7 @@ function cardMapa(P){
   const f = (id, txt) => `<button class="chip ${(S.mapaFase || "") === id ? "az" : "ln"}" data-a="mapa-fase" data-f="${id}">${txt} <b>${id ? todo.filter(d => d.fase === id).length : todo.length}</b></button>`;
   return `<section class="card" aria-label="Dónde mueres">
     <div class="card-h"><h2>${ic("pin")}Dónde mueres</h2><span class="ay">Tus últimas ${todo.length} muertes · tu base, abajo a la izquierda</span></div>
-    <div class="filtros">${f("", "Todas")}${f("temprana", `Antes del ${fl}`)}${f("media", `Del ${fl} al 25`)}${f("final", "Después del 25")}</div>
+    <div class="filtros">${IND_FIL}${f("", "Todas")}${f("temprana", `Antes del ${fl}`)}${f("media", `Del ${fl} al 25`)}${f("final", "Después del 25")}</div>
     <div class="mapa-g"><svg class="mapa" viewBox="0 0 ${Z} ${Z}" role="img" aria-label="Mapa de tus muertes">
       ${mapaBase(Z)}
       ${m.map(d => `<circle class="md" cx="${X(d.x)}" cy="${Y(d.y)}" r="5" data-tip="${esc(d.campeon)}, minuto ${esc(d.min)}"/>`).join("")}</svg>
@@ -2238,6 +2491,7 @@ function cardIA(p){
     <div class="card-h"><h2>${ic("ia")}Análisis escrito por IA</h2>${a ? `<span class="der"><span class="chip vi">${esc(a.modelo)}</span></span>` : ""}</div>
     ${a ? textoIA(a.texto) : esp ? "" : `<p class="t2">Esta partida aún no tiene análisis.</p>`}
     ${esp ? `<p class="ia-paso" role="status"><span class="gira"></span><span>${esc(S.iaPaso[p.id] || "Preparando los datos…")} <span class="tn t3">(${seg} s)</span></span></p>
+        <div class="sk-txt" aria-hidden="true"><i class="sk" style="width:94%"></i><i class="sk" style="width:88%"></i><i class="sk" style="width:97%"></i><i class="sk" style="width:62%"></i></div>
         <p class="nota-p">Prueba los modelos gratis uno por uno hasta que alguno responde. Si están saturados tarda más; puedes seguir usando el coach mientras tanto.</p>`
       : `<div class="pie"><button class="btn ${a ? "" : "p"}" data-a="ia-pedir" data-id="${esc(p.id)}" data-f="${a ? 1 : 0}">${ic("ia", "s")}${a ? "Volver a generar" : "Analizar con IA"}</button></div>`}
     <p class="nota-p">Redactado por una IA con los números del coach. Puede equivocarse: si contradice un dato de esta página, vale el dato.</p></section>`;
@@ -2407,8 +2661,10 @@ async function refrescar(){
     let ya = null; try{ ya = sessionStorage.getItem("coach-recarga"); }catch(_){}
     if(ya !== nuevo.version){ try{ sessionStorage.setItem("coach-recarga", nuevo.version); }catch(_){} location.reload(); return; }
   }
+  const lAntes = antes ? logrosDe(antes) : null;
   S.estado = nuevo; S.estadoTxt = txt;
   const e = S.estado, ids = e.partidas.map(p => String(p.id));
+  if(lAntes != null && logrosDe(e) > lAntes){ setTimeout(confeti, 300); setTimeout(() => toast("¡Superaste un reto! Míralo en Retos o en Progreso"), 3400); }
   const nov = e.actualizacion && e.actualizacion.novedades;
   if(primera && nov){
     let visto = null; try{ visto = localStorage.getItem("coach-novedades"); }catch(_){}

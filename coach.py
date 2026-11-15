@@ -104,7 +104,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "25"
+VERSION = "26"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -4360,6 +4360,41 @@ def activar_reto(alm, rec, clave, activar, origen="tú", motivo=""):
     return True, ""
 
 
+_DESHACER = {}          # token -> (seccion, clave, copia de como estaba): "Deshacer" del aviso, unos minutos
+
+
+def guardar_deshacer(seccion, clave, valor):
+    """Guarda una copia exacta de alm.d[seccion][clave] antes de cambiarlo. Devuelve el token para deshacer."""
+    import copy
+    import secrets
+    ahora = time.time()
+    for k in [k for k, v in _DESHACER.items() if ahora - v[3] > 600]:
+        _DESHACER.pop(k, None)
+    token = secrets.token_hex(8)
+    _DESHACER[token] = (seccion, clave, copy.deepcopy(valor), ahora)
+    return token
+
+
+def deshacer(alm, token):
+    with alm.lock:                       # el mismo cerrojo con el que se guardan las copias: nada cambia a medias
+        x = _DESHACER.get(token)
+        if not x:
+            return False, "Ya no se puede deshacer."
+        seccion, clave, valor, _ = x
+        g = alm.d.setdefault(seccion, {})
+        if seccion == "retos" and (valor or {}).get("activo") and not (g.get(clave) or {}).get("activo") \
+                and sum(1 for v in g.values() if v.get("activo")) >= RETOS_MAX:
+            # el token se conserva: deja otro reto y vuelve a pulsar Deshacer (vale unos minutos)
+            return False, f"Ya tienes {RETOS_MAX} retos activos: deja uno y vuelve a deshacer."
+        _DESHACER.pop(token, None)
+        if valor is None:
+            g.pop(clave, None)
+        else:
+            g[clave] = valor
+        alm.guardar()
+    return True, "Deshecho."
+
+
 def retos_de_partida(alm, rec, p):
     """Como te fue en tus retos activos en una partida concreta."""
     with alm.lock:
@@ -8020,6 +8055,7 @@ def crear_handler(coach):
                                             "runas_det": rec.detalle_runas(x.get("runas")),
                                             "items": [{"id": i, "nombre": rec.item(i)}
                                                       for i in ((x.get("build") or {}).get("orden") or [])]})
+                retos_todos = retos_estado(alm, rec)["retos"]
                 return self._send(200, {
                     "conectado": coach.conectado, "fase": coach.fase,
                     "fase_texto": FASES.get(coach.fase or "", "Conectado") if coach.conectado else "Cliente cerrado",
@@ -8036,7 +8072,9 @@ def crear_handler(coach):
                            "respaldo_fin": ia_config()["respaldo"]["clave"][-4:] if ia_config()["respaldo"]["clave"] else "",
                            "gemini_fin": ia_config()["clave"][-4:] if ia_config()["clave"] else "",
                            "modelo": ia_config()["modelo"] or _IA_MODELOS["ok"] or ""},
-                    "retos_activos": [r for r in retos_estado(alm, rec)["retos"] if r["activo"]],
+                    "retos_activos": [r for r in retos_todos if r["activo"]],
+                    # retos superados (activos o no) + tareas superadas: el dashboard lanza confeti si sube
+                    "logros": sum(r.get("superados") or 0 for r in retos_todos) + ((avance(alm) or {}).get("n_superadas") or 0),
                     "build_info": coach.build_info if coach.fase in EN_JUEGO + ("ChampSelect",) else None,
                     "ahora": siguiente_paso(alm, plan, sesion(alm)), "proxima": plan_partida(alm, plan),
                 })
@@ -8210,8 +8248,11 @@ def crear_handler(coach):
                 t = IA_TRABAJOS.get(str(body.get("id", ""))) or {"estado": "nada", "msg": ""}
                 return self._send(200, dict(t, paso=IA_PASO["txt"]))
             if ruta == "/api/reto":
-                ok, msg = activar_reto(alm, rec, str(body.get("clave", "")), bool(body.get("activar")))
-                return self._send(200, {"ok": ok, "msg": msg})
+                clave, activar = str(body.get("clave", "")), bool(body.get("activar"))
+                with alm.lock:
+                    token = None if activar else guardar_deshacer("retos", clave, (alm.d.get("retos") or {}).get(clave))
+                ok, msg = activar_reto(alm, rec, clave, activar)
+                return self._send(200, {"ok": ok, "msg": msg, "deshacer": token if ok else None})
             if ruta == "/api/hud":
                 # ajustes de las tarjetas de partida y botones "Probar" / "Colocar"
                 if not coach.ventana:
@@ -8242,10 +8283,15 @@ def crear_handler(coach):
             if ruta == "/api/opcion":
                 coach.elegir_opcion(str(body.get("clave", "")))
                 return self._send(200, {"ok": True})
+            if ruta == "/api/deshacer":
+                token = str(body.get("token", ""))
+                ok, msg = deshacer(alm, token)
+                return self._send(200, {"ok": ok, "msg": msg, "reintentar": not ok and token in _DESHACER})
             if ruta == "/api/desfijar":
                 cid, rid = str(body.get("campeon_id", "")), body.get("rival_id")
                 with alm.lock:
                     f = (alm.d.get("fijados") or {}).get(cid)
+                    token = guardar_deshacer("fijados", cid, f)
                     if f:
                         if rid:
                             (f.get("vs") or {}).pop(str(rid), None)
@@ -8254,7 +8300,7 @@ def crear_handler(coach):
                         if not f.get("general") and not f.get("vs"):
                             alm.d["fijados"].pop(cid, None)
                         alm.guardar()
-                return self._send(200, {"ok": True})
+                return self._send(200, {"ok": True, "deshacer": token})
             if ruta == "/api/matchup":
                 # libreta de enfrentamientos: tu nota para la proxima vez contra ese rival
                 try:

@@ -1,6 +1,6 @@
 {
-  "version": "25",
-  "notas": "se actualiza solo, botón de diagnóstico y comentarios, Hoy cuenta Normales",
+  "version": "26",
+  "notas": "buscador Ctrl+K, cuándo juegas mejor, botones con estado, Deshacer y más detalles",
   "archivos": [
     "coach.py",
     "dashboard.html",

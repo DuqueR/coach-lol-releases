@@ -3,17 +3,34 @@
 
 Cómo empezar (si te lo pasó un amigo)
 -------------------------------------
-1. Descomprime el zip en una carpeta tuya (por ejemplo Documentos\CoachLoL).
-2. Abre CoachLoL.exe. Si Windows dice "Windows protegió su PC", pulsa "Más información"
-   y "Ejecutar de todos modos" (el .exe no está firmado; es normal en programas caseros).
+1. Abre CoachLoL_Setup.exe. Si Windows dice "Windows protegió su PC", pulsa "Más información"
+   y "Ejecutar de todos modos" (el programa no está firmado; es normal en programas caseros).
+   Se instala solo para tu usuario, sin pedir administrador, y crea el acceso en el menú Inicio.
+2. Abre Coach LoL desde el menú Inicio o el escritorio.
 3. Abre el cliente de League of Legends. El coach se conecta solo y lee tus partidas.
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
+Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v26: más claro y más rápido de usar
+--------------------------------------------------
+- Buscar (Ctrl+K o el botón de arriba): escribe un campeón, una pantalla o una fecha y Enter.
+- Progreso > "Cuándo juegas mejor": tus partidas por día de la semana y hora, con tu % de
+  victorias. Te dice en qué franja ganas más y en cuál menos.
+- Números de arriba: la nota media dice si subes o bajas frente a tus 10 partidas anteriores,
+  y al pasar el ratón por su gráfica ves cada partida.
+- Los botones (Fijar, Activar reto, Copiar…) muestran que están trabajando y luego ✓ o ✕.
+- "Dejar reto" y "Quitar build" tienen Deshacer durante unos segundos: el reto vuelve con
+  su progreso intacto.
+- Mientras la IA escribe, ves el hueco del texto en camino.
+- Pestañas y filtros con una marca que se desliza a la opción elegida.
+- Confeti cuando superas un reto con el coach abierto.
+- Si Windows tiene activado "reducir animaciones", el coach no anima nada de esto.
 
 Lo nuevo en la v25: se actualiza solo
 -------------------------------------
 - Al abrir, el coach mira si hay una versión nueva en GitHub. Si la hay, la baja, guarda una
-  copia de la anterior en datosespaldo y se reinicia. Nunca toca tus datos.
+  copia de la anterior en datos\respaldo y se reinicia. Nunca toca tus datos.
 - Ajustes > Sobre el coach: "Copiar diagnóstico" (versión y el final del log, sin tus claves)
   y "Enviar comentario" para contar fallos o ideas.
 - "Hoy" cuenta también las partidas Normales, no solo SoloQ y Flex.
