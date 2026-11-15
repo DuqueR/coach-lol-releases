@@ -24,6 +24,7 @@ import os
 import queue
 import re
 import ssl
+import shutil
 import subprocess
 import sys
 import threading
@@ -106,7 +107,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "45"
+VERSION = "46"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -7073,6 +7074,465 @@ def sonar_aviso():
             log(f"Aviso de objetivo sin sonido: {type(e).__name__}: {e}")
 
 
+
+# =============================================================== GRABAR JUGADAS (video local, sin el cliente)
+# Mientras juegas, ffmpeg graba la pantalla con la grafica (AMD AMF, NVIDIA NVENC o Intel QSV; si no hay, CPU) en
+# trozos de 10 s y solo se guardan los ultimos 3 minutos. Cuando haces una kill, una asistencia, una multikill, un
+# ace o un objetivo grande, se cortan desde 15 s antes hasta 8 s despues y se guardan en datos\clips. Al abrir la
+# partida en el panel se quedan solo los que coinciden con tus Jugadas. Sin sonido (ffmpeg no puede grabar el del
+# juego sin instalar nada mas).
+CLIPS = DATOS / "clips"
+CLIPS_BUF = CLIPS / "buffer"
+FFMPEG_DIR = DATOS / "ffmpeg"
+FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+TROZO_S, BUFFER_S, ANTES_S, DESPUES_S, CLIP_MAX_S = 10, 180, 15, 8, 60
+CLIPS_MAX_GB = 8
+CODECS = [("h264_amf", "Gráfica AMD"), ("h264_nvenc", "Gráfica NVIDIA"), ("h264_qsv", "Gráfica Intel"),
+          ("libx264", "Procesador")]
+_GRAB = {"estado": "", "pct": 0, "msg": "", "codec": None, "codec_txt": ""}
+
+
+def _sin_ventana():
+    return {"creationflags": 0x08000000 | 0x00004000} if os.name == "nt" else {}   # sin consola, prioridad baja
+
+
+def ruta_ffmpeg():
+    f = FFMPEG_DIR / "ffmpeg.exe"
+    if f.exists():
+        return str(f)
+    return shutil.which("ffmpeg")
+
+
+def descargar_ffmpeg():
+    """Baja ffmpeg (compilacion "essentials" de gyan.dev, ~90 MB), comprueba su SHA-256 y deja solo ffmpeg.exe en
+    datos\\ffmpeg. En segundo plano: el progreso lo ve el dashboard."""
+    if _GRAB["estado"] == "bajando":
+        return
+    _GRAB.update(estado="bajando", pct=0, msg="Descargando ffmpeg…")
+
+    def bajar():
+        import hashlib
+        import zipfile
+        tmp = DATOS / "ffmpeg_bajando.zip"
+        try:
+            FFMPEG_DIR.mkdir(parents=True, exist_ok=True)
+            req = urllib.request.Request(FFMPEG_URL + ".sha256", headers={"User-Agent": "CoachLoL"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                esperado = r.read().decode("ascii", "ignore").split()[0].strip().lower()
+            h = hashlib.sha256()
+            req = urllib.request.Request(FFMPEG_URL, headers={"User-Agent": "CoachLoL"})
+            with urllib.request.urlopen(req, timeout=30) as r, open(tmp, "wb") as f:
+                total = int(r.headers.get("Content-Length") or 0)
+                hecho = 0
+                while True:
+                    b = r.read(1 << 18)
+                    if not b:
+                        break
+                    f.write(b)
+                    h.update(b)
+                    hecho += len(b)
+                    if total:
+                        _GRAB["pct"] = int(hecho * 100 / total)
+            if len(esperado) != 64 or h.hexdigest() != esperado:
+                raise ValueError("la descarga no coincide con su huella SHA-256")
+            parte = FFMPEG_DIR / "ffmpeg.exe.part"
+            with zipfile.ZipFile(tmp) as z:
+                nombre = next(n for n in z.namelist() if n.endswith("/bin/ffmpeg.exe"))
+                with z.open(nombre) as src, open(parte, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+            os.replace(parte, FFMPEG_DIR / "ffmpeg.exe")
+            _GRAB.update(estado="", pct=100, msg="")
+            log("Grabación: ffmpeg descargado.")
+            detectar_codec(forzar=True)
+        except Exception as e:
+            _GRAB.update(estado="error", msg=f"No pude descargar ffmpeg: {type(e).__name__}. Inténtalo en un rato.")
+            log(f"Grabación: descarga de ffmpeg fallida ({type(e).__name__}: {e}).")
+        finally:
+            try:
+                tmp.unlink()
+            except Exception:
+                pass
+    threading.Thread(target=bajar, daemon=True).start()
+
+
+def detectar_codec(forzar=False):
+    """El primer codificador que funciona en este PC (la grafica antes que el procesador)."""
+    if _GRAB["codec"] and not forzar:
+        return _GRAB["codec"]
+    ff = ruta_ffmpeg()
+    if not ff:
+        return None
+    for c, txt in CODECS:
+        try:
+            r = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=s=640x360:d=0.4",
+                                "-c:v", c, "-f", "null", "-"], capture_output=True, timeout=20, **_sin_ventana())
+            if r.returncode == 0:
+                _GRAB.update(codec=c, codec_txt=txt)
+                log(f"Grabación: codificador {c} ({txt}).")
+                return c
+        except Exception:
+            pass
+    return None
+
+
+def grabar_pref(alm):
+    x = alm.d.get("grabar") or {}
+    return {"activa": bool(x.get("activa", False)), "fps": 60 if x.get("fps") == 60 else 30}
+
+
+def _trozos():
+    """[(inicio en reloj, ruta)] de los trozos del buffer, del mas viejo al mas nuevo. t_ = grafica, c_ = procesador
+    (plan B): tienen otro codec y tamano, asi que no se mezclan en un mismo clip."""
+    out = []
+    for f in list(CLIPS_BUF.glob("t_*.mp4")) + list(CLIPS_BUF.glob("c_*.mp4")):
+        try:
+            out.append((time.mktime(time.strptime(f.stem[2:], "%Y%m%d_%H%M%S")), f))
+        except Exception:
+            pass
+    return sorted(out)
+
+
+def clips_meta():
+    try:
+        return json.loads((CLIPS / "clips.json").read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _guardar_meta(lista):
+    CLIPS.mkdir(parents=True, exist_ok=True)
+    tmp = CLIPS / "clips.json.tmp"
+    tmp.write_text(json.dumps(lista, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, CLIPS / "clips.json")
+
+
+_CLIPS_LOCK = threading.Lock()
+
+
+def clips_de_partida(pid):
+    return [c for c in clips_meta() if str(c.get("partida")) == str(pid) and (CLIPS / c["archivo"]).exists()]
+
+
+def podar_clips(pid, jugadas):
+    """Al abrir la partida: se quedan los videos que contienen alguna de tus Jugadas; el resto se borra. Si el
+    espacio pasa de CLIPS_MAX_GB, se borran los mas viejos."""
+    with _CLIPS_LOCK:
+        lista, cambio = clips_meta(), False
+        segs = [j["seg"] for j in jugadas or []]
+        for c in list(lista):
+            if str(c.get("partida")) != str(pid) or c.get("revisado"):
+                continue
+            if any(_cubre(c, x) for x in segs):
+                c["revisado"] = True
+                cambio = True
+            elif _borrar(CLIPS / c["archivo"]):
+                lista.remove(c)
+                cambio = True
+        if cambio:
+            _guardar_meta(lista)
+    limitar_clips()
+
+
+def _borrar(f):
+    """True si el archivo ya no esta (en Windows falla si alguien lo tiene abierto: se reintenta otro dia)."""
+    try:
+        f.unlink()
+    except FileNotFoundError:
+        pass
+    except Exception:
+        return False
+    return True
+
+
+def limitar_clips():
+    """Si los videos pasan de CLIPS_MAX_GB, se borran los mas viejos (cuenta todos los .mp4 de la carpeta, esten o
+    no en clips.json) y se quitan de la lista los que ya no existen."""
+    with _CLIPS_LOCK:
+        try:
+            fs = sorted(CLIPS.glob("*.mp4"), key=lambda f: f.stat().st_mtime)
+            total = sum(f.stat().st_size for f in fs)
+        except Exception:
+            return
+        for f in fs:
+            if total <= CLIPS_MAX_GB * 1024 ** 3:
+                break
+            try:
+                tam = f.stat().st_size
+            except Exception:
+                continue
+            if _borrar(f):
+                total -= tam
+        lista = clips_meta()
+        vivos = [c for c in lista if (CLIPS / c["archivo"]).exists()]
+        if len(vivos) != len(lista):
+            _guardar_meta(vivos)
+
+
+def _cubre(c, seg):
+    return c["seg_ini"] - 5 <= seg <= c["seg_fin"] + 5
+
+
+def video_de_jugada(videos, seg):
+    """El video local que contiene ese segundo de partida (o None). Misma ventana que la poda."""
+    for c in videos:
+        if _cubre(c, seg):
+            dur = c["seg_fin"] - c["seg_ini"]
+            return {"url": "/clips/" + urllib.parse.quote(c["archivo"]),
+                    "desde": max(0, min(seg - c["seg_ini"] - 3, dur - 4))}
+    return None
+
+
+_JOB = []
+
+
+def _al_job(proc):
+    """Windows: mete ffmpeg en un Job Object que lo cierra si el coach se cierra (de cualquier forma, incluso si se
+    mata el proceso): ffmpeg no se queda grabando huerfano."""
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k = ctypes.windll.kernel32
+        k.CreateJobObjectW.restype = wintypes.HANDLE
+        if not _JOB:
+            job = k.CreateJobObjectW(None, None)
+
+            class BASICA(ctypes.Structure):
+                _fields_ = [("a", ctypes.c_int64), ("b", ctypes.c_int64), ("LimitFlags", wintypes.DWORD),
+                            ("c", ctypes.c_size_t), ("d", ctypes.c_size_t), ("e", wintypes.DWORD),
+                            ("f", ctypes.c_size_t), ("g", wintypes.DWORD), ("h", wintypes.DWORD)]
+
+            class IO(ctypes.Structure):
+                _fields_ = [(n, ctypes.c_uint64) for n in "abcdef"]
+
+            class EXT(ctypes.Structure):
+                _fields_ = [("basica", BASICA), ("io", IO), ("p1", ctypes.c_size_t), ("p2", ctypes.c_size_t),
+                            ("p3", ctypes.c_size_t), ("p4", ctypes.c_size_t)]
+            info = EXT()
+            info.basica.LimitFlags = 0x2000                       # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            if not k.SetInformationJobObject(wintypes.HANDLE(job), 9, ctypes.byref(info), ctypes.sizeof(info)):
+                raise OSError("SetInformationJobObject")
+            _JOB.append(job)
+        if not k.AssignProcessToJobObject(wintypes.HANDLE(_JOB[0]), wintypes.HANDLE(int(proc._handle))):
+            raise OSError("AssignProcessToJobObject")
+    except Exception as e:
+        log(f"Grabación: sin Job Object ({type(e).__name__}: {e}); ffmpeg se para con -t.")
+
+
+def limpiar_buffer():
+    """Al abrir el coach: trozos de una grabacion anterior que no se cerro bien."""
+    for _, f in _trozos():
+        _borrar(f)
+
+
+class Grabadora:
+    """Graba la pantalla en trozos mientras juegas y corta los momentos que le marca el coach."""
+
+    def __init__(self):
+        self.proc, self.t0, self.partida, self.campeon = None, 0.0, None, ""
+        self.pend = []                    # [inicio_reloj, fin_reloj, seg_ini_partida, [eventos]]
+        self.vistos = set()
+        self.t_limpio = 0.0
+        self.err_log = 0
+        self.plan_b, self.fps = False, 30
+        self.lock = threading.RLock()
+        self._vigia = None
+        self._hilos = []                  # cortes en marcha (parar los espera antes de vaciar el buffer)
+
+    def grabando(self):
+        return self.proc is not None and self.proc.poll() is None
+
+    def iniciar(self, partida, campeon, fps=30, cpu=False):
+        """cpu=True: plan B si la captura con la grafica falla (GDI + x264 a 720p)."""
+        if self.grabando():
+            return True
+        ff, codec = ruta_ffmpeg(), ("libx264" if cpu else detectar_codec())
+        if not ff or not codec:
+            if cpu:
+                _GRAB.update(estado="error", msg="La grabación se cortó en esta partida. Mira datos\\coach.log.")
+            return False
+        CLIPS_BUF.mkdir(parents=True, exist_ok=True)
+        if not cpu:
+            limpiar_buffer()
+        gpu = codec != "libx264"
+        if gpu:      # la textura de ddagrab se baja a memoria: AMF no acepta su formato directo (SubmitInput error 18)
+            entrada = ["-f", "lavfi", "-t", "14400", "-i",
+                       f"ddagrab=output_idx=0:framerate={fps}:draw_mouse=1,hwdownload,format=bgra"]
+        else:            # -t: nunca mas de 4 horas, por si algo falla al pararlo
+            entrada = ["-f", "gdigrab", "-framerate", str(fps), "-t", "14400", "-i", "desktop"]
+        calidad = {"h264_amf": ["-quality", "speed", "-rc", "vbr_peak", "-b:v", "12M", "-maxrate", "16M"],
+                   "h264_nvenc": ["-preset", "p3", "-b:v", "12M"], "h264_qsv": ["-preset", "veryfast", "-b:v", "12M"],
+                   "libx264": ["-preset", "ultrafast", "-crf", "26", "-pix_fmt", "yuv420p", "-vf", "scale=-2:720"]}[codec]
+        cmd = [ff, "-hide_banner", "-loglevel", "error", *entrada, "-c:v", codec, *calidad, "-g", str(fps),
+               "-an", "-f", "segment", "-segment_time", str(TROZO_S), "-reset_timestamps", "1", "-strftime", "1",
+               str(CLIPS_BUF / (("c_" if cpu else "t_") + "%Y%m%d_%H%M%S.mp4"))]
+        try:
+            self._err_f = open(CLIPS_BUF / ("ffmpeg_cpu.log" if cpu else "ffmpeg.log"), "wb")
+            self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=self._err_f,
+                                         **_sin_ventana())
+            _al_job(self.proc)
+        except Exception as e:
+            log(f"Grabación: no pude empezar ({type(e).__name__}: {e}).")
+            self.proc = None
+            return False
+        if not cpu:
+            self.t0, self.partida, self.campeon = time.time(), partida, campeon or ""
+            self.pend, self.vistos = [], set()
+            self.plan_b, self.err_log = False, 0
+        self.fps = fps
+        if self._vigia is None or not self._vigia.is_alive():
+            self._vigia = threading.Thread(target=self._vigilar, daemon=True)
+            self._vigia.start()
+        _GRAB["estado"] = "grabando"
+        log(f"Grabación: empieza ({'Procesador' if cpu else _GRAB['codec_txt']}, {fps} fps).")
+        return True
+
+    def evento(self, data, nombres_yo):
+        """Mira los eventos de la partida y marca los momentos tuyos para cortarlos."""
+        if not self.grabando():
+            if self.proc is None:
+                return
+            with self.lock:
+                if self.proc is None or self.grabando():
+                    return
+                self._muerto()
+            return
+        t = float((data.get("gameData") or {}).get("gameTime") or 0)
+        ahora = time.time()
+        with self.lock:
+            self._marcar(data, nombres_yo, t, ahora)
+        self._despachar(ahora)
+
+    def _marcar(self, data, nombres_yo, t, ahora):
+        for e in ((data.get("events") or {}).get("Events")) or []:
+            idx = (e.get("EventID"), e.get("EventName"), e.get("EventTime"))
+            if idx in self.vistos:
+                continue
+            self.vistos.add(idx)
+            nm, te = e.get("EventName"), float(e.get("EventTime") or 0)
+            implicados = {e.get("KillerName"), e.get("Acer"), *(e.get("Assisters") or [])}
+            mio = bool(implicados & nombres_yo)
+            if not mio or nm not in ("ChampionKill", "Multikill", "Ace", "DragonKill", "BaronKill", "HeraldKill"):
+                continue
+            reloj = ahora - (t - te)
+            if reloj < self.t0 + 1:
+                continue                                  # antes de empezar a grabar
+            ini, fin = max(self.t0, reloj - ANTES_S), reloj + DESPUES_S
+            if self.pend and ini <= self.pend[-1][1] + 3 and fin - self.pend[-1][0] <= CLIP_MAX_S:
+                self.pend[-1][1] = max(self.pend[-1][1], fin)          # misma pelea: un solo video
+                self.pend[-1][3].append(nm)
+            else:
+                self.pend.append([ini, fin, max(0.0, te - (reloj - ini)), [nm]])
+
+    def _muerto(self):
+        """ffmpeg se cerro solo: una vez se pasa al procesador (plan B); si vuelve a fallar, se avisa una vez."""
+        log_f = "ffmpeg_cpu.log" if self.plan_b else "ffmpeg.log"
+        try:
+            msg = (CLIPS_BUF / log_f).read_text(encoding="utf-8", errors="ignore")[-300:].strip()
+        except Exception:
+            msg = ""
+        if not self.plan_b:
+            self.plan_b = True
+            log(f"Grabación: ffmpeg se cerró con la gráfica ({msg or 'sin mensaje'}); sigo con el procesador.")
+            self._cerrar_log()
+            self.proc = None
+            self.iniciar(self.partida, self.campeon, self.fps, cpu=True)
+        elif self.err_log < 1:
+            self.err_log += 1
+            log(f"Grabación: ffmpeg se cerró ({msg or 'sin mensaje'}).")
+            _GRAB.update(estado="error", msg="La grabación se cortó en esta partida. Mira datos\\coach.log.")
+
+    def _despachar(self, ahora, todo=False):
+        with self.lock:
+            listos = [x for x in self.pend if todo or ahora > x[1] + TROZO_S + 2]
+            self.pend = [x for x in self.pend if x not in listos]
+        for x in listos:
+            h = threading.Thread(target=self._cortar, args=(x,), daemon=True)
+            h.start()
+            self._hilos = [y for y in self._hilos if y.is_alive()] + [h]
+
+    def _vigilar(self):
+        """Mientras graba (aunque el juego no responda): borra los trozos de mas de 3 minutos que no hagan falta
+        para un clip pendiente."""
+        while self.proc is not None:
+            time.sleep(10)
+            ahora = time.time()
+            with self.lock:
+                minimo = min([x[0] for x in self.pend] or [ahora])
+            for t0, f in _trozos()[:-2]:
+                if ahora - t0 > BUFFER_S and t0 + TROZO_S + 1 < minimo:
+                    _borrar(f)
+
+    def _cortar(self, x):
+        ini, fin, seg_ini, evs = x
+        ff = ruta_ffmpeg()
+        trozos = [(t0, f) for t0, f in _trozos() if t0 < fin and t0 + TROZO_S + 1 > ini]
+        if trozos:              # no se mezclan trozos de la grafica y del procesador
+            pre = trozos[-1][1].name[:2]
+            trozos = [x for x in trozos if x[1].name[:2] == pre]
+        if not ff or not trozos:
+            return
+        lista = CLIPS_BUF / f"lista_{int(ini)}.txt"
+        nombre = f"{time.strftime('%Y%m%d_%H%M%S', time.localtime(ini))}_{re.sub(r'[^A-Za-z0-9]', '', self.campeon) or 'clip'}.mp4"
+        try:
+            lista.write_text("".join(f"file '{f.as_posix()}'\n" for _, f in trozos), encoding="utf-8")
+            desde = max(0.0, ini - trozos[0][0])
+            r = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0",
+                                "-i", str(lista), "-ss", f"{desde:.2f}", "-t", f"{fin - ini:.2f}", "-c", "copy",
+                                "-movflags", "+faststart", str(CLIPS / nombre)],
+                               capture_output=True, timeout=60, **_sin_ventana())
+            if r.returncode != 0 or not (CLIPS / nombre).exists():
+                log(f"Grabación: no pude cortar el clip ({r.stderr.decode('utf-8', 'ignore')[-200:].strip()}).")
+                return
+            with _CLIPS_LOCK:
+                meta = clips_meta()
+                meta.append({"archivo": nombre, "partida": self.partida, "seg_ini": round(seg_ini, 1),
+                             "seg_fin": round(seg_ini + (fin - ini), 1), "eventos": evs, "creado": time.time()})
+                _guardar_meta(meta)
+        except Exception as e:
+            log(f"Grabación: error al cortar ({type(e).__name__}: {e}).")
+        finally:
+            try:
+                lista.unlink()
+            except Exception:
+                pass
+
+    def _cerrar_log(self):
+        try:
+            self._err_f.close()
+        except Exception:
+            pass
+
+    def parar(self):
+        """Fin de la partida: corta lo pendiente con lo grabado y para ffmpeg."""
+        with self.lock:
+            p, self.proc = self.proc, None
+            pend, self.pend = self.pend, []
+        if p is None:
+            return
+        try:
+            if p.poll() is None:
+                p.stdin.write(b"q")
+                p.stdin.flush()
+                p.wait(timeout=8)
+        except Exception:
+            try:
+                p.kill()
+            except Exception:
+                pass
+        self._cerrar_log()
+        if _GRAB["estado"] == "grabando":
+            _GRAB["estado"] = ""
+        for h in list(self._hilos):
+            h.join(timeout=60)
+        for x in pend:
+            self._cortar(x)
+        limpiar_buffer()
+        limitar_clips()
+        log("Grabación: terminada.")
+
+
 # =============================================================== VENTANA FLOTANTE
 def _fuentes_privadas():
     """Windows: deja disponibles, solo para este programa, las fuentes de la carpeta 'fuente' (las mismas letras
@@ -8904,6 +9364,8 @@ class Coach:
         self.draft = None             # panel de la seleccion para el dashboard
         self._cola_sel = None         # cola de la seleccion actual ({id, modo, mapa, nombre})
         self._t_aviso = 0.0           # ultimo aviso puesto en las tarjetas (para no pisarlo)
+        self.grab = Grabadora()       # grabar tus jugadas (video local)
+        self.partida_id = None        # gameId de la partida en curso (pantalla de carga)
         self._sel_estado = None
         self.plan_jungla, self._aviso_jungla = None, False
         self._obj_avisados, self.cola_partida = set(), None
@@ -9891,6 +10353,39 @@ class Coach:
                 log(f"Objetivos en partida: {type(e).__name__}: {e}")
             return estado
 
+    def _grabar(self, data):
+        """Graba tus jugadas si lo activaste en Ajustes (solo en la Grieta: son las partidas que el coach analiza)."""
+        try:
+            gd = data.get("gameData") or {}
+            if not grabar_pref(self.alm)["activa"] or not es_grieta({"modo": gd.get("gameMode"), "mapa": gd.get("mapNumber")}):
+                if self.grab.proc is not None:
+                    threading.Thread(target=self.grab.parar, daemon=True).start()
+                return
+            yo = _yo_en_vivo(data, ((self.alm.d.get("jugador") or {}).get("nombre") or ""))
+            if not yo:
+                return
+            if not self.grab.grabando() and self.grab.proc is None:
+                if float(gd.get("gameTime") or 0) > 0 and not getattr(self, "_grab_intento", False):
+                    if self.partida_id is None:       # sin id no se podria enlazar el video con su partida
+                        try:
+                            self.partida_id = ((self.lcu.get("/lol-gameflow/v1/session", timeout=5) or {})
+                                               .get("gameData") or {}).get("gameId")
+                        except Exception:
+                            pass
+                        if self.partida_id is None:
+                            return
+                    self._grab_intento = True
+                    threading.Thread(target=self.grab.iniciar, daemon=True,
+                                     args=(self.partida_id, yo.get("championName"), grabar_pref(self.alm)["fps"])).start()
+                    return
+            nombres = {x for x in (yo.get("riotIdGameName"), yo.get("summonerName"), yo.get("riotId"),
+                                   (yo.get("riotId") or "").split("#")[0]) if x}
+            self.grab.evento(data, nombres)
+        except Exception as e:
+            if not getattr(self, "_grab_err", False):
+                self._grab_err = True
+                log(f"Grabación: {type(e).__name__}: {e}")
+
     def _con_baratija(self, estado, data):
         """Una vez por partida: cambia el Totem por la Lente del Oraculo cuando a tu rol le toca."""
         try:
@@ -10198,6 +10693,7 @@ class Coach:
             gd = ses.get("gameData") or {}
             self.cola_partida = {"id": (gd.get("queue") or {}).get("id"), "modo": (gd.get("queue") or {}).get("gameMode"),
                                  "mapa": (gd.get("queue") or {}).get("mapId")}
+            self.partida_id = gd.get("gameId") or self.partida_id
             if ((gd.get("queue") or {}).get("gameMode") or "").upper() == "PRACTICETOOL":
                 return
             if not es_grieta(self.cola_partida):
@@ -10325,6 +10821,7 @@ class Coach:
             self.envivo = EnVivo(self.mision_partida, self.rol_partida,
                                  ((self.alm.d.get("jugador") or {}).get("nombre") or ""),
                                  [self.rec.campeon(rv), (getattr(self.rec, "alias", {}) or {}).get(str(rv))] if rv else None)
+        self._grabar(data)
         estado = self._con_objeto(self.envivo.actualizar(data), data)
         estado = self._con_hud(self._con_baratija(self._con_objetivos(self._con_jungla(estado, data), data), data), data)
         t = float((data.get("gameData") or {}).get("gameTime") or 0)
@@ -10385,10 +10882,16 @@ class Coach:
                 self.plan_jungla, self._aviso_jungla = None, False
                 self._obj_avisados, self.cola_partida, self._ev_muestra = set(), None, False
                 self._cola_sel = None
+                self.partida_id = None
             if fase not in ("ChampSelect", "GameStart", "InProgress", "Reconnect"):
                 self._ventana({"modo": "oculto"})
                 self.envivo = None
                 self.carga = None
+                if self.grab.proc is not None:
+                    threading.Thread(target=self.grab.parar, daemon=True).start()
+                self._grab_intento = False
+                if fase != "None":
+                    self.partida_id = None
             if fase in ("EndOfGame", "PreEndOfGame", "WaitingForStats", "None", "Lobby") and previa in (
                     "InProgress", "WaitingForStats", "PreEndOfGame", "EndOfGame", "Reconnect"):
                 self._t_sync = 0
@@ -10464,12 +10967,62 @@ def crear_handler(coach):
             except Exception:
                 return {}
 
+        def _local(self, post=False):
+            """Solo el propio panel: el Host tiene que ser este servidor (contra DNS rebinding) y, en los POST, el
+            Origin (si lo hay) tambien (otra web no puede encender la grabacion ni nada)."""
+            pto = self.server.server_address[1]
+            ok = {f"127.0.0.1:{pto}", f"localhost:{pto}"}
+            if (self.headers.get("Host") or "") not in ok:
+                return False
+            o = self.headers.get("Origin")
+            return not post or o is None or o in {"http://" + x for x in ok}
+
         def do_GET(self):
             ruta = urllib.parse.urlparse(self.path).path
+            if not self._local():
+                return self._send(403, {"error": "solo desde este PC"})
             if ruta in ("/", "/index.html"):
                 return self._send(200, html_path.read_bytes(), "text/html; charset=utf-8")
             if ruta == "/fuente/archivo.woff2":
                 return self._send(200, (RECURSOS / "fuente" / "archivo.woff2").read_bytes(), "font/woff2", cache=True)
+            m = re.match(r"^/clips/([\w.-]+\.mp4)$", ruta)
+            if m:
+                f = CLIPS / m.group(1)
+                if not f.exists():
+                    return self._send(404, {"error": "no existe"})
+                tam = f.stat().st_size
+                rg = re.match(r"bytes=(\d*)-(\d*)$", self.headers.get("Range") or "")
+                a, b = 0, tam - 1
+                if rg:
+                    a = int(rg.group(1)) if rg.group(1) else max(0, tam - int(rg.group(2) or 0))
+                    b = int(rg.group(2)) if rg.group(1) and rg.group(2) else tam - 1
+                    b = min(b, tam - 1)
+                    if not (rg.group(1) or rg.group(2)) or a > b or a >= tam:
+                        self.send_response(416)
+                        self.send_header("Content-Range", f"bytes */{tam}")
+                        self.send_header("Content-Length", "0")
+                        self.end_headers()
+                        return
+                self.send_response(206 if rg else 200)
+                self.send_header("Content-Type", "video/mp4")
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header("Content-Length", str(b - a + 1))
+                if rg:
+                    self.send_header("Content-Range", f"bytes {a}-{b}/{tam}")
+                self.end_headers()
+                with open(f, "rb") as fh:
+                    fh.seek(a)
+                    falta = b - a + 1
+                    try:
+                        while falta > 0:
+                            trozo = fh.read(min(1 << 16, falta))
+                            if not trozo:
+                                break
+                            self.wfile.write(trozo)
+                            falta -= len(trozo)
+                    except (ConnectionError, OSError):
+                        pass
+                return
             if ruta == "/api/ping":
                 return self._send(200, {"app": "coach-lol", "v": VERSION, "huella": _HUELLA})
             if ruta == "/api/diagnostico":
@@ -10539,6 +11092,8 @@ def crear_handler(coach):
                     "partidas": resumen, "ultima_nueva": coach.ultima_nueva, "fijados": fijados,
                     "revision": stats_revision(alm), "entreno": estado_entreno(alm, plan),
                     "avance": avance(alm), "cabecera": cab, "tema": tema, "hud": hud_pref, "version": VERSION,
+                    "grabar": dict(grabar_pref(alm), ffmpeg=bool(ruta_ffmpeg()), **{k: _GRAB[k] for k in ("estado", "pct", "msg", "codec_txt")},
+                                   n=len(clips_meta())),
                     "ir": ir,
                     "actualizacion": {"novedades": novedades_actualizacion(), "pendiente": _ACTU["nueva"],
                                       "notas": _ACTU["notas"], "aplicando": _ACTU["aplicando"], "error": _ACTU["error"]},
@@ -10646,6 +11201,15 @@ def crear_handler(coach):
                     out["causas"] = {k: {"nombre": v["nombre"], "tipo": v["tipo"]} for k, v in CAUSAS.items()}
                     out["fin_lineas_ms"] = CONFIG["fin_fase_lineas_min"] * 60000
                     out["tiempo"] = _TIEMPO.get(p["id"])
+                    try:            # videos locales de tus jugadas (los que no coinciden con ninguna se borran)
+                        tj = out["tiempo"]
+                        if tj and tj.get("clips") is not None and clips_de_partida(p["id"]):
+                            podar_clips(p["id"], tj["clips"])
+                            vids = clips_de_partida(p["id"])
+                            tj = dict(tj, clips=[dict(c, video=video_de_jugada(vids, c["seg"])) for c in tj["clips"]])
+                            out["tiempo"] = tj
+                    except Exception as e:
+                        log(f"Clips de la partida: {type(e).__name__}: {e}")
                     rv_id = (p.get("rival") or {}).get("campeon_id")
                     nm = alm.d.get("matchups", {}).get(f"{p['yo']['campeon_id']}:{rv_id}") if rv_id else None
                     out["nota_matchup"] = (nm or {}).get("texto", "")
@@ -10666,17 +11230,49 @@ def crear_handler(coach):
 
         def do_POST(self):
             ruta = urllib.parse.urlparse(self.path).path
+            if not self._local(post=True):
+                return self._send(403, {"error": "solo desde este PC"})
             body = self._json_body()
             if ruta == "/api/salir":
                 self._send(200, {"ok": True})
                 log("Coach cerrado desde la ventana.")
-                threading.Timer(0.4, lambda: os._exit(0)).start()
+
+                def salir():
+                    try:
+                        coach.grab.parar()
+                    except Exception:
+                        pass
+                    os._exit(0)
+                threading.Timer(0.4, salir).start()
                 return
             if ruta == "/api/actualizar":
                 if coach.fase in EN_JUEGO + ("ChampSelect",):
                     return self._send(200, {"ok": False, "msg": "Actualiza cuando termine la partida."})
                 ok, msg = actualizar_ahora()
                 return self._send(200, {"ok": ok, "msg": msg})
+            if ruta == "/api/grabar":
+                with alm.lock:
+                    x = dict(alm.d.get("grabar") or {})
+                    if "activa" in body:
+                        x["activa"] = bool(body["activa"])
+                    if body.get("fps") in (30, 60):
+                        x["fps"] = int(body["fps"])
+                    alm.d["grabar"] = x
+                    alm.guardar()
+                if x.get("activa") and not ruta_ffmpeg():
+                    descargar_ffmpeg()
+                elif x.get("activa"):
+                    threading.Thread(target=detectar_codec, daemon=True).start()
+                elif coach.grab.proc is not None:
+                    threading.Thread(target=coach.grab.parar, daemon=True).start()
+                return self._send(200, {"ok": True})
+            if ruta == "/api/abrir-clips":
+                CLIPS.mkdir(parents=True, exist_ok=True)
+                try:
+                    os.startfile(str(CLIPS))
+                except Exception:
+                    return self._send(200, {"ok": False, "msg": "No pude abrir la carpeta."})
+                return self._send(200, {"ok": True})
             if ruta == "/api/abrir-feedback":
                 webbrowser.open(REPO_WEB + "/issues/new")
                 return self._send(200, {"ok": True})
@@ -11332,6 +11928,9 @@ def main():
     coach = Coach(alm, rec, ventana)
     if ventana:
         ventana.al_elegir = coach.elegir_opcion
+    limpiar_buffer()
+    if grabar_pref(alm)["activa"] and ruta_ffmpeg():
+        threading.Thread(target=detectar_codec, daemon=True).start()
     coach.url = url
     srv = ThreadingHTTPServer(("127.0.0.1", puerto), crear_handler(coach))
     threading.Thread(target=coach.bucle, daemon=True).start()

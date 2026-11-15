@@ -522,6 +522,14 @@ button.chip .i{width:13px;height:13px}
 /* ============================ partidas ============================ */
 .pg{display:grid;grid-template-columns:348px minmax(0,1fr);gap:20px;align-items:start}
 .lista{position:sticky;top:76px;max-height:calc(100vh - 96px);overflow-y:auto;padding-right:6px;margin-right:-6px}
+.vd-m .vd-c{width:min(1100px,100%);padding:0;overflow:hidden;background:#000;border:0;border-radius:16px;box-shadow:0 30px 80px -10px rgba(0,0,0,.7)}
+.vd-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 18px;background:var(--s1)}
+.vd-h b{font-size:var(--fs-6);font-weight:720}
+.vd-h span{display:flex;gap:8px}
+.vd-c video{display:block;width:100%;max-height:calc(100vh - 140px);background:#000}
+.rec{width:8px;height:8px;border-radius:50%;background:var(--rj);animation:rec 1.2s ease-in-out infinite}
+@keyframes rec{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.rec{animation:none}}
 .cl-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
 @media (max-width:1560px){.cop-r span{display:none}.cop-r{padding:0 9px}}
 .cl{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 12px 12px 14px;border-radius:var(--r);
@@ -1219,6 +1227,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
 </div>
 <div class="modal" id="aviso" role="alertdialog" aria-modal="true" aria-labelledby="aviso-t"><div class="modal-c" id="aviso-c"></div></div>
 <div class="modal" id="rev" role="dialog" aria-modal="true" aria-label="Revisar una muerte"><div class="modal-c" id="rev-c"></div></div>
+<div class="modal vd-m" id="vid" role="dialog" aria-modal="true" aria-labelledby="vid-t"><div class="modal-c vd-c" id="vid-c"></div></div>
 <div class="modal nv" id="nov" role="dialog" aria-modal="true" aria-labelledby="nov-t"><div class="modal-c nv-c" id="nov-c"></div></div>
 <div class="modal" id="conf" role="alertdialog" aria-modal="true" aria-labelledby="conf-t"><div class="modal-c" id="conf-c"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -1229,7 +1238,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "45";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "46";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -2187,8 +2196,9 @@ function tabClips(p){
     <div class="cl-g">${cl.map((c, i) => `<article class="cl ${c === top ? "top" : ""}" style="--tono:var(--${c.tono});--i:${i}">
       <span class="cl-ic">${ic(CLIP_IC[c.tipo] || "estrella")}</span>
       <div class="cl-c"><span class="cl-m tn">${mmss(c.seg / 60)}${c === top ? `<em>La mejor</em>` : ""}</span><b>${esc(c.titulo)}</b><small>${esc(c.sub)}</small></div>
-      <button class="btn pq" data-a="ver" data-s="${c.seg}" aria-label="Ver ${esc(c.titulo)} en la repetición, minuto ${mmss(c.seg / 60)}">${ic("play", "s")}Ver</button></article>`).join("")}</div>
-    <p class="nota-p">La repetición se abre en el cliente de LoL y salta sola al momento. Solo se puede con partidas del parche actual.</p></section>`;
+      ${c.video ? `<button class="btn pq p" data-a="video" data-u="${esc(c.video.url)}" data-d="${c.video.desde}" data-t="${esc(c.titulo)}" aria-label="Ver el vídeo de ${esc(c.titulo)}">${ic("play", "s")}Vídeo</button>`
+        : `<button class="btn pq" data-a="ver" data-s="${c.seg}" aria-label="Ver ${esc(c.titulo)} en la repetición, minuto ${mmss(c.seg / 60)}" data-tip="Abre la repetición en el cliente de LoL">${ic("play", "s")}Ver</button>`}</article>`).join("")}</div>
+    <p class="nota-p">${cl.some(c => c.video) ? "Las de <b>Vídeo</b> están grabadas en tu PC. " : ""}${cl.some(c => !c.video) ? "Las demás se abren en la repetición del cliente de LoL (solo partidas del parche actual)." : ""}${(E().grabar || {}).activa ? "" : " Para guardarlas en vídeo, activa <b>Grabar jugadas</b> en Ajustes."}</p></section>`;
 }
 function tabTiempo(p){
   const t = p.tiempo;
@@ -3190,6 +3200,7 @@ VISTAS.ajustes = () => {
         <div class="aj-f"><div><b>Derrotas seguidas</b><small>Cuántas jugando mal hacen falta para el aviso.</small></div>
           <div class="chips" role="group" aria-label="Derrotas seguidas">${[2, 3, 4].map(x => `<button class="chip ${(e.sesion.anti || {}).derrotas === x ? "az" : "ln"}" data-a="anti-n" data-n="${x}" aria-pressed="${(e.sesion.anti || {}).derrotas === x}" ${(e.sesion.anti || {}).activa === false ? "disabled" : ""}>${x}</button>`).join("")}</div></div>
       </div></section>
+    ${cardGrabar(e)}
     <section class="card" aria-label="Tarjetas en partida">
       <div class="card-h"><h2>${ic("mando")}Tarjetas en partida</h2><span class="ay">Lo que ves encima del juego</span></div>
       <p class="t2">Durante la partida el coach muestra una tarjeta pequeña con tus números contra la media del rango siguiente. <b>Mantén Tab</b> para ver el detalle: tu misión, tu reto, el siguiente objeto y cuándo volver a base. Encima, los temporizadores del dragón, las larvas o el Heraldo y el Barón, con un aviso antes de que salgan. No reciben clics ni le quitan el foco al juego.</p>
@@ -3249,6 +3260,30 @@ async function anti(cambios){
 }
 A["anti-sw"] = () => anti({activa: (E().sesion.anti || {}).activa === false});
 A["anti-n"] = el => anti({derrotas: +el.dataset.n});
+function cardGrabar(e){
+  const g = e.grabar || {}, bajando = g.estado === "bajando";
+  const est = bajando ? `<span class="chip az"><span class="gira"></span>Descargando ffmpeg · ${g.pct || 0}%</span>`
+    : g.estado === "grabando" ? `<span class="chip rj"><i class="rec"></i>Grabando</span>`
+    : g.estado === "error" ? `<span class="chip rj">${ic("alerta")}${esc(g.msg || "Error")}</span>`
+    : g.activa && g.ffmpeg ? `<span class="chip vd">${ic("ok")}Lista${g.codec_txt ? " · " + esc(g.codec_txt) : ""}</span>` : "";
+  return `<section class="card" aria-label="Grabar tus jugadas">
+    <div class="card-h"><h2>${ic("play")}Grabar tus jugadas</h2>${est}</div>
+    <p class="t2">Mientras juegas, el coach graba la pantalla con tu gráfica y guarda en tu PC tus kills, multikills, aces y objetivos (de 15 s antes a 8 s después). Los ves en la pestaña <b>Jugadas</b> de cada partida, sin abrir el cliente. Solo se guardan los vídeos de tus jugadas; el resto se borra solo. Sin sonido.</p>
+    <div class="aj">
+      <div class="aj-f"><div><b>Grabar jugadas</b><small>${g.ffmpeg ? "Usa ffmpeg (ya descargado)." : "La primera vez descarga ffmpeg (unos 90 MB, gratis)."}</small></div>
+        <button class="sw ${g.activa ? "on" : ""}" role="switch" aria-checked="${!!g.activa}" data-a="grabar-sw" aria-label="Grabar jugadas" ${bajando ? "disabled" : ""}><i></i></button></div>
+      <div class="aj-f"><div><b>Fotogramas por segundo</b><small>60 se ve más fluido y ocupa el doble.</small></div>
+        <div class="chips" role="group" aria-label="Fotogramas por segundo">${[30, 60].map(x => `<button class="chip ${(g.fps || 30) === x ? "az" : "ln"}" data-a="grabar-fps" data-n="${x}" aria-pressed="${(g.fps || 30) === x}" ${g.activa ? "" : "disabled"}>${x}</button>`).join("")}</div></div>
+    </div>
+    <div class="pie izq"><button class="btn" data-a="abrir-clips">Abrir la carpeta de vídeos</button><span class="t3 tn">${plural(g.n || 0, "vídeo guardado", "vídeos guardados")}</span></div></section>`;
+}
+async function grabar(cambios){
+  try{ await api("/api/grabar", cambios); await recargarEstado(); pintar(true); }
+  catch(_){ toast("No pude cambiarlo. ¿Está abierto el coach?"); }
+}
+A["grabar-sw"] = () => grabar({activa: !(E().grabar || {}).activa});
+A["grabar-fps"] = el => grabar({fps: +el.dataset.n});
+A["abrir-clips"] = async () => { try{ const r = await api("/api/abrir-clips", {}); if(!r.ok) toast(r.msg); }catch(_){ toast("No pude abrir la carpeta."); } };
 A["hud-mini"] = () => hud({mini: !(E().hud || {}).mini});
 A["hud-lugar"] = el => hud({lugar: el.dataset.l});
 A["hud-timers"] = () => hud({timers: (E().hud || {}).timers === false});
@@ -3385,6 +3420,39 @@ setInterval(() => {                        /* cuenta atrás sin repintar la pág
     n.closest(".dr-reloj")?.classList.toggle("poco", v <= 10);
   }
 }, 250);
+
+/* =========================================== VIDEO DE UNA JUGADA =========================================== */
+A.video = el => {
+  S.vidAntes = document.activeElement;
+  poner($("#vid-c"), `<div class="vd-h"><b id="vid-t">${esc(el.dataset.t)}</b>
+      <span><a class="btn pq" href="${esc(el.dataset.u)}" download>${ic("baja", "s")}Descargar</a>
+      <button class="btn pq" data-a="vid-cerrar" aria-label="Cerrar">${ic("no", "s")}</button></span></div>
+    <video id="vid-v" src="${esc(el.dataset.u)}" controls autoplay playsinline preload="auto"></video>`);
+  $("#vid").classList.add("on");
+  $("#vid-c [data-a=vid-cerrar]").focus();
+  const v = $("#vid-v"), d = +el.dataset.d || 0;
+  v.addEventListener("loadedmetadata", () => { try{ v.currentTime = Math.min(d, Math.max(0, v.duration - 1)); }catch(_){} }, {once: true});
+  v.addEventListener("error", () => toast("No pude abrir el vídeo."), {once: true});
+};
+function cerrarVideo(){
+  if(!$("#vid").classList.contains("on")) return;
+  const v = $("#vid-v"); if(v){ v.pause(); v.removeAttribute("src"); v.load(); }
+  const c = $("#vid-c"); c.innerHTML = ""; c.__html = null;        // si se abre el mismo, poner() lo vuelve a pintar
+  $("#vid").classList.remove("on");
+  try{ S.vidAntes && S.vidAntes.focus(); }catch(_){}
+}
+A["vid-cerrar"] = cerrarVideo;
+document.addEventListener("keydown", ev => {
+  if(!$("#vid").classList.contains("on")) return;
+  if(ev.key === "Escape"){ ev.preventDefault(); cerrarVideo(); return; }
+  if(ev.key === "Tab"){                                   // el foco no sale del video mientras esta abierto
+    const f = [...$("#vid-c").querySelectorAll("a[href],button,video")];
+    if(!f.length) return;
+    const i = f.indexOf(document.activeElement), n = ev.shiftKey ? i - 1 : i + 1;
+    if(i < 0 || n < 0 || n >= f.length){ ev.preventDefault(); f[ev.shiftKey ? f.length - 1 : 0].focus(); }
+  }
+});
+$("#vid").addEventListener("mousedown", ev => { if(ev.target.id === "vid") cerrarVideo(); });
 
 /* =========================================== NOVEDADES =========================================== */
 const NV_TONO = {nuevo: ["az", "Nuevo", "ia"], mejora: ["or", "Mejora", "rayo"], arreglo: ["vd", "Arreglo", "ok"]};

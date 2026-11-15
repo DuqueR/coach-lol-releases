@@ -12,6 +12,17 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v46: tus jugadas en vídeo, en tu PC
+- Nuevo en Ajustes: "Grabar jugadas". Mientras juegas en la Grieta, el coach
+  graba la pantalla con tu gráfica y guarda tus kills, asistencias,
+  multikills, aces y objetivos grandes (de 15 s antes a 8 s después).
+- Los ves en la pestaña Jugadas de cada partida con el botón "Vídeo", sin
+  abrir el cliente de LoL y sin que caduquen con el parche. También puedes
+  descargarlos o abrir la carpeta donde se guardan.
+- La primera vez descarga ffmpeg (unos 90 MB, gratis) y comprueba su firma.
+  Solo se quedan los vídeos de tus jugadas; el resto se borra solo y nunca
+  pasa de 8 GB. Sin sonido. Viene apagado: actívalo si lo quieres.
+
 Lo nuevo en la v45: tarjetas que se cierran y se aclaran
 - Las tarjetas de partida son más transparentes cuando el ratón no está encima.
   Al pasarlo por una, se ve entera y sale una X arriba a la derecha: púlsala y
