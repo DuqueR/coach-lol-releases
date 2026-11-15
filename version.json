@@ -1,6 +1,6 @@
 {
-  "version": "42.1",
-  "notas": "en la pantalla de carga, la misión va junto a sus consejos y lo que más te cuesta va aparte",
+  "version": "42.2",
+  "notas": "la misión de objetivos ya cuenta los dragones, larvas y Heraldos en los que ayudaste",
   "archivos": [
     "coach.py",
     "dashboard.html",

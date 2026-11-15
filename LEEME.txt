@@ -12,6 +12,12 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v42.2: presencia en objetivos bien contada
+- "Estar en los objetivos" miraba solo dónde estabas en el minuto redondo de antes y
+  de después. Si en ese momento ibas de camino, decía que no estuviste. Ahora, si
+  mataste o ayudaste a matar el dragón, las larvas, el Heraldo o el Barón, cuenta como
+  presente. Las partidas guardadas se recalculan solas al abrir el coach.
+
 Lo nuevo en la v42.1: misión sin mezclas
 - En la ventanita de la pantalla de carga, "Tu misión" va seguida de sus consejos (✓).
   Tu error más repetido sale aparte, separado y con su título: "Además, lo que más te

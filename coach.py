@@ -99,14 +99,14 @@ CONFIG = {
     "ruta_lol": "",
 }
 
-ANALISIS_V = 13
+ANALISIS_V = 14
 NOTA_BIEN, NOTA_REGULAR = 7, 4.5   # nota del coach: desde 7 "jugaste bien"; desde 4,5 "regular"; menos, "mal"
 VENTANA_PELEA_S = 15     # una muerte es "sin tu equipo" si ningun aliado mato, asistio o murio 15 s antes o despues
 CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .exe
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "42.1"
+VERSION = "42.2"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -2425,8 +2425,9 @@ def analizar(juego, tl, puuid, rec, rango_txt=""):
         if t != "ELITE_MONSTER_KILL" or ts < 5 * 60000 or mt not in POZOS and not e.get("position"):
             continue
         pos = e.get("position") or {"x": POZOS[mt][0], "y": POZOS[mt][1]}
-        cerca = False
-        for f in (_frame_antes(frames, ts), frame_despues(ts)):
+        # lo mataste o ayudaste a matarlo: estabas, aunque el minuto exacto te pille de camino
+        cerca = yo_id is not None and (e.get("killerId") == yo_id or yo_id in (e.get("assistingParticipantIds") or []))
+        for f in ((_frame_antes(frames, ts), frame_despues(ts)) if not cerca else ()):
             q = (_pf(f, yo_id) or {}).get("position") if f else None
             if q and math.dist((q.get("x", 0), q.get("y", 0)), (pos.get("x", 0), pos.get("y", 0))) <= 3000:
                 cerca = True
