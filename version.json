@@ -1,6 +1,6 @@
 {
-  "version": "42.2",
-  "notas": "la misión de objetivos ya cuenta los dragones, larvas y Heraldos en los que ayudaste",
+  "version": "42.3",
+  "notas": "el tope de partidas del día ya no te corta si vas empatado jugando bien",
   "archivos": [
     "coach.py",
     "dashboard.html",

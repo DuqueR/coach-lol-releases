@@ -12,6 +12,11 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v42.3: tope del día más justo
+- Al llegar a tu tope de partidas, si vas empatado (por ejemplo 2V-2D) pero tu nota
+  media del día es 7 o más, te deja una más en vez de pedirte parar. Corta si pierdes
+  más de las que ganas, si vas empatado jugando regular o si tu última partida sale peor.
+
 Lo nuevo en la v42.2: presencia en objetivos bien contada
 - "Estar en los objetivos" miraba solo dónde estabas en el minuto redondo de antes y
   de después. Si en ese momento ibas de camino, decía que no estuviste. Ahora, si

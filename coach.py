@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "42.2"
+VERSION = "42.3"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -6278,8 +6278,9 @@ def dato_tilt(partidas, racha_min):
 
 
 def tope_del_dia(partidas, base):
-    """El tope de hoy no es fijo: hasta tu tope juegas normal; desde ahi, mientras hoy ganes mas de las que
-    pierdes y tu ultima partida no haya sido claramente peor que tu media del dia, te deja una mas (hasta
+    """El tope de hoy no es fijo: hasta tu tope juegas normal; desde ahi, mientras hoy no pierdas mas de las que
+    ganas (empatado vale si juegas bien: nota media 7 o mas) y tu ultima partida no haya sido claramente peor
+    que tu media del dia, te deja una mas (hasta
     'tope_maximo_dia'). Si la forma cae, el tope se queda donde estas. Devuelve (tope, motivo de parar)."""
     n = len(partidas)
     maximo = max(base, int(CONFIG.get("tope_maximo_dia", 7)))
@@ -6291,7 +6292,8 @@ def tope_del_dia(partidas, base):
     notas = [p["veredicto"]["nota"] for p in partidas if p.get("veredicto")]
     ult = (partidas[-1].get("veredicto") or {}).get("nota")
     media = sum(notas) / len(notas) if notas else None
-    if 2 * v <= n:
+    # mas derrotas que victorias corta; empatado solo si ademas tu nota media del dia no llega a "bien"
+    if 2 * v < n or (2 * v == n and (media is None or media < NOTA_BIEN)):
         return n, f"hoy vas {v}V-{n - v}D"
     if ult is None or ult < NOTA_REGULAR or (media is not None and ult < media - 1):
         return n, "tu última partida fue peor que las de antes"
