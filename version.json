@@ -1,6 +1,6 @@
 {
-  "version": "42.3",
-  "notas": "el tope de partidas del día ya no te corta si vas empatado jugando bien",
+  "version": "42.4",
+  "notas": "nunca se abren dos coaches a la vez (ni dos ventanitas)",
   "archivos": [
     "coach.py",
     "dashboard.html",

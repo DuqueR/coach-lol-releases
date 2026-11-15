@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "42.3"
+VERSION = "42.4"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -10726,6 +10726,34 @@ def _cerrar_ventanas_del_panel():
     return len(hs)
 
 
+_MUTEX = {"h": None}
+
+
+def _instancia_unica(espera=0.0):
+    """Un solo coach a la vez (dos ponen dos ventanitas y aplican runas dos veces). Candado de Windows que se
+    suelta solo al cerrarse el proceso; espera unos segundos por si el anterior se esta cerrando (reinicio)."""
+    if os.name != "nt":
+        return True
+    try:
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        if _MUTEX["h"] is None:
+            k32.CreateMutexW.restype = ctypes.c_void_p
+            k32.CreateMutexW.argtypes = (ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p)
+            k32.WaitForSingleObject.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
+            _MUTEX["h"] = k32.CreateMutexW(None, False, r"Local\CoachLoL_unico")
+        fin = time.time() + espera
+        while True:
+            r = k32.WaitForSingleObject(_MUTEX["h"], 300)
+            if r in (0, 0x80):              # libre, o el anterior murio sin soltarlo
+                return True
+            if time.time() >= fin:
+                return False
+    except Exception as e:
+        log(f"No pude comprobar si ya hay un coach abierto ({type(e).__name__}).")
+        return True
+
+
 def _puerto_libre(inicio):
     import socket
     for p in range(inicio, inicio + 20):
@@ -10766,6 +10794,15 @@ def main():
     print("=" * 56)
     print(f"  COACH LOL v{VERSION}  -  tu plan para salir de Hierro")
     print("=" * 56)
+    if not _instancia_unica(0):
+        # ya hay otro coach: si es esta misma version se trae su panel; si es otra, se le pide cerrarse y se espera
+        puerto, ya_corre = _puerto_libre(CONFIG["puerto"])
+        if ya_corre:
+            mostrar_panel(f"http://127.0.0.1:{puerto}")
+            return
+        if not _instancia_unica(20):
+            log("Ya hay un coach abierto que no se cierra: no abro otro.")
+            return
     puerto, ya_corre = _puerto_libre(CONFIG["puerto"])
     url = f"http://127.0.0.1:{puerto}"
     if ya_corre:
