@@ -1041,7 +1041,7 @@ kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px sol
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "35";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "36";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -2841,14 +2841,16 @@ A["ia-rquitar"] = el => guardarClave("/api/ia_respaldo", {prov: "", clave: ""}, 
 
 /* =========================================== AJUSTES =========================================== */
 const I = {};                       /* acciones de campos (deslizadores) */
+const OBJS_AV = [["dragon", "Dragón"], ["larvas", "Larvas"], ["heraldo", "Heraldo"], ["baron", "Barón"]];
 const LUGARES = [["izq-arriba", "Arriba a la izquierda"], ["der-arriba", "Arriba a la derecha"], ["izq-centro", "Centro a la izquierda"], ["der-centro", "Centro a la derecha"], ["izq-abajo", "Abajo a la izquierda"], ["der-abajo", "Abajo a la derecha"]];
 VISTAS.ajustes = () => {
   const e = E(), h = e.hud || {}, t = temaActual();
   const lugarTxt = (LUGARES.find(l => l[0] === h.lugar) || [0, "Colocada a mano"])[1];
+  const av = h.avisos || {}, ant = h.antelacion || 60;
   return `<div class="g"><div class="c7 pila">
     <section class="card" aria-label="Tarjetas en partida">
       <div class="card-h"><h2>${ic("mando")}Tarjetas en partida</h2><span class="ay">Lo que ves encima del juego</span></div>
-      <p class="t2">Durante la partida el coach muestra una tarjeta pequeña con tus números contra la media del rango siguiente. <b>Mantén Tab</b> para ver el detalle: tu misión, tu reto, el siguiente objeto y cuándo volver a base. No reciben clics ni le quitan el foco al juego.</p>
+      <p class="t2">Durante la partida el coach muestra una tarjeta pequeña con tus números contra la media del rango siguiente. <b>Mantén Tab</b> para ver el detalle: tu misión, tu reto, el siguiente objeto y cuándo volver a base. Encima, los temporizadores del dragón, las larvas o el Heraldo y el Barón, con un aviso antes de que salgan. No reciben clics ni le quitan el foco al juego.</p>
       ${h.disponible === false ? `<p class="aviso-az am">${ic("alerta", "s")}<span>La ventanita del coach no está abierta en este equipo, así que no se pueden probar ahora. Los cambios se guardan igual.</span></p>` : ""}
       <div class="aj">
         <div class="aj-f"><div><b>Tarjeta mini siempre a la vista</b><small>Si la apagas, solo aparecen al mantener Tab.</small></div>
@@ -2859,9 +2861,17 @@ VISTAS.ajustes = () => {
           <div class="desl"><input type="range" min="85" max="150" step="5" value="${Math.round((h.escala || 1) * 100)}" data-i="hud-esc" aria-label="Tamaño"><b class="nm">${Math.round((h.escala || 1) * 100)}%</b></div></div>
         <div class="aj-f al"><div><b>Posición</b><small>${esc(lugarTxt)}. Elige una esquina o colócalas a mano.</small></div>
           <div class="pant" role="group" aria-label="Posición de las tarjetas">${LUGARES.map(([k, n]) => `<button class="${h.lugar === k ? "on" : ""}" data-a="hud-lugar" data-l="${k}" data-tip="${n}" aria-label="${n}" aria-pressed="${h.lugar === k}"><i></i></button>`).join("")}</div></div>
+        <div class="aj-f"><div><b>Temporizadores de objetivos</b><small>Dragón, larvas o Heraldo y Barón, siempre a la vista. En dorado cuando falta poco.</small></div>
+          <button class="sw ${h.timers !== false ? "on" : ""}" role="switch" aria-checked="${h.timers !== false}" data-a="hud-timers" aria-label="Temporizadores de objetivos"><i></i></button></div>
+        <div class="aj-f"><div><b>Avisos de objetivos</b><small>Te dice qué hacer según tu línea antes de que salgan, y cuando alguien coge el Barón o el Anciano.</small></div>
+          <div class="chips" role="group" aria-label="Avisos de objetivos">${OBJS_AV.map(([k, n]) => `<button class="chip ${av[k] !== false ? "az" : "ln"}" data-a="hud-av" data-k="${k}" aria-pressed="${av[k] !== false}">${n}</button>`).join("")}</div></div>
+        <div class="aj-f"><div><b>Antelación del aviso</b><small>Cuánto antes de que salga el objetivo.</small></div>
+          <div class="chips" role="group" aria-label="Antelación del aviso">${[30, 45, 60, 90].map(x => `<button class="chip ${ant === x ? "az" : "ln"}" data-a="hud-ant" data-s="${x}" aria-pressed="${ant === x}">${x} s</button>`).join("")}</div></div>
+        <div class="aj-f"><div><b>Sonido con cada aviso</b><small>Un sonido corto de Windows para que no se te pase.</small></div>
+          <button class="sw ${h.sonido !== false ? "on" : ""}" role="switch" aria-checked="${h.sonido !== false}" data-a="hud-sonido" aria-label="Sonido con cada aviso"><i></i></button></div>
       </div>
       <div class="pie izq"><button class="btn p" data-a="hud-probar">${ic("play", "s")}Probar 14 segundos</button><button class="btn" data-a="hud-mover">${ic("mover", "s")}Colocar a mano</button></div>
-      <p class="nota-p">“Colocar a mano” las deja visibles con datos de ejemplo: arrástralas adonde quieras y se guardan solas. En plena partida: mantén <b>Ctrl</b> con el ratón encima y arrástralas. Usan solo tus propios números (oro, objetos, marcador): nada del estado del rival, como pide Riot.</p>
+      <p class="nota-p">“Colocar a mano” las deja visibles con datos de ejemplo: arrástralas adonde quieras y se guardan solas. En plena partida: mantén <b>Ctrl</b> con el ratón encima y arrástralas. Usan solo lo que ves en la partida: tus números, el marcador del Tab y los objetivos que la partida anuncia a todos. Nada oculto del rival, como pide Riot.</p>
     </section></div>
     <div class="c5 pila">
       <section class="card" aria-label="Apariencia"><div class="card-h"><h2>${ic("sol")}Apariencia</h2></div>
@@ -2889,6 +2899,10 @@ async function hud(cambios, aviso){
 }
 A["hud-mini"] = () => hud({mini: !(E().hud || {}).mini});
 A["hud-lugar"] = el => hud({lugar: el.dataset.l});
+A["hud-timers"] = () => hud({timers: (E().hud || {}).timers === false});
+A["hud-sonido"] = () => hud({sonido: (E().hud || {}).sonido === false});
+A["hud-av"] = el => { const av = Object.assign({}, (E().hud || {}).avisos || {}); av[el.dataset.k] = av[el.dataset.k] === false; hud({avisos: av}); };
+A["hud-ant"] = el => hud({antelacion: +el.dataset.s});
 A["hud-probar"] = () => hud({accion: "probar"}, "Mira tu pantalla: las tarjetas se ven 14 segundos");
 A["hud-mover"] = () => hud({accion: "mover"}, "Arrástralas adonde quieras: se guardan solas");
 A["tema-fijo"] = async el => { if(el.dataset.t !== temaActual()) await A.tema(); };

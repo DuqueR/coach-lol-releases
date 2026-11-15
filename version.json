@@ -1,6 +1,6 @@
 {
-  "version": "35",
-  "notas": "nueva pantalla Campeones: tus números contra Esmeralda+, lo que más te separa, tus enfrentamientos y rivales fáciles y difíciles",
+  "version": "36",
+  "notas": "temporizadores de dragón, larvas, Heraldo y Barón en partida, con avisos según tu línea (se eligen en Ajustes)",
   "archivos": [
     "coach.py",
     "dashboard.html",

@@ -12,6 +12,17 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v36: temporizadores y avisos de objetivos
+-------------------------------------------------------
+- En partida, una tarjeta siempre a la vista con lo que falta para el dragón (o el Anciano), las larvas o el Heraldo
+  y el Barón. Se pone en dorado cuando falta poco y en verde cuando ya está. Debajo del dragón, cuántos lleva cada
+  equipo (en rojo si ellos están a uno del alma). Si alguien coge el Barón o el Anciano, la cuenta de su bufo.
+- Antes de que salga cada objetivo, un aviso con su icono que te dice qué hacer según tu línea (de top no es lo
+  mismo que de tirador) y un sonido corto. También cuando el otro equipo coge el Barón o el Anciano.
+- En Ajustes eliges qué avisos quieres, con cuánta antelación (30, 45, 60 o 90 segundos) y si suenan.
+- Los tiempos son los de la Grieta normal de esta temporada (comprobados con tus partidas). En otros modos no salen.
+- Arreglado: los iconos de la build se montaban unos sobre otros con el tamaño al 150 %.
+
 Lo nuevo en la v35: pantalla Campeones
 -------------------------------------
 - En el menú, "Campeones": eliges uno de tus campeones y ves tus números por minuto (CS, oro, daño, muertes y KDA)
