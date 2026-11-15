@@ -12,6 +12,16 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v37: tu rendimiento, estilo DPM
+---------------------------------------------
+- En Inicio, "Tu rendimiento": 8 números (nota, KDA, participación en kills, daño por minuto, % del daño de tu
+  equipo, oro contra tu rival al 14, CS y visión por minuto) con la media de tus 10 últimas, una curva con las 20
+  últimas y cuánto subiste o bajaste frente a las anteriores. Se puede filtrar por rol.
+- En Partidas, la nota de cada partida va en un anillo con tu puesto dentro, o MVP (el mejor de la partida) o ACE
+  (el mejor del equipo que perdió).
+- Cada partida dice cómo jugó tu equipo: "Equipo promedio", "Equipo malo" o "Equipo muy malo" (tus 4 aliados frente
+  a los 5 rivales). Las victorias y derrotas se distinguen también por el color de fondo.
+
 Lo nuevo en la v36: temporizadores y avisos de objetivos
 -------------------------------------------------------
 - En partida, una tarjeta siempre a la vista con lo que falta para el dragón (o el Anciano), las larvas o el Heraldo

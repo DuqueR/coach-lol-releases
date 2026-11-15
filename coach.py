@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "36"
+VERSION = "37"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -1450,6 +1450,32 @@ def puestos_partida(parts, roles, mins, yo_id, rec):
     for campo, nombre in (("dano", "Más daño"), ("oro", "Más oro"), ("vision", "Más visión"), ("cs", "Más CS")):
         max(out, key=lambda x: x[campo])["premios"].append(nombre)
     return out
+
+
+def resumen_stats(p):
+    """Numeros de una partida para la lista y la pantalla de rendimiento: participacion, CS y vision por minuto,
+    daño por minuto y % del daño de tu equipo, oro contra tu rival al 14, kills en solitario y como jugo tu equipo."""
+    dh = p.get("datos_h") or {}
+    mins = p.get("minutos") or dh.get("mins") or 0
+    pu = p.get("puestos") or []
+    yo = next((x for x in pu if x.get("yo")), None)
+    dano_eq = sum(x.get("dano") or 0 for x in pu if x.get("aliado"))
+    st = {"kp": round(dh["kp"] * 100) if dh.get("kp") is not None else None,
+          "csmin": round(dh["csmin"], 2) if dh.get("csmin") is not None else None,
+          "vmin": round(dh["vision_min"], 2) if dh.get("vision_min") is not None else None,
+          "oro14": dh.get("oro14_diff"), "solo": dh.get("solo_kills"),
+          "dmin": round(yo["dano"] / mins) if yo and yo.get("dano") is not None and mins else None,
+          "dpct": round(100 * yo["dano"] / dano_eq) if yo and yo.get("dano") is not None and dano_eq else None}
+    # como jugaron tus 4 aliados frente a los 5 rivales (nota media del coach). Como DPM: solo promedio, malo o
+    # muy malo; los cortes reproducen sus etiquetas en 4 partidas tuyas (-1,3 y -2,45 malo; -3,62 muy malo; +3,7 promedio)
+    al = [x["nota"] for x in pu if x.get("aliado") and not x.get("yo") and x.get("nota") is not None]
+    en = [x["nota"] for x in pu if not x.get("aliado") and x.get("nota") is not None]
+    if len(al) >= 3 and len(en) >= 3:
+        r = sum(al) / len(al) - sum(en) / len(en)
+        st["equipo"] = "muy_malo" if r <= -3.0 else "malo" if r <= -1.0 else "promedio"
+    if yo:
+        st["ace"] = "Mejor del equipo que perdió" in (yo.get("premios") or [])
+    return st
 
 
 def _frame_antes(frames, ts):
@@ -9573,7 +9599,7 @@ def crear_handler(coach):
                                         "cs": p["yo"].get("cs"), "rival_id": (p.get("rival") or {}).get("campeon_id"),
                                         "items": [i for i in p["yo"].get("items") or []
                                                   if i.get("id") not in NO_BUILD][:6],
-                                        "nivel": p["veredicto"]["nivel"],
+                                        "nivel": p["veredicto"]["nivel"], "st": resumen_stats(p),
                                         "mision_ok": (m["ok"] if m and m["aplica"] else None),
                                         "mision_registrada": bool(m and m["registrada"]),
                                         "animo": (alm.d["animo"].get(p["id"]) or {}).get("estado")})

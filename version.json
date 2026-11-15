@@ -1,6 +1,6 @@
 {
-  "version": "36",
-  "notas": "temporizadores de dragón, larvas, Heraldo y Barón en partida, con avisos según tu línea (se eligen en Ajustes)",
+  "version": "37",
+  "notas": "Inicio con tu rendimiento en 8 números con su curva; nota de cada partida en anillo con MVP/ACE y cómo jugó tu equipo",
   "archivos": [
     "coach.py",
     "dashboard.html",

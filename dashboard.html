@@ -426,6 +426,31 @@ button.chip .i{width:13px;height:13px}
 .fp .kda{font-size:18px}
 .fp .l3{display:flex;gap:5px;align-items:center;min-height:20px}
 .fp .nt{font-size:26px;line-height:.9}
+.fp.gano{background:color-mix(in srgb,var(--az) 5%,var(--s1))} .fp.perdio{background:color-mix(in srgb,var(--rj) 5%,var(--s1))}
+.fp.sel{background:var(--s2)}
+.anillo{position:relative;display:grid;place-items:center;width:46px;height:46px;flex:none}
+.anillo svg{position:absolute;inset:0}
+.anillo .arco{transition:stroke-dasharray .5s cubic-bezier(.23,1,.32,1)}
+.anillo b{font-size:15px;line-height:1;margin-top:-1px}
+.anillo small{position:absolute;bottom:9px;font-size:8.5px;font-weight:750;letter-spacing:.04em;color:var(--t3)}
+.anillo:has(small) b{margin-top:-9px}
+.eqt{font-size:11px;font-weight:650;padding:1px 6px;border-radius:5px;white-space:nowrap}
+.eqt.muy_malo{color:var(--rj);background:var(--rjs)} .eqt.malo{color:var(--am);background:var(--ams)}
+.eqt.bueno,.eqt.muy_bueno{color:var(--vd);background:var(--vds)} .eqt.promedio{color:var(--t3);background:var(--s3)}
+/* rendimiento: 8 números con su curva (últimas 20) y la diferencia con tu media */
+.rend-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.rt{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;column-gap:10px;align-items:end;
+  padding:13px 14px 12px;border-radius:var(--r2);background:var(--s2);border:1px solid var(--linea);min-width:0}
+.rt-e{grid-column:1/-1;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);font-weight:650;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt-v{font-size:25px;line-height:1.05}
+.rt-v small{font-size:14px;color:var(--t3);margin-left:1px}
+.rt-d{font-size:11.5px;font-weight:650;display:inline-flex;align-items:center;gap:3px;margin-top:4px;white-space:nowrap}
+.rt-d .i{width:11px;height:11px}
+.rt-d.no{color:var(--t3);font-weight:500}
+.rt svg{grid-column:2;grid-row:2/4;align-self:center}
+.rend .filtros{margin-left:auto}
+@media (max-width:1180px){ .rend-g{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:520px){ .rend-g{grid-template-columns:minmax(0,1fr)} }
 @media (max-width:1180px){ .pg{grid-template-columns:1fr} .lista{position:static;max-height:330px} }
 .banda{position:relative;overflow:hidden;isolation:isolate;display:flex;justify-content:space-between;gap:24px;align-items:center;padding:24px 24px 24px 28px;min-height:212px;
   border-radius:var(--r);border:1px solid var(--linea);background:var(--s1);margin-bottom:16px;--tono:var(--rj)}
@@ -1041,7 +1066,7 @@ kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px sol
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "36";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "37";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1577,6 +1602,7 @@ VISTAS.inicio = () => {
         : "El coach se conecta solo en cuanto el cliente esté abierto, trae tus últimas partidas y arma tu plan."}</p></section>`;
   return `<div class="g est"><div class="c8">${B(heroPaso)}</div><div class="c4 ancha">${B(cardHoy)}</div></div>
     ${B(filaKpi)}
+    ${B(cardRendimiento)}
     <div class="g"><div class="c7 pila">${B(cardMision)}${B(cardRetosActivos)}${B(cardProxima)}</div>
       <div class="c5 pila">${B(cardUltima)}${B(cardBuildInicio)}${B(cardRoles)}${B(cardCausas)}${B(cardLogros)}</div></div>
     ${B(cardRuta)}`;
@@ -1637,6 +1663,73 @@ function chispa(vals, tono = "az", W = 132, H = 34, tips = null){
     <path d="${d}" fill="none" stroke="var(--t4)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${X(v.length - 1).toFixed(1)}" cy="${Y(v[v.length - 1]).toFixed(1)}" r="4" fill="var(--${tono})" stroke="var(--s1)" stroke-width="2"/>${zonas}</svg>`;
 }
+/* curva suave (sin pasarse de los puntos) con el área debajo en degradado, para las tarjetas de rendimiento */
+function curva(vals, tono, k, W = 110, H = 40){
+  const v0 = vals.filter(x => x != null);
+  const v = v0.map((x, i) => { const a = v0.slice(Math.max(0, i - 1), i + 2); return a.reduce((s, y) => s + y, 0) / a.length; });   /* media de 3: la tendencia, no el ruido */
+  if(v.length < 3) return `<svg width="${W}" height="${H}" aria-hidden="true"></svg>`;
+  let lo = Math.min(...v), hi = Math.max(...v); if(hi === lo){ hi += 1; lo -= 1; }
+  const X = i => 2 + (W - 8) * i / (v.length - 1), Y = x => 5 + (H - 10) * (1 - (x - lo) / (hi - lo));
+  let d = `M${X(0).toFixed(1)} ${Y(v[0]).toFixed(1)}`;
+  for(let i = 1; i < v.length; i++){ const xm = ((X(i - 1) + X(i)) / 2).toFixed(1);
+    d += ` C${xm} ${Y(v[i - 1]).toFixed(1)} ${xm} ${Y(v[i]).toFixed(1)} ${X(i).toFixed(1)} ${Y(v[i]).toFixed(1)}`; }
+  const area = `${d} L${X(v.length - 1).toFixed(1)} ${H} L${X(0).toFixed(1)} ${H} Z`, col = `var(--${tono || "t2"})`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><defs><linearGradient id="cg-${k}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${col}" stop-opacity=".22"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#cg-${k})"/><path d="${d}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${X(v.length - 1).toFixed(1)}" cy="${Y(v[v.length - 1]).toFixed(1)}" r="3" fill="${col}" stroke="var(--s2)" stroke-width="1.5"/></svg>`;
+}
+const MET_REND = [
+  {k: "nota", et: "Nota del coach", f: p => p.nota, d: 1},
+  {k: "kda", et: "KDA", f: p => p.k == null ? null : (p.k + p.a) / Math.max(p.d, 1), d: 1},
+  {k: "kp", et: "Part. en kills", f: p => p.st && p.st.kp, d: 0, u: "%"},
+  {k: "dmin", et: "Daño por minuto", f: p => p.st && p.st.dmin, d: 0},
+  {k: "dpct", et: "% del daño del equipo", f: p => p.st && p.st.dpct, d: 0, u: "%"},
+  {k: "oro14", et: "Oro vs rival al 14", f: p => p.st && p.st.oro14, d: 0, signo: true},
+  {k: "csmin", et: "CS por minuto", f: p => p.st && p.st.csmin, d: 1},
+  {k: "vmin", et: "Visión por minuto", f: p => p.st && p.st.vmin, d: 2},
+];
+A["rend-rol"] = el => { S.rendRol = el.dataset.r || ""; pintar(true); };
+function cardRendimiento(){
+  const todas = E().partidas;
+  const roles = [...new Set(todas.map(p => p.rol).filter(Boolean))];
+  if(S.rendRol && !roles.includes(S.rendRol)) S.rendRol = "";
+  const ps = S.rendRol ? todas.filter(p => p.rol === S.rendRol) : todas;
+  if(ps.length < 3) return "";
+  const filtros = roles.length > 1 ? `<div class="filtros">${IND_FIL.replace('"ind-fil"', '"ind-fil-r"')}<button class="chip ${S.rendRol ? "ln" : "az"}" data-a="rend-rol" data-r="">Todas</button>${roles.map(r =>
+    `<button class="chip ${S.rendRol === r ? "az" : "ln"}" data-a="rend-rol" data-r="${r}">${ROL[r] || r}</button>`).join("")}</div>` : "";
+  const tiles = MET_REND.map(m => {
+    const serie = ps.slice(0, 20).map(m.f).reverse();
+    const ult = media(ps.slice(0, 10).map(m.f).filter(x => x != null)), ant = media(ps.slice(10, 30).map(m.f).filter(x => x != null));
+    if(ult == null) return "";
+    const paso = Math.pow(10, -m.d), dif = ant != null && ps.length >= 13 ? Math.round((ult - ant) / paso) * paso : null;
+    const tono = dif == null || dif === 0 ? "" : dif > 0 ? "vd" : "rj";
+    const val = (m.signo && ult > 0 ? "+" : "") + dec(ult, m.d);
+    const dl = dif == null ? `<span class="rt-d no">media de ${Math.min(10, ps.length)}</span>`
+      : dif === 0 ? `<span class="rt-d no">igual que antes</span>`
+      : `<span class="rt-d c-${tono}" data-tip="Tus 10 últimas frente a las ${Math.min(20, ps.length - 10)} anteriores">${ic(dif > 0 ? "sube" : "baja")}${dif > 0 ? "+" : "−"}${dec(Math.abs(dif), m.d)}</span>`;
+    return `<div class="rt"><span class="rt-e" title="${esc(m.et)}">${esc(m.et)}</span><b class="rt-v nm">${val}${m.u ? `<small>${m.u}</small>` : ""}</b>
+      ${curva(serie, tono || "t2", m.k)}${dl}</div>`;
+  }).join("");
+  return `<section class="card rend" aria-label="Tu rendimiento">
+    <div class="card-h"><h2>${ic("sube")}Tu rendimiento</h2><span class="ay">Media de tus 10 últimas${S.rendRol ? " de " + esc(ROL[S.rendRol] || S.rendRol) : ""} · la curva son las 20 últimas</span>${filtros}</div>
+    <div class="rend-g">${tiles}</div></section>`;
+}
+/* nota de la partida en un anillo, con el puesto (o MVP / ACE) dentro */
+function anillo(p){
+  const tn = tonoNota(p.nota), r = 19, C = 2 * Math.PI * r, f = Math.max(0.02, Math.min(1, (p.nota || 0) / 10));
+  const mvp = (p.premios || []).includes("MVP"), ace = p.st && p.st.ace;
+  const lbl = mvp ? "MVP" : ace ? "ACE" : p.puesto ? p.puesto + ".º" : "";
+  const tip = `Nota del coach${p.puesto ? ` · ${p.puesto}.º de los 10` : ""}${mvp ? " · el mejor de la partida" : ace ? " · el mejor del equipo que perdió" : ""}`;
+  return `<span class="anillo c-${tn}" data-tip="${tip}"><svg viewBox="0 0 46 46" width="46" height="46" aria-hidden="true">
+      <circle cx="23" cy="23" r="${r}" fill="none" stroke="var(--s3)" stroke-width="3.5"/>
+      <circle class="arco" cx="23" cy="23" r="${r}" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"
+        stroke-dasharray="${(C * f).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 23 23)"/></svg>
+    <b class="nm">${dec(p.nota)}</b>${lbl ? `<small class="${mvp ? "c-or" : ace ? "c-vi" : ""}">${lbl}</small>` : ""}</span>`;
+}
+const EQ_TXT = {muy_malo: "Equipo muy malo", malo: "Equipo malo", promedio: "Equipo promedio", bueno: "Equipo bueno", muy_bueno: "Equipo muy bueno"};
+const eqTip = "Cómo jugaron tus 4 aliados frente a los 5 rivales, según la nota del coach";
+const etEquipo = st => st && st.equipo ? `<span class="eqt ${st.equipo}" data-tip="${eqTip}">${EQ_TXT[st.equipo]}</span>` : "";
 /* número que sube hasta su valor la primera vez que se ve (lo anima efectos()) */
 const cu = (x, d = 1, k = "") => x == null || isNaN(x) ? dec(x, d) : `<span data-cu="${x}" data-dec="${d}"${k ? ` data-cuk="${k}"` : ""}>${dec(x, d)}</span>`;
 function filaKpi(){
@@ -1819,11 +1912,11 @@ function htmlLista(){
     return `<button class="fp ${p.victoria ? "gano" : "perdio"} ${sel ? "sel" : ""} ${S.llega === String(p.id) ? "llega" : ""}" data-a="partida" data-id="${p.id}" data-k="p${p.id}" aria-pressed="${sel}">
       ${cp(p.campeon_id, p.campeon, 44)}
       <span class="pa"><span class="l1"><b class="res">${p.victoria ? "Victoria" : "Derrota"}</b><span class="dim">${esc(ROL[p.rol] || "")}${p.rol ? " · " : ""}${esc(p.duracion)}</span></span>
-        <span class="l2"><span class="kda nm">${p.k ?? "?"}<s>/</s><i>${p.d ?? "?"}</i><s>/</s>${p.a ?? "?"}</span><span class="dim tn">${p.cs != null ? p.cs + " CS" : ""}</span></span>
+        <span class="l2"><span class="kda nm">${p.k ?? "?"}<s>/</s><i>${p.d ?? "?"}</i><s>/</s>${p.a ?? "?"}</span>${etEquipo(p.st) || `<span class="dim tn">${p.cs != null ? p.cs + " CS" : ""}</span>`}</span>
         <span class="l3">${its(p.items, 20)}</span></span>
-      <span class="pb"><span class="nt nm c-${tn}" data-tip="Nota del coach">${dec(p.nota)}</span>
+      <span class="pb">${anillo(p)}
         <span class="dim">${fechaCorta(p.fecha)}</span>
-        <span class="l3">${mvp ? `<span class="chip or">MVP</span>` : p.puesto ? `<span class="chip ${p.puesto <= 3 ? "az" : ""}" data-tip="Tu puesto entre los 10 jugadores${premio ? " · " + esc(premio) : ""}">${p.puesto}.º</span>` : ""}
+        <span class="l3">${premio ? `<span class="chip" data-tip="${esc(premio)} de la partida">${esc(premio.replace("Más ", "+"))}</span>` : ""}
           ${p.mision_ok === null ? "" : `<span class="mi ${p.mision_ok ? "ok" : "no"}" data-tip="${p.mision_ok ? "Misión cumplida" : "Misión fallada"}">${ic(p.mision_ok ? "ok" : "no")}</span>`}
           ${p.rival_id ? cp(p.rival_id, "contra " + p.rival, 20, "rd") : ""}</span></span>
     </button>`; }).join("") + `</div>`;
@@ -1857,7 +1950,7 @@ function banda(p){
         <div class="lin">${its(p.yo.items, 30)}${rv ? `<span class="vs"><small>contra</small>${cp(rv.campeon_id, rv.campeon, 30)}<span><b>${esc(rv.campeon)}</b><small class="tn">${esc(rv.kda)}</small></span></span>` : ""}</div></div></div>
     <div class="b2"><span class="et">Nota del coach</span><b class="nt nm c-${tn}">${dec(v.nota)}</b>${tira(v.nota)}
       <div class="ver"><b>${esc(v.titulo)}</b><span>${esc(v.sub)}</span></div>
-      <div class="chips">${p.puesto ? `<span class="chip ${p.puesto <= 3 ? "az" : ""}" data-tip="Tu puesto entre los 10 jugadores por rendimiento">${p.puesto}.º de 10</span>` : ""}${culpa ? `<span class="chip ${culpa[1]}">${culpa[0]}</span>` : ""}</div></div>
+      <div class="chips">${p.puesto ? `<span class="chip ${p.puesto <= 3 ? "az" : ""}" data-tip="Tu puesto entre los 10 jugadores por rendimiento">${p.puesto}.º de 10</span>` : ""}${etEquipo((E().partidas.find(x => String(x.id) === String(p.id)) || {}).st)}${culpa ? `<span class="chip ${culpa[1]}">${culpa[0]}</span>` : ""}</div></div>
   </header>`;
 }
 
