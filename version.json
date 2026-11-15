@@ -1,6 +1,6 @@
 {
-  "version": "51",
-  "notas": "el botón Actualizar ya no falla con «Acceso denegado» en las fuentes",
+  "version": "52",
+  "notas": "las novedades de cada versión nueva se ven en su ventana antes de actualizar",
   "archivos": [
     "coach.py",
     "dashboard.html",

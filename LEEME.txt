@@ -12,6 +12,11 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v52: mira qué trae antes de actualizar
+- El aviso de versión nueva de arriba ya no corta el texto: pulsa "Ver qué
+  trae" y se abre la ventana de novedades con todo lo de la versión, con los
+  botones "Ahora no" y "Actualizar".
+
 Lo nuevo en la v51: actualizar sin errores
 - Arreglado: al pulsar Actualizar podía salir "No pude escribir
   fuente/hud_eti.ttf: Acceso denegado". Las fuentes que no cambian ya no se

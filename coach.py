@@ -108,7 +108,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "51"
+VERSION = "52"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -11895,6 +11895,21 @@ def crear_handler(coach):
                 return self._send(200, {"fase": coach.fase, "draft": coach.draft if coach.fase == "ChampSelect" else None})
             if ruta == "/api/novedades":
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                nueva = _ACTU.get("nueva")
+                if (q.get("pendiente") or [""])[0] and nueva:
+                    # lo que trae la version que aun no tienes: su LEEME (de GitHub; en desarrollo, el de la carpeta)
+                    txt = (_ACTU.get("leeme") or {}).get(nueva)
+                    if txt is None:
+                        try:
+                            txt = ((DIR / "LEEME.txt").read_text(encoding="utf-8-sig") if _ACTU.get("local")
+                                   else _bajar("LEEME.txt", timeout=6).decode("utf-8-sig"))
+                            _ACTU["leeme"] = {nueva: txt}
+                        except Exception:
+                            txt = ""
+                    lista = novedades_leeme(txt, desde=VERSION, hasta=nueva, maximo=60)
+                    if not lista and _ACTU.get("notas"):
+                        lista = [{"v": nueva, "titulo": _ACTU["notas"], "puntos": [], "tipo": "nuevo"}]
+                    return self._send(200, {"actual": nueva, "desde": VERSION, "pendiente": True, "lista": lista})
                 txt, mejor = "", ()
                 for f in (DIR / "LEEME.txt", Path(getattr(sys, "_MEIPASS", DIR)) / "LEEME.txt"):
                     try:   # el del exe puede ser mas nuevo que el instalado al lado (o al reves)

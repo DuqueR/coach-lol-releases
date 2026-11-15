@@ -1306,9 +1306,12 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   animation:actu-in .3s var(--ease-out)}
 @keyframes actu-in{from{opacity:0;transform:translateY(-4px)}}
 .actu-p{width:8px;height:8px;border-radius:50%;background:var(--az);box-shadow:0 0 0 3px var(--azs);flex:none}
-.actu-t{display:grid;min-width:0;line-height:1.2}
+.actu-t{display:grid;min-width:0;line-height:1.2;border:0;background:none;padding:0;text-align:left;cursor:pointer;color:inherit}
+.actu-t small .i{display:inline-block;width:11px;height:11px;vertical-align:-1px;margin-left:2px}
+@media (hover:hover){.actu-t:hover small{color:var(--az)}}
 .actu-t b{font-size:var(--fs-3);white-space:nowrap}
-.actu-t small{font-size:var(--fs-2);color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nv-acc{display:flex;gap:8px;flex:none}
+.actu-t small{font-size:var(--fs-2);color:var(--t3);white-space:nowrap;transition:color .12s}
 .actu .btn{height:32px;flex:none}
 .actu .btn .gira{width:13px;height:13px;border-color:color-mix(in srgb,var(--en-p) 35%,transparent);border-top-color:var(--en-p)}
 @media (prefers-reduced-motion:reduce){.actu{animation:none}}
@@ -1352,7 +1355,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "51";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "52";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1698,7 +1701,7 @@ function htmlTope(){
     : `<span class="est-c ${e.conectado ? "on" : ""}"><i></i>${esc(e.conectado ? e.fase_texto : "Cliente de LoL cerrado")}</span>`;
   const ac = e.actualizacion || {}, enJuego = ["ChampSelect", "GameStart", "InProgress", "Reconnect"].includes(e.fase);
   const nueva = ac.pendiente && !S.caido ? `<div class="actu" role="status"><span class="actu-p" aria-hidden="true"></span>
-      <span class="actu-t"><b>Versión ${esc(ac.pendiente)} disponible</b>${ac.notas ? `<small>${esc(ac.notas)}</small>` : ""}</span>
+      <button class="actu-t" data-a="nov-pend" aria-label="Ver qué trae la versión ${esc(ac.pendiente)}"><b>Versión ${esc(ac.pendiente)} disponible</b><small>Ver qué trae${ic("chev", "s")}</small></button>
       <button class="btn p pq" data-a="actualizar" ${S.actualizando || ac.aplicando || enJuego ? "disabled" : ""} ${enJuego ? 'data-tip="Actualiza cuando termine la partida"' : ""}>${S.actualizando || ac.aplicando ? `<span class="gira"></span>Actualizando…` : `${ic("sube", "s")}Actualizar`}</button></div>` : "";
   return `<h1>${TITULO[S.vista] || ""}</h1>${miga}<div class="der">${nueva}<button class="bus-b" data-a="cmd" aria-label="Buscar (Ctrl+K)">${ic("lupa", "s")}Buscar <kbd>Ctrl K</kbd></button>${estado}${perfil}</div>`;
 }
@@ -3863,9 +3866,10 @@ document.addEventListener("keydown", ev => {
 
 /* =========================================== NOVEDADES =========================================== */
 const NV_TONO = {nuevo: ["az", "Nuevo", "ia"], mejora: ["or", "Mejora", "rayo"], arreglo: ["vd", "Arreglo", "ok"]};
-async function abrirNovedades(desde){
+async function abrirNovedades(desde, pendiente){
   let r;
-  try{ r = await api("/api/novedades" + (desde ? "?desde=" + encodeURIComponent(desde) : ""), null, 8000); }catch(_){ return; }
+  try{ r = await api("/api/novedades" + (pendiente ? "?pendiente=1" : desde ? "?desde=" + encodeURIComponent(desde) : ""), null, 10000); }
+  catch(_){ if(pendiente) toast("No pude leer las novedades. Inténtalo en un rato."); return; }
   const l = r.lista || [];
   if(desde && !l.length) return;
   S.novTodo = false; S.novDatos = {r, desde};
@@ -3878,10 +3882,12 @@ function pintarNovedades(){
   const {r, desde} = S.novDatos, l = r.lista || [];
   const vistas = S.novTodo ? l : l.slice(0, 3), resto = l.length - vistas.length;
   const ult = l[0] || {v: r.actual, titulo: "Coach al día", puntos: [], tipo: "nuevo"};
-  const sub = desde ? `Antes tenías la <b>v${esc(desde)}</b>${l.length > 1 ? ` · ${l.length} versiones nuevas` : ""}` : "Lo último que trae el coach";
+  const pend = !!r.pendiente, e = E() || {}, enJuego = ["ChampSelect", "GameStart", "InProgress", "Reconnect"].includes(e.fase);
+  const sub = pend ? `Tienes la <b>v${esc(r.desde)}</b>${l.length > 1 ? ` · ${l.length} versiones nuevas` : ""}`
+    : desde ? `Antes tenías la <b>v${esc(desde)}</b>${l.length > 1 ? ` · ${l.length} versiones nuevas` : ""}` : "Lo último que trae el coach";
   poner($("#nov-c"), `<header class="nv-h">
       <button class="nv-ce" data-a="nov-cerrar" aria-label="Cerrar">${ic("no")}</button>
-      <span class="nv-eb">${ic("ia")}${desde ? "Coach actualizado" : "Novedades"}</span>
+      <span class="nv-eb">${ic(pend ? "sube" : "ia")}${pend ? "Versión nueva" : desde ? "Coach actualizado" : "Novedades"}</span>
       <div class="nv-v"><b class="nv-num dz nm" data-t="v${esc(r.actual)}">v${esc(r.actual)}</b><small>${sub}</small></div>
       <h2 class="dz" id="nov-t">${esc(ult.titulo)}</h2>
     </header>
@@ -3894,7 +3900,9 @@ function pintarNovedades(){
       }).join("")}</div>${resto > 0 ? `<button class="enl nv-mas" data-a="nov-todo">Ver ${plural(resto, "versión más", "versiones más")}${ic("chev", "s")}</button>` : ""}`
       : `<p class="nv-vacio">No hay notas para esta versión.</p>`}</div>
     <footer class="nv-f"><p>${ic("escudo")}Tus partidas, claves y ajustes siguen igual.</p>
-      <button class="btn p gr" id="nov-ok" data-a="nov-cerrar">${desde ? "¡A jugar!" : "Entendido"}</button></footer>`);
+      ${pend ? `<span class="nv-acc"><button class="btn" data-a="nov-cerrar">Ahora no</button>
+        <button class="btn p gr" id="nov-ok" data-a="nov-actualizar" ${enJuego ? 'disabled data-tip="Actualiza cuando termine la partida"' : ""}>${ic("sube", "s")}Actualizar</button></span>`
+      : `<button class="btn p gr" id="nov-ok" data-a="nov-cerrar">${desde ? "¡A jugar!" : "Entendido"}</button>`}</footer>`);
 }
 function cerrarNovedades(){
   if(!$("#nov").classList.contains("on")) return;
@@ -3904,6 +3912,8 @@ function cerrarNovedades(){
 A["nov-cerrar"] = cerrarNovedades;
 A["nov-todo"] = () => { S.novTodo = true; pintarNovedades(); };
 A["novedades"] = () => abrirNovedades();
+A["nov-pend"] = () => abrirNovedades(null, true);
+A["nov-actualizar"] = () => { cerrarNovedades(); return A["actualizar"](); };
 document.addEventListener("keydown", ev => { if(ev.key === "Escape" && $("#nov").classList.contains("on")){ ev.preventDefault(); cerrarNovedades(); } });
 $("#nov").addEventListener("mousedown", ev => { if(ev.target.id === "nov") cerrarNovedades(); });
 
