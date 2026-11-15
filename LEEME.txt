@@ -12,6 +12,16 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v45: tarjetas que se cierran y se aclaran
+- Las tarjetas de partida son más transparentes cuando el ratón no está encima.
+  Al pasarlo por una, se ve entera y sale una X arriba a la derecha: púlsala y
+  esa tarjeta se quita hasta el final de la partida. Solo la X recibe el clic;
+  el resto de la tarjeta sigue dejando pasar los clics al juego.
+- Fuera "Tu ruta a Diamante" del inicio: repetía lo que ya dicen la misión y
+  el plan.
+- Arreglado el botón grande del inicio ("Revisar ahora"), que ponía el icono
+  encima del texto.
+
 Lo nuevo en la v44: probabilidad de ganar en partida, tus jugadas y más
 - En partida, una tarjeta nueva con la probabilidad de ganar (barra azul, tu
   equipo, y roja), la ventaja de oro en objetos, las kills y las torres. Se

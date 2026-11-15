@@ -545,7 +545,7 @@ button.chip .i{width:13px;height:13px}
 .seg button.on{background:var(--s3);color:var(--t1);box-shadow:0 1px 2px rgba(0,0,0,.25)}
 @media (hover:hover){.seg button:not(.on):hover{color:var(--t1)}}
 .filas.agr{gap:14px}
-.gr{display:grid;gap:6px}
+.grp{display:grid;gap:6px}
 .gr-h{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 10px;padding:8px 10px;margin:0 -2px;
   border-radius:var(--r2);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);box-shadow:inset 0 -1px 0 var(--linea)}
 .gr-t{display:flex;align-items:baseline;gap:8px;min-width:0}
@@ -559,7 +559,7 @@ button.chip .i{width:13px;height:13px}
 .gr-b s{width:4px;height:14px;border-radius:2px;background:var(--rj);opacity:.85}
 .gr-b s.v{background:var(--az)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media (max-width:760px){.gr{display:contents}.gr-h{position:static;flex:none;width:220px;flex-direction:column;align-items:flex-start;justify-content:center}}
+@media (max-width:760px){.grp{display:contents}.gr-h{position:static;flex:none;width:220px;flex-direction:column;align-items:flex-start;justify-content:center}}
 .fp{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;
   padding:10px 12px 10px 16px;border-radius:var(--r-m);border:1px solid var(--linea);background:var(--s1);color:var(--t1);transition:background .12s,border-color .12s}
 .fp::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--rj)}
@@ -1229,7 +1229,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "44";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "45";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1773,8 +1773,7 @@ VISTAS.inicio = () => {
     ${B(filaKpi)}
     ${B(cardRendimiento)}
     <div class="g"><div class="c7 pila">${B(cardMision)}${B(cardRetosActivos)}${B(cardProxima)}</div>
-      <div class="c5 pila">${B(cardUltima)}${B(cardBuildInicio)}${B(cardRoles)}${B(cardCausas)}${B(cardLogros)}</div></div>
-    ${B(cardRuta)}`;
+      <div class="c5 pila">${B(cardUltima)}${B(cardBuildInicio)}${B(cardRoles)}${B(cardCausas)}${B(cardLogros)}</div></div>`;
 };
 
 function heroPaso(){
@@ -2027,22 +2026,6 @@ function cardRoles(){
     <p class="aviso-az">${ic("info", "s")}<span>En la cola pon ${esc(r.principal_txt)} de principal y ${esc(r.secundario_txt)} de secundario. Si eliges un campeón fuera de tu pool, el coach te avisa en la selección.</span></p>
     <p class="nota-p">${esc(r.motivo)} ${r.revisa_en ? `Se revisan dentro de ${plural(r.revisa_en, "partida", "partidas")}.` : "Se revisan en tu próxima partida."}</p></section>`;
 }
-A.ruta = el => { S.rutaSel = +el.dataset.e; pintar(); };
-function cardRuta(){
-  const pl = E().plan; if(!pl.etapas) return "";
-  const sel = pl.etapas.find(x => x.id === S.rutaSel) || pl.etapas.find(x => x.estado === "actual") || pl.etapas[0];
-  const chip = q => sel.estado === "siguiente" && q.estado !== "hecho" ? `<span class="chip">Después</span>`
-    : {foco: `<span class="chip az">Ahora</span>`, hecho: `<span class="chip vd">${ic("ok")}Dominado</span>`,
-       pendiente: `<span class="chip am">Pendiente</span>`, no_aplica: `<span class="chip">Otro rol</span>`}[q.estado];
-  return `<section class="card ruta" aria-label="Tu ruta a Diamante">
-    <div class="card-h"><h2>${ic("progreso")}Tu ruta a Diamante</h2><span class="ay">Pasas de etapa cuando dominas lo de la tuya: ${pl.necesarias} de tus últimas ${pl.ventana} partidas</span></div>
-    <ol class="pasos">${pl.etapas.map(et => `<li class="${et.estado} ${et.id === sel.id ? "sel" : ""}"><button data-a="ruta" data-e="${et.id}" aria-pressed="${et.id === sel.id}">
-      <span class="n nm">${et.estado === "hecha" ? ic("ok") : et.id}</span><span class="tx"><b>${esc(et.nombre)}</b><small>${esc(et.rango)}</small></span></button></li>`).join("")}</ol>
-    <div class="et-det"><p class="que">${sel.estado === "actual" ? `<span class="chip az">Estás aquí</span>` : sel.estado === "hecha" ? `<span class="chip vd">Hecha</span>` : `<span class="chip">Más adelante</span>`}${esc(sel.que)}</p>
-      <ul class="reqs">${sel.reqs.map(q => `<li class="${q.estado}">${chip(q)}<div><b>${esc(q.nombre)}</b><span>${esc(q.regla)}</span></div>
-        <span class="u tn">${sel.estado === "actual" && q.estado !== "no_aplica" && q.ult_n ? `${q.ult_ok} de tus últimas ${q.ult_n}` : ""}</span></li>`).join("")}</ul></div>
-  </section>`;
-}
 function cardCausas(){
   const r = E().revision;
   if(!r || !r.total) return `<section class="card"><div class="card-h"><h2>${ic("muerte")}Por qué mueres</h2></div>
@@ -2147,7 +2130,7 @@ function htmlLista(){
     </button>`; };
   if(!ps.length) return barra + filtros + `<p class="vacio">No hay partidas con este filtro.</p>`;
   const cuerpo = modo === "nada" ? ps.map(fila).join("")
-    : grupos(ps, modo).map(g => `<section class="gr" data-k="g${g.ps[0].id}">${cabGrupo(g, modo)}${g.ps.map(fila).join("")}</section>`).join("");
+    : grupos(ps, modo).map(g => `<section class="grp" data-k="g${g.ps[0].id}">${cabGrupo(g, modo)}${g.ps.map(fila).join("")}</section>`).join("");
   return barra + filtros + `<div class="filas ${modo !== "nada" ? "agr" : ""}">${cuerpo}</div>`;
 }
 
@@ -3214,7 +3197,7 @@ VISTAS.ajustes = () => {
       <div class="aj">
         <div class="aj-f"><div><b>Tarjeta mini siempre a la vista</b><small>Si la apagas, solo aparecen al mantener Tab.</small></div>
           <button class="sw ${h.mini ? "on" : ""}" role="switch" aria-checked="${!!h.mini}" data-a="hud-mini" aria-label="Tarjeta mini siempre a la vista"><i></i></button></div>
-        <div class="aj-f"><div><b>Opacidad</b><small>Más baja, más se ve el juego detrás.</small></div>
+        <div class="aj-f"><div><b>Opacidad</b><small>Con el ratón encima. Sin él se aclaran un poco más; pasa el ratón por una para ver su X y cerrarla hasta el final de la partida.</small></div>
           <div class="desl"><input type="range" min="45" max="100" step="5" value="${Math.round((h.opacidad || .9) * 100)}" data-i="hud-op" aria-label="Opacidad"><b class="nm">${Math.round((h.opacidad || .9) * 100)}%</b></div></div>
         <div class="aj-f"><div><b>Tamaño</b><small>Súbelo si juegas en 1440p o 4K.</small></div>
           <div class="desl"><input type="range" min="85" max="150" step="5" value="${Math.round((h.escala || 1) * 100)}" data-i="hud-esc" aria-label="Tamaño"><b class="nm">${Math.round((h.escala || 1) * 100)}%</b></div></div>

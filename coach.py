@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "44"
+VERSION = "45"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -7210,6 +7210,12 @@ class Hud:
         self._cache = {}                   # lo ultimo puesto en cada elemento del lienzo
         self._drag = None
         self._ctrl = False                 # Ctrl pulsado con el raton encima: se pueden arrastrar en partida
+        self.cerradas = set()              # tarjetas que cerraste con la X (hasta que acaba la partida)
+        self._cajas = {}                   # tarjeta visible -> (y0, y1) en el lienzo
+        self._encima = None                # tarjeta con el raton encima
+        self._sobre_x = False              # raton sobre la X: esa zona recibe el clic (el resto lo deja pasar)
+        self._alpha_puesto = None
+        self._x_desde, self._x_tras_cerrar, self._x_vis = None, False, False
         self._t_inicio, self._visto_juego, self._t_estilo = 0.0, False, 0.0
         self._construir()
         self.cv.bind("<ButtonPress-1>", self._ini)
@@ -7287,10 +7293,7 @@ class Hud:
         if "lugar" in cambios:
             self.pref.pop("x", None), self.pref.pop("y", None)
         self._guardar_pref()
-        try:
-            self.win.attributes("-alpha", self._alpha())
-        except Exception:
-            pass
+        self._alpha_puesto = None              # el siguiente tic pone la opacidad nueva (con o sin raton encima)
         if reconstruir:
             self.esc = float(self.pref.get("escala") or 1.0)
             self.W, self.H = self.e(250), self.e(920)
@@ -7312,6 +7315,9 @@ class Hud:
 
     # ---------------------------------------------------------------- arrastrar (al colocarlas o con Ctrl)
     def _ini(self, ev):
+        if self._sobre_x and self._encima and not self._ctrl:
+            self._cerrar_tarjeta(self._encima)
+            return
         if self.mover or self._ctrl:
             self._drag = (ev.x_root - self.win.winfo_x(), ev.y_root - self.win.winfo_y())
 
@@ -7328,6 +7334,69 @@ class Hud:
             self._guardar_pref()
             self._ctrl = self._ctrl_encima()
             self._estilo()
+
+    X_ESPERA = 0.3                         # segundos con el raton sobre la X antes de que acepte el clic
+
+    def _raton(self):
+        """Cada 50 ms: que tarjeta tiene el raton encima. Sin raton encima son mas transparentes; con el, opacas
+        y con una X arriba a la derecha para cerrarla. La X solo recoge el clic tras 0,3 s con el raton quieto
+        encima (al barrer el raton por la pantalla jugando, los clics siguen yendo al juego) y, tras cerrar una,
+        no vuelve a activarse hasta que el raton sale de esa zona."""
+        encima, en_x, sobre_x = None, False, False
+        ahora = time.time()
+        demo = ahora < self.demo_hasta
+        C, e, W = self.C, self.e, self.W
+        cx = cy = -1
+        try:
+            px, py = self.root.winfo_pointerxy()
+            cx, cy = px - self.win.winfo_rootx(), py - self.win.winfo_rooty()
+            if 0 <= cx < W:          # el hueco entre tarjetas cuenta como la de encima: sin parpadeo al bajar
+                encima = next((n for n, (y0, y1) in self._cajas.items() if y0 - e(3) <= cy < y1 + e(3)), None)
+        except Exception:
+            pass
+        con_x = bool(encima) and not demo and not self._drag and not self._ctrl and not self.mover
+        if con_x:
+            y0 = self._cajas[encima][0]
+            lado = e(16)
+            x0, y1 = W - lado - e(5), y0 + e(4)
+            en_x = x0 - e(3) <= cx <= x0 + lado + e(3) and y1 - e(3) <= cy <= y1 + lado + e(3)
+            if not en_x:
+                self._x_desde, self._x_tras_cerrar = None, False
+            elif self._x_desde is None:
+                self._x_desde = ahora
+            sobre_x = en_x and not self._x_tras_cerrar and ahora - self._x_desde >= self.X_ESPERA
+            self._xy(self.it["x_o"], x0, y1, x0 + lado, y1 + lado)
+            self._xy(self.it["x_t"], x0 + lado / 2, y1 + lado / 2)
+            self._cfg(self.it["x_o"], fill=C["mal"] if sobre_x else C["linea"], outline=C["mal"] if sobre_x else C["borde"])
+            self._cfg(self.it["x_t"], fill=C["tinta"] if sobre_x else C["gris"])
+        else:
+            self._x_desde = None
+        if con_x != self._x_vis:                  # se fija en cada tic (no solo al cambiar de tarjeta)
+            self._x_vis = con_x
+            self.cv.itemconfigure("xbtn", state="normal" if con_x else "hidden")
+        if con_x and encima != self._encima:
+            self.cv.tag_raise("xbtn")
+        self._encima = encima
+        if sobre_x != self._sobre_x:
+            self._sobre_x = sobre_x
+            self._estilo()
+        base = self._alpha()
+        quiero = base if (encima or demo or self.mover or self._ctrl) else max(0.3, round(base * 0.62, 2))
+        if quiero != self._alpha_puesto:
+            self._alpha_puesto = quiero
+            try:
+                self.win.attributes("-alpha", quiero)
+            except Exception:
+                pass
+
+    def _cerrar_tarjeta(self, n):
+        if n == "aviso":
+            self.aviso = None                  # el aviso se quita ya; los siguientes salen igual
+        else:
+            self.cerradas.add(n)
+        self._sobre_x, self._x_tras_cerrar = False, True     # la de debajo sube: su X no se activa sin salir antes
+        self._estilo()
+        self._dibujar(forzar=True)
 
     def _ctrl_encima(self):
         """True si mantienes Ctrl con el raton encima de las tarjetas: entonces dejan de pasar los clics al
@@ -7350,6 +7419,7 @@ class Hud:
         self.estado = s
         if nueva:
             self._t_inicio, self._visto_juego = time.time(), False
+            self.cerradas = set()
         ob = s.get("objetivos")
         if ob and ob.get("t") is not None:
             self._obj_anc = (float(ob["t"]), time.time())
@@ -7362,6 +7432,7 @@ class Hud:
         self._actualizar_ventana()
 
     def quitar(self):
+        self._sobre_x = False                  # al volver a mostrarse, deja pasar los clics desde el principio
         if self.estado is not None:
             self.estado, self.aviso = None, None
             self._actualizar_ventana()
@@ -7398,7 +7469,7 @@ class Hud:
                                        ctypes.c_int, ctypes.c_int, ctypes.c_uint]
             NOACT, TOOL, PASA, TOPMOST = 0x08000000, 0x00000080, 0x00000020, 0x00000008
             ex = u.GetWindowLongW(hwnd, -20)
-            libre = self.mover or self._ctrl or self._drag is not None
+            libre = self.mover or self._ctrl or self._drag is not None or self._sobre_x
             quiero = (ex | NOACT | TOOL | PASA) if not libre else ((ex | NOACT | TOOL) & ~PASA)
             if quiero != ex:
                 u.SetWindowLongW(hwnd, -20, quiero)
@@ -7481,6 +7552,7 @@ class Hud:
                     self._t_estilo = ahora
                     self._estilo()
                 self._visibilidad()
+                self._raton()
         except Exception as ex:
             if not getattr(self, "_err", False):
                 self._err = True
@@ -7661,6 +7733,9 @@ class Hud:
         texto("g_et", "guia", "eti", 9.5, C["mal"])
         texto("g_dato", "guia", "txt", 12, C["gris"])
         texto("g_tips", "guia", "neg", 12, C["tinta"])
+        # --- X para cerrar la tarjeta que tiene el raton encima
+        self.it["x_o"] = cv.create_oval(0, 0, 0, 0, fill=C["linea"], outline=C["borde"], tags=("xbtn",), state="hidden")
+        self.it["x_t"] = cv.create_text(0, 0, text="✕", font=L.f("neg", e(9)), fill=C["gris"], tags=("xbtn",), state="hidden")
         # --- ayuda al colocar
         caja("ayuda")
         texto("y_txt", "ayuda", "neg", 12, C["azul"])
@@ -7845,6 +7920,9 @@ class Hud:
                "objeto": en_partida and delante and tab and d["hay"]["objeto"],
                "guia": en_partida and delante and tab and d["hay"].get("guia", False),
                "ayuda": demo and d["hay"]["ayuda"]}
+        if not demo:
+            for n in self.cerradas:
+                ver[n] = False
         # con Tab se apilan muchas: las que no caben (en el lienzo o hasta el borde de la pantalla) no se pintan
         lim = self.H
         try:
@@ -7873,6 +7951,7 @@ class Hud:
         cv, C, e, P, W, it = self.cv, self.C, self.e, self.P, self.W, self.it
         cfg, xy = self._cfg, self._xy
         y, hueco = 0, e(6)
+        self._cajas = {}
         for n in ("mini", "obj", "eq", "aviso", "mision", "guia", "objeto", "reto", "ayuda"):
             if not ver[n]:
                 if self._cache.get(("v", n)) is not False:
@@ -8044,7 +8123,14 @@ class Hud:
             if self._cache.get(("v", n)) is not True:
                 self._cache[("v", n)] = True
                 cv.itemconfigure(n, state="normal")
+            if n != "ayuda":
+                self._cajas[n] = (y, y + a)
             y += a + hueco
+        self._encima, self._x_vis = None, False             # se recalcula en el siguiente tic
+        self.cv.itemconfigure("xbtn", state="hidden")
+        if self._sobre_x:
+            self._sobre_x = False
+            self._estilo()
         if ver.get("obj"):
             self._tic_vivo(time.time())
         if entra_aviso:
