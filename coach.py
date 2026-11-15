@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "30"
+VERSION = "31"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -6476,10 +6476,12 @@ class Ventana:
     TEMAS = {
         "claro": {"fondo": "#FFFFFF", "borde": "#C9D2E0", "tinta": "#0F1728", "gris": "#56627A", "linea": "#E3E8F0",
                   "azul": "#1F5FD6", "azul2": "#E8EFFD", "rojo": "#D03A4C", "rojo2": "#FDECEE",
-                  "verde": "#0E8A5F", "verde2": "#E2F5EC", "barra": "#1F5FD6", "boton": "#1F5FD6"},
+                  "verde": "#0E8A5F", "verde2": "#E2F5EC", "barra": "#1F5FD6", "boton": "#1F5FD6",
+                  "oro": "#8A5A00", "oro2": "#FFF3D6", "chip": "#E8EDF5"},
         "oscuro": {"fondo": "#0A0F18", "borde": "#25314A", "tinta": "#F2F5FA", "gris": "#93A0B8", "linea": "#1B2538",
                    "azul": "#5AA9FF", "azul2": "#12203A", "rojo": "#FF6B7D", "rojo2": "#33141C",
-                   "verde": "#3DDC97", "verde2": "#0F2A20", "barra": "#5AA9FF", "boton": "#1F6FE5"},
+                   "verde": "#3DDC97", "verde2": "#0F2A20", "barra": "#5AA9FF", "boton": "#1F6FE5",
+                   "oro": "#E6C36A", "oro2": "#2B2410", "chip": "#1A2438"},
     }
     C = TEMAS["oscuro"]
 
@@ -6511,6 +6513,7 @@ class Ventana:
         self._imgs = []
         self._drag = None
         self.al_elegir = None         # lo pone el coach: se llama con la clave de la opcion elegida
+        self._abiertos = set()        # apartados plegables abiertos en la seleccion
         self.hud = None
         pref = self._cargar_pref()
         self.pos = pref["pos"]
@@ -6751,6 +6754,149 @@ class Ventana:
             if s.get("opciones_nota"):
                 self._lbl(s["opciones_nota"], 9, color=C["gris"], pady=(3, 0))
 
+    # -- seleccion de campeon: primero lo que haces ahi (build y runas), luego la mision y lo demas plegado
+    def _clic(self, w, accion):
+        """Clic en una fila entera (y en todo lo que tiene dentro)."""
+        w.bind("<ButtonRelease-1>", lambda e: accion())
+        try:
+            w.configure(cursor="hand2")
+        except Exception:
+            pass
+        for h in w.winfo_children():
+            self._clic(h, accion)
+
+    def _plegar(self, clave):
+        self._abiertos ^= {clave}
+        if self.ultimo_estado:
+            self.firma = None
+            self._pintar(self.ultimo_estado, forzar=True)
+
+    def _pinta_seleccion(self, s, comp):
+        C, tk = self.C, self.tk
+        cab = s.get("cab") or {}
+        fila = tk.Frame(self.marco, bg=C["fondo"])
+        fila.pack(fill="x")
+        img = self._foto(s.get("pick_icono"), 30)
+        if img:
+            tk.Label(fila, image=img, bg=C["fondo"]).pack(side="left", padx=(0, 9))
+        x = tk.Label(fila, text="✕", font=self._f(10), fg=C["gris"], bg=C["fondo"], cursor="hand2")
+        x.pack(side="right", anchor="n")
+        x.bind("<ButtonRelease-1>", lambda e: self._cerrar())
+        self._boton(fila, "Más" if comp else "Menos", self._alternar).pack(side="right", anchor="n", padx=(0, 8))
+        col = tk.Frame(fila, bg=C["fondo"])
+        col.pack(side="left", fill="x", expand=True)
+        tk.Label(col, text=cab.get("campeon") or "Coach LoL", font=self._f(11, "bold"), fg=C["tinta"], bg=C["fondo"],
+                 anchor="w").pack(fill="x")
+        sub = " · ".join(t for t in (cab.get("rol"), f"contra {cab['rival']}" if cab.get("rival") else "") if t)
+        if sub:
+            tk.Label(col, text=sub, font=self._f(8), fg=C["gris"], bg=C["fondo"], anchor="w").pack(fill="x")
+        tk.Frame(self.marco, bg=C["linea"], height=1).pack(fill="x", pady=(9, 0))
+        # como vas hoy: una banda fina (roja si toca parar, dorada si vas al limite)
+        b = s.get("banda")
+        if b:
+            fg, bg = (C["rojo"], C["rojo2"]) if b.get("tono") == "rojo" else (C["oro"], C["oro2"])
+            tk.Label(self.marco, text="●  " + b["texto"], font=self._f(9, "bold"), fg=fg, bg=bg, anchor="w",
+                     justify="left", wraplength=self.ANCHO - 46, padx=9, pady=5).pack(fill="x", pady=(8, 0))
+        # build y runas
+        if s.get("opciones"):
+            self._seccion("Build y runas", pady=(11, 3))
+            for o in s["opciones"]:
+                self._opcion_sel(o, s)
+            if s.get("opciones_nota"):
+                self._lbl(s["opciones_nota"], 8, color=C["gris"], pady=(4, 0))
+            if s.get("runas") and "No pude" in s["runas"]:
+                self._lbl(s["runas"], 8, "bold", C["rojo"], pady=(4, 0))
+        # la mision y como cumplirla, juntas
+        tk.Frame(self.marco, bg=C["linea"], height=1).pack(fill="x", pady=(10, 8))
+        self._seccion("Tu misión")
+        self._lbl(s.get("regla", ""), 12, "bold", pady=(2, 2))
+        for c in (s.get("como") or [])[:1]:
+            self._lbl("Cómo: " + c, 9, color=C["gris"], pady=(0, 2))
+        if comp:
+            return
+        tk.Frame(self.marco, height=6, bg=C["fondo"]).pack(fill="x")
+        # lo demas, plegado: se abre con un clic y se recuerda
+        cuesta = [t for t in (s.get("plan"), s.get("revision")) if t]
+        if cuesta:
+            self._plegable("cuesta", "Lo que más te cuesta", s.get("plan_corto") or "", cuesta)
+        retos = [t.lstrip("• ").strip() for t in (s.get("retos_txt") or "").split("\n")[1:] if t.strip()]
+        if retos:
+            self._plegable("retos", "Retos", f"{len(retos)} activo{'s' if len(retos) != 1 else ''}", retos)
+        pick = [t for t in [s.get("pick")] + list(s.get("matchup") or []) + [s.get("nota_rol"), s.get("pick_web")] if t]
+        if pick:
+            ok = s.get("pick_ok", True)
+            self._plegable("pick", "Tu pick y sus campeones", s.get("pick_corto") or "", pick,
+                           color=None if ok else C["rojo"])
+        if s.get("dano_txt"):
+            self._plegable("dano", "Su daño", s.get("dano_corto") or "", [s["dano_txt"]], iconos=s.get("dano_iconos"))
+        tk.Frame(self.marco, bg=C["linea"], height=1).pack(fill="x")
+
+    def _opcion_sel(self, o, s):
+        """Una build elegible: toda la fila se pulsa. La que esta en uso enseña sus objetos, runas y hechizos."""
+        C, tk = self.C, self.tk
+        sel = o.get("sel")
+        bg = C["azul2"] if sel else C["fondo"]
+        fila = tk.Frame(self.marco, bg=bg, padx=8, pady=6)
+        fila.pack(fill="x", pady=(2, 0))
+        cv = tk.Canvas(fila, width=14, height=14, bg=bg, highlightthickness=0, bd=0)
+        cv.create_oval(1, 1, 13, 13, outline=C["azul"] if sel else C["gris"], width=2)
+        if sel:
+            cv.create_oval(4, 4, 10, 10, fill=C["azul"], outline="")
+        cv.pack(side="left", anchor="n", pady=(2, 0), padx=(0, 8))
+        if o.get("wr") is not None:
+            tk.Label(fila, text=f"{_dec(o['wr'])}%", font=self._f(11, "bold", voz="num"),
+                     fg=C["verde"] if sel else C["gris"], bg=bg).pack(side="right", anchor="n")
+        col = tk.Frame(fila, bg=bg)
+        col.pack(side="left", fill="x", expand=True)
+        tk.Label(col, text=o["titulo"], font=self._f(9, "bold"), fg=C["tinta"], bg=bg, justify="left", anchor="w",
+                 wraplength=self.ANCHO - 120).pack(fill="x")
+        if o.get("sub"):
+            tk.Label(col, text=o["sub"], font=self._f(8), fg=C["gris"], bg=bg, justify="left", anchor="w",
+                     wraplength=self.ANCHO - 120).pack(fill="x")
+        if sel:
+            ics = [x for x in (s.get("build_iconos") or [])]
+            if ics:
+                f1 = tk.Frame(col, bg=bg)
+                f1.pack(fill="x", pady=(6, 0))
+                for r in ics[:6]:
+                    img = self._foto(r, 24)
+                    if img:
+                        tk.Label(f1, image=img, bg=bg, bd=0).pack(side="left", padx=(0, 3))
+            chips = [t for t in (s.get("hechizos_txt"),) if t]
+            if s.get("runas_iconos") or chips:
+                f2 = tk.Frame(col, bg=bg)
+                f2.pack(fill="x", pady=(4, 0))
+                for r in s.get("runas_iconos") or []:
+                    img = self._foto(r, 22)
+                    if img:
+                        tk.Label(f2, image=img, bg=bg, bd=0).pack(side="left", padx=(0, 3))
+                for t in chips:
+                    tk.Label(f2, text=t, font=self._f(8, "bold"), fg=C["tinta"], bg=C["chip"], padx=5, pady=1).pack(
+                        side="left", padx=(3, 0))
+            if s.get("hab_corta"):
+                tk.Label(col, text="Habilidades: " + s["hab_corta"], font=self._f(8), fg=C["gris"], bg=bg,
+                         anchor="w").pack(fill="x", pady=(4, 0))
+        else:
+            self._clic(fila, lambda k=o["clave"]: self.al_elegir and self.al_elegir(k))
+
+    def _plegable(self, clave, titulo, resumen, lineas, color=None, iconos=None):
+        C, tk = self.C, self.tk
+        abierto = clave in self._abiertos
+        tk.Frame(self.marco, bg=C["linea"], height=1).pack(fill="x")
+        f = tk.Frame(self.marco, bg=C["fondo"], pady=7)
+        f.pack(fill="x")
+        tk.Label(f, text="▾" if abierto else "▸", font=self._f(9, "bold"), fg=C["gris"], bg=C["fondo"], width=2,
+                 anchor="w").pack(side="left")
+        tk.Label(f, text=titulo, font=self._f(9, "bold"), fg=C["tinta"], bg=C["fondo"]).pack(side="left")
+        if resumen:
+            tk.Label(f, text=resumen, font=self._f(8), fg=color or C["gris"], bg=C["fondo"]).pack(side="right")
+        self._clic(f, lambda: self._plegar(clave))
+        if abierto:
+            for t in lineas:
+                self._lbl(t, 9, color=C["gris"], pady=(0, 5))
+            if iconos:
+                self._fila_ico(iconos, "", 24, 9, pady=(0, 6))
+
     def _alternar(self):
         self.compacta = not self.compacta
         self._guardar_pref()
@@ -6903,56 +7049,12 @@ class Ventana:
         viejo = self.marco
         self._imgs_viejas, self._imgs = self._imgs, []
         self.marco = self.tk.Frame(self.win, bg=self.C["fondo"], padx=14, pady=10)
-        self.tk.Frame(self.marco, bg=self.C["barra"], height=3).pack(fill="x", pady=(0, 9))
+        if modo != "seleccion":
+            self.tk.Frame(self.marco, bg=self.C["barra"], height=3).pack(fill="x", pady=(0, 9))
         self._lbl_aviso = self._lbl_estado = self._lbl_extra = self._lbl_obj = None
         C, comp = self.C, self.compacta
         if modo == "seleccion":
-            if s.get("parada"):
-                self._cabecera("Coach LoL", C["rojo"])
-                self._lbl("Para por hoy", 12 if comp else 18, "bold", C["rojo"], pady=(2, 2), voz="num")
-                if not comp:
-                    self._lbl(". ".join(s.get("motivos", [])) + ".", 10, "bold")
-                    if s.get("tilt_dato"):
-                        self._lbl(s["tilt_dato"], 9, color=C["rojo"], pady=(2, 0))
-                    self._lbl("Si ya estás dentro, que esta sea la última de hoy.", 9, color=C["gris"], pady=(2, 8))
-                    self.tk.Frame(self.marco, bg=C["linea"], height=1).pack(fill="x", pady=(0, 8))
-                    self._seccion("Misión de esta partida")
-            else:
-                self._cabecera("Misión de esta partida", C["azul"])
-            self._lbl(s.get("regla", ""), 12 if comp else 14, "bold", pady=(3, 2 if comp else 4))
-            if comp:
-                self._pinta_opciones(s)
-            if not comp:
-                for c in s.get("como", [])[:2]:
-                    self._lbl("Cómo: " + c, 9, color=C["gris"], pady=(0, 6))
-                if s.get("plan"):
-                    self._seccion("Además, lo que más te cuesta", pady=(4, 1))
-                    self._lbl(s["plan"], 9, pady=(0, 6))
-                if s.get("retos_txt"):
-                    self._lbl(s["retos_txt"], 9, "bold", C["verde"], bg=C["verde2"], pady=(6, 0))
-                if s.get("revision"):
-                    self._lbl(s["revision"], 9, "bold", C["tinta"], bg=C["azul2"], pady=(6, 0))
-                for x in s.get("matchup", []):
-                    self._lbl(x, 9, "bold", C["tinta"], bg=C["azul2"], pady=(6, 0))
-                if s.get("nota_rol"):
-                    self._lbl(s["nota_rol"], 9, color=C["gris"], pady=(4, 0))
-                if s.get("pick"):
-                    ok = s.get("pick_ok", True)
-                    self._fila_ico(s.get("pick_icono"), s["pick"], 34, 9, "bold", C["verde"] if ok else C["rojo"],
-                                   bg=C["verde2"] if ok else C["rojo2"], pady=(8, 0))
-                self._pinta_opciones(s)
-                if s.get("runas"):
-                    self._fila_ico(s.get("runas_iconos") or [], s["runas"], 26, 9, color=C["gris"], pady=(6, 0))
-                if s.get("pick_web"):
-                    self._lbl(s["pick_web"], 9, "bold", C["tinta"], bg=C["azul2"], pady=(6, 0))
-                if s.get("build_txt"):
-                    self._lbl("Objetos: " + s["build_txt"] + ". Ya están en la tienda del juego.", 9, color=C["gris"], pady=(8, 2))
-                    self._fila_ico(s.get("build_iconos") or [], "", 30, 9)
-                if s.get("hab_txt"):
-                    self._lbl(s["hab_txt"], 9, "bold", pady=(6, 0))
-                if s.get("dano_txt"):
-                    self._fila_ico(s.get("dano_iconos") or [], s["dano_txt"], 26, 9, "bold", C["tinta"],
-                                   bg=C["azul2"], pady=(8, 0))
+            self._pinta_seleccion(s, comp)
         elif modo == "carga":
             self._cabecera("Plan de partida", C["azul"])
             if s.get("rival"):
@@ -7425,6 +7527,24 @@ class Coach:
             estado["build_txt"] = build["texto"]
             estado["build_iconos"] = [x for x in (self._ico("item", i) for i in build["orden"][:6]) if x]
         self._con_dano(estado, enemigos, champ)
+        # cabecera, banda del dia y resumenes de los apartados plegados
+        estado["cab"] = {"campeon": self.rec.campeon(champ) if champ else "Elige campeón",
+                         "rol": ROL_TXT.get(rol, rol).capitalize() if rol else "",
+                         "rival": self.rec.campeon((ops or {}).get("rival")) if (ops or {}).get("rival") else ""}
+        if s["parada"]:
+            estado["banda"] = {"tono": "rojo", "texto": "Para por hoy · " + "; ".join(m["texto"] for m in s["motivos"])
+                               + (f". {s['tilt_dato']['texto']}" if s.get("tilt_dato") else "")}
+        elif s["estado"] == "ojo":
+            estado["banda"] = {"tono": "oro", "texto": s["mensaje"]}
+        if ops and self.build_info and self.build_info.get("hechizos"):
+            estado["hechizos_txt"] = " + ".join(h for h in self.build_info["hechizos"] if h)
+        if (ops or {}).get("hab_corta"):
+            estado["hab_corta"] = ops["hab_corta"]
+        if estado.get("pick"):
+            estado["pick_corto"] = "en tu pool" if estado.get("pick_ok", True) else "fuera de tu pool"
+        if estado.get("dano_txt"):
+            t = estado["dano_txt"].lower()
+            estado["dano_corto"] = "físico" if "físico" in t and "mágico" not in t else "mágico" if "mágico" in t and "físico" not in t else ""
         if ops:
             estado["opciones"] = ops["opciones"]
             if ops.get("esperando"):
@@ -7531,11 +7651,12 @@ class Coach:
             x = (fij.get("vs") or {}).get(str(e))
             if x and ((x.get("build") or {}).get("orden") or x.get("runas")):
                 ops.append({"clave": "fijada", "titulo": f"Tu build fijada contra {self.rec.campeon(e)}", "detalle": "",
-                            "runas": x.get("runas"), "build": x.get("build") or {}})
+                            "runas": x.get("runas"), "build": x.get("build") or {}, "sub": "La que guardaste"})
                 break
         if not ops and fij.get("general") and (((fij["general"].get("build") or {}).get("orden")) or fij["general"].get("runas")):
             ops.append({"clave": "fijada", "titulo": "Tu build fijada", "detalle": "",
-                        "runas": fij["general"].get("runas"), "build": fij["general"].get("build") or {}})
+                        "runas": fij["general"].get("runas"), "build": fij["general"].get("build") or {},
+                        "sub": "La que guardaste"})
 
         def detalle(b, quien):
             if not b.get("total") or b.get("wr_total") is None:
@@ -7545,11 +7666,13 @@ class Coach:
         gen = self._lola_pedir(("gen", champ, rol), lambda: lola_build(self.rec, champ, rol, "emerald_plus"))
         if otp:
             ops.append({"clave": "otp", "titulo": f"OTP de {nombre}", "detalle": detalle(otp, "jugadores OTP"),
-                        "runas": otp.get("runas"), "build": otp, "fuente": "Lolalytics"})
+                        "runas": otp.get("runas"), "build": otp, "fuente": "Lolalytics", "wr": otp.get("wr_total"),
+                        "sub": f"{_miles(otp['total'])} partidas de jugadores OTP" if otp.get("total") else ""})
         if gen and (gen.get("orden") or gen.get("runas")):
             ops.append({"clave": "gen" if otp else "otp", "titulo": "Más jugada (Esmeralda o más)",
                         "detalle": detalle(gen, "Esmeralda o más"), "runas": gen.get("runas"), "build": gen,
-                        "fuente": "Lolalytics"})
+                        "fuente": "Lolalytics", "wr": gen.get("wr_total"),
+                        "sub": f"{_miles(gen['total'])} partidas" if gen.get("total") else ""})
         rival = self._rival_probable(champ, rol, enemigos)
         if rival:
             vs = self._lola_pedir(("vs", champ, rol, rival), lambda: lola_vs(self.rec, champ, rol, rival))
@@ -7560,12 +7683,13 @@ class Coach:
                 det = (f"{_miles(n_m)} partidas contra {self.rec.campeon(rival)}; {nombre} gana el {_dec(wr_m)}%"
                        if wr_m is not None and n_m else "")
                 ops.append({"clave": "rival", "titulo": f"Contra {self.rec.campeon(rival)}", "detalle": det,
-                            "runas": vs.get("runas"), "build": vs, "fuente": "Lolalytics"})
+                            "runas": vs.get("runas"), "build": vs, "fuente": "Lolalytics", "wr": wr_m,
+                            "sub": f"{_miles(n_m)} partidas del enfrentamiento" if n_m else ""})
         if not any(o["clave"] == "otp" for o in ops) and (otp is False and gen is False or rol not in LOLA_LINEA):
             web = self._build(champ, rol, [], poner=False)          # ultimo recurso: u.gg + runas de Riot
             if web and web.get("fuente") != "fijada":
                 ops.append({"clave": "ugg", "titulo": "Más jugada en u.gg", "detalle": f"{web.get('wr', '?')}% de victorias",
-                            "runas": None, "build": web, "fuente": "u.gg"})
+                            "runas": None, "build": web, "fuente": "u.gg", "wr": web.get("wr"), "sub": "u.gg"})
         if not ops:
             return None
         clic = self._opcion_clic if self._opcion_clic in [o["clave"] for o in ops] else None
@@ -7639,7 +7763,8 @@ class Coach:
                        "motivo": (pq.get(str(i)) or {}).get("motivo") or ("adaptado al daño de su equipo" if i not in (b.get("orden") or []) else "")}
                       for i in (build or {}).get("orden") or []]}
         return {"opciones": [{"clave": o["clave"], "titulo": o["titulo"], "detalle": o["detalle"],
-                              "sel": o is sel} for o in ops],
+                              "sel": o is sel, "wr": o.get("wr"), "sub": o.get("sub") or o["detalle"]} for o in ops],
+                "rival": rival, "hab_corta": " › ".join(b.get("habilidades") or ""),
                 "build": build, "runas_txt": runas_txt, "cambios": cambios,
                 "esperando": otp is None or (otp is False and gen is None),
                 "nota": ("La que elijas con \"Usar\" pone sus runas y objetos en el cliente y queda como tu preferida."

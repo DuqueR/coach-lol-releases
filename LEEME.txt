@@ -1,4 +1,4 @@
-﻿COACH LOL v30
+﻿COACH LOL v31
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,16 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v31: ventanita de selección nueva
+------------------------------------------------
+- Arriba, tu campeón, tu rol y tu rival de línea.
+- Cómo vas hoy, en una banda fina: roja si toca parar, dorada si vas al límite.
+- Primero lo que haces en la selección: elegir build. Pulsa la fila entera. La que está en uso
+  enseña sus objetos, runas, hechizos y el orden de habilidades.
+- Luego tu misión y cómo cumplirla, juntas.
+- Lo demás (lo que más te cuesta, retos, tu pick, su daño) en filas plegadas: un clic las
+  abre y se quedan abiertas. "Menos" deja solo la build y la misión.
 
 Lo nuevo en la v30: un tope de partidas que no es fijo
 ------------------------------------------------------

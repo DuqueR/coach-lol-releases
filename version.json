@@ -1,6 +1,6 @@
 {
-  "version": "30",
-  "notas": "tope de partidas que se mueve con tu forma del día; misión y retos más claros",
+  "version": "31",
+  "notas": "ventanita de selección rediseñada: primero la build, luego la misión, lo demás plegado",
   "archivos": [
     "coach.py",
     "dashboard.html",
