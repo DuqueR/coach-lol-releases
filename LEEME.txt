@@ -1,4 +1,4 @@
-﻿COACH LOL v34
+﻿COACH LOL v35
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,14 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v35: pantalla Campeones
+-------------------------------------
+- En el menú, "Campeones": eliges uno de tus campeones y ves tus números por minuto (CS, oro, daño, muertes y KDA)
+  al lado de los de los jugadores de Esmeralda o más con ese campeón (Lolalytics).
+- "Lo que más te separa": la cifra en la que más lejos estás de ellos, con qué hacer para acercarte. Y tu punto fuerte.
+- Tus enfrentamientos con ese campeón (victorias, CS al 10 y oro al 14 contra tu rival) y los rivales que mejor y peor
+  se le dan en Esmeralda+.
 
 Lo nuevo en la v34: scouting de los 10 en la pantalla de carga
 --------------------------------------------------------------

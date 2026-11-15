@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "34"
+VERSION = "35"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -4346,6 +4346,164 @@ def lola_medias(rec, cid, rol, tier):
                         "cs": None if st.get("minions") is None else st["minions"] + (st.get("jungleCS") or 0)}
         return None
     return _lola_cache(f"lolamed2_{int(cid)}_{rol}_{tier}.json", pedir)
+
+
+# =============================================================== COACH POR CAMPEON
+REF_CAMPEON = "emerald_plus"          # con quien te comparas en la pagina de cada campeon (Lolalytics)
+
+
+def lola_rivales(rec, cid, rol, tier=REF_CAMPEON):
+    """Tu campeon contra cada rival de su linea (Lolalytics): {"wr", "n", "parche", "rivales": {id: [wr, n]}}.
+    El wr de cada rival es el de TU campeon en ese enfrentamiento."""
+    slug, linea = _lola_slug(rec, cid), LOLA_LINEA.get(rol)
+    if not slug or not linea:
+        return None
+
+    def pedir():
+        for parche in parches_actuales() or ["30"]:
+            d = _http_json(f"{LOLA_API}?ep=build-full&v=1&patch={parche}&c={slug}&lane={linea}&tier={tier}"
+                           "&queue=ranked&region=all", timeout=12)
+            h = (d or {}).get("header") or {}
+            filas = ((d or {}).get("enemy") or {}).get(linea) or []
+            riv = {str(int(x[0])): [float(x[1]), int(x[5])] for x in filas
+                   if isinstance(x, list) and len(x) >= 6 and x[0] and isinstance(x[1], (int, float))}
+            if (h.get("n") or 0) >= 300 and riv:
+                return {"wr": h.get("wr"), "n": int(h["n"]), "parche": parche, "rivales": riv}
+        return None
+    return _lola_cache(f"lolariv_{int(cid)}_{rol}_{tier}.json", pedir)
+
+
+def pool_campeones(alm):
+    """Tus campeones (por campeon y linea) con partidas, % de victorias y KDA, del mas jugado al menos."""
+    with alm.lock:
+        ps = [p for p in alm.d["partidas"].values() if p.get("rol") and (p.get("yo") or {}).get("campeon_id")]
+    g = {}
+    for p in ps:
+        y = p["yo"]
+        x = g.setdefault((y["campeon_id"], p["rol"]), {"cid": y["campeon_id"], "rol": p["rol"], "nombre": y.get("campeon") or "",
+                                                       "n": 0, "v": 0, "k": 0, "d": 0, "a": 0, "ult": 0})
+        x["n"] += 1
+        x["v"] += bool(p.get("victoria"))
+        x["k"], x["d"], x["a"] = x["k"] + (y.get("k") or 0), x["d"] + (y.get("d") or 0), x["a"] + (y.get("a") or 0)
+        x["ult"] = max(x["ult"], p.get("creacion") or 0)
+    for x in g.values():
+        x["wr"] = round(100 * x["v"] / x["n"])
+        x["kda"] = round((x["k"] + x["a"]) / max(x["d"], 1), 1)
+    return sorted(g.values(), key=lambda x: (-x["n"], -x["ult"]))
+
+
+def _media(xs):
+    xs = [x for x in xs if x is not None]
+    return sum(xs) / len(xs) if xs else None
+
+
+# (titulo de la tarjeta, explicacion). {yo} {ref} {c} se rellenan; {extra} depende del rol
+CONSEJO_CAMPEON = {
+    "cs": ("Farmea más", "Sacas {yo} CS por minuto y en Esmeralda+ con {c} sacan {ref}: son unos {dif15} súbditos "
+                         "menos al minuto 15 (unos {oro15} de oro). Diez minutos de último golpe en la herramienta de "
+                         "práctica antes de jugar y, antes de volver a base, empuja la oleada para no perder la siguiente."),
+    "oro": ("Gana más oro", "Generas {yo} de oro por minuto; en Esmeralda+ con {c}, {ref}. {extra}"),
+    "dano": ("Haz más daño", "Haces {yo} de daño a campeones por minuto; en Esmeralda+ con {c}, {ref}. Pega cuando el "
+                             "rival va a por un súbdito o acaba de gastar su habilidad principal, y en las peleas "
+                             "colócate donde puedas pegar sin ser el primero al que alcanzan."),
+    "muertes": ("Muere menos", "Mueres {yo} veces cada 10 minutos; en Esmeralda+ con {c}, {ref}. Antes de pasar de la "
+                               "mitad del mapa mira el minimapa: si faltan 2 o más rivales, no avances sin visión."),
+    "kda": ("Elige mejor tus peleas", "Tu KDA con {c} es {yo}; en Esmeralda+, {ref}. Entra a pelear cuando tu equipo "
+                                      "está cerca y con tus habilidades listas; si no llegas a tiempo, no vayas solo."),
+}
+EXTRA_ORO = {"support": "Completa pronto la misión de tu objeto de support y gasta el oro en tus objetos, no en "
+                        "guardar: un support con objetos a tiempo pesa mucho más en las peleas.",
+             "jungla": "Limpia campamentos entre gank y gank: un jungla que solo gankea se queda pobre."}
+
+
+def ficha_campeon(alm, rec, cid, rol, red=True):
+    """La pagina de un campeon tuyo: tus numeros contra Esmeralda+ (Lolalytics), lo que mas te separa de ellos,
+    tus enfrentamientos y los rivales faciles y dificiles de ese campeon. red=False: sin pedir nada a internet."""
+    with alm.lock:
+        ps = sorted([p for p in alm.d["partidas"].values()
+                     if (p.get("yo") or {}).get("campeon_id") == cid and p.get("rol") == rol],
+                    key=lambda p: p.get("creacion") or 0)
+    if not ps:
+        return None
+    nombre = ps[-1]["yo"].get("campeon") or rec.campeon(cid)
+
+    def pm(f):                                           # media por minuto de juego
+        return _media([f(p) / p["minutos"] for p in ps if p.get("minutos") and f(p) is not None])
+    k, d, a = (sum(p["yo"].get(x) or 0 for p in ps) for x in ("k", "d", "a"))
+    muertes = pm(lambda p: p["yo"].get("d"))
+    yo = {"cs": pm(lambda p: p["yo"].get("cs")), "oro": pm(lambda p: p["yo"].get("oro")), "dano": pm(_r_dano_total),
+          "muertes": None if muertes is None else 10 * muertes, "kda": (k + a) / max(d, 1)}
+    m = lola_medias(rec, cid, rol, REF_CAMPEON) if red else None
+    ref = {}
+    if m and m.get("min"):
+        mn = m["min"]
+        ref = {"cs": m["cs"] / mn if m.get("cs") is not None else None,
+               "oro": m["gold"] / mn if m.get("gold") is not None else None,
+               "dano": m["damage"] / mn if m.get("damage") is not None else None,
+               "muertes": 10 * m["deaths"] / mn if m.get("deaths") is not None else None,
+               "kda": (m["kills"] + m["assists"]) / max(m["deaths"], 0.1) if m.get("deaths") is not None and m.get("kills") is not None else None}
+    filas = []
+    for clave, titulo, dec, menor in (("cs", "CS por minuto", 1, False), ("oro", "Oro por minuto", 0, False),
+                                      ("dano", "Daño a campeones por minuto", 0, False),
+                                      ("muertes", "Muertes cada 10 minutos", 1, True), ("kda", "KDA", 1, False)):
+        if clave == "cs" and rol == "support":
+            continue
+        y, r = yo.get(clave), ref.get(clave)
+        if y is None:
+            continue
+        f = {"clave": clave, "titulo": titulo, "yo": round(y, dec) if dec else round(y),
+             "ref": None if r is None else (round(r, dec) if dec else round(r)), "menor": menor}
+        if r:
+            f["pct"] = round(100 * ((r / y if y else 2) if menor else y / r))      # 100 = como Esmeralda+
+        filas.append(f)
+    out = {"cid": cid, "nombre": nombre, "rol": rol, "n": len(ps), "v": sum(1 for p in ps if p.get("victoria")),
+           "kda": round(yo["kda"], 1), "metricas": filas,
+           "ref": {"tier": "Esmeralda+", "n": m.get("n"), "parche": m.get("parche")} if m else None}
+    out["wr"] = round(100 * out["v"] / out["n"])
+    con_pct = [f for f in filas if f.get("pct") is not None]
+    if con_pct:
+        peor, mejor = min(con_pct, key=lambda f: f["pct"]), max(con_pct, key=lambda f: f["pct"])
+        if peor["pct"] < 95:
+            tit, txt = CONSEJO_CAMPEON[peor["clave"]]
+            dif = (ref["cs"] - yo["cs"]) if peor["clave"] == "cs" else 0
+            fmt = (lambda v: _dec(v, 1)) if isinstance(peor["yo"], float) else (lambda v: _miles(v))
+            out["mejora"] = {"clave": peor["clave"], "titulo": tit, "pct": peor["pct"],
+                             "texto": txt.format(yo=fmt(peor["yo"]), ref=fmt(peor["ref"]), c=nombre,
+                                                 dif15=round(dif * 15), oro15=_miles(round(dif * 15 * 21)),
+                                                 extra=EXTRA_ORO.get(rol, "El oro sale del farmeo, las placas de las "
+                                                                          "torres y los objetivos: no dejes oleadas "
+                                                                          "al irte y presiona torres cuando tu rival "
+                                                                          "no está."))}
+        if mejor["pct"] >= 100 and mejor is not peor:
+            out["fuerte"] = {"titulo": mejor["titulo"], "pct": mejor["pct"], "yo": mejor["yo"], "ref": mejor["ref"]}
+    # tus enfrentamientos con este campeon
+    lr = lola_rivales(rec, cid, rol) if red else None
+    riv_ref = (lr or {}).get("rivales") or {}
+    propios = {}
+    for p in ps:
+        rid = (p.get("datos_h") or {}).get("rival_id") or (p.get("rival") or {}).get("campeon_id")
+        if not rid:
+            continue
+        x = propios.setdefault(rid, {"cid": rid, "nombre": (p.get("rival") or {}).get("campeon") or rec.campeon(rid),
+                                     "n": 0, "v": 0, "cs10": [], "oro14": []})
+        x["n"] += 1
+        x["v"] += bool(p.get("victoria"))
+        x["cs10"].append((p.get("datos_h") or {}).get("cs10_diff"))
+        x["oro14"].append((p.get("datos_h") or {}).get("oro14_diff"))
+    for x in propios.values():
+        c10, o14 = _media(x["cs10"]), _media(x["oro14"])
+        x["cs10"], x["oro14"] = (None if c10 is None else round(c10)), (None if o14 is None else round(o14))
+        r = riv_ref.get(str(x["cid"]))
+        x["wr_ref"] = r[0] if r and r[1] >= 100 else None
+    out["propios"] = sorted(propios.values(), key=lambda x: (-x["n"], x["nombre"]))
+    if riv_ref:
+        minimo = max(150, 0.008 * (lr.get("n") or 0))     # fuera los picks raros de esa linea
+        validos = [(int(c), wr, nn) for c, (wr, nn) in riv_ref.items() if nn >= minimo]
+        fila = lambda t: {"cid": t[0], "nombre": rec.campeon(t[0]), "wr": round(t[1], 1), "n": t[2]}
+        out["faciles"] = [fila(t) for t in sorted(validos, key=lambda t: -t[1])[:4]]
+        out["dificiles"] = [fila(t) for t in sorted(validos, key=lambda t: t[1])[:4]]
+        out["wr_ref"] = lr.get("wr")
+    return out
 
 
 LOLA_TRAMO = {"1": 12.5, "2": 17.5, "3": 22.5, "4": 27.5, "5": 32.5, "6": 37.5, "7": 42.5}
@@ -8985,6 +9143,17 @@ def crear_handler(coach):
                 })
             if ruta == "/api/retos":
                 return self._send(200, retos_estado(alm, rec))
+            if ruta == "/api/campeones":
+                return self._send(200, {"pool": pool_campeones(alm)})
+            if ruta == "/api/campeon":
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                try:
+                    cid = int((q.get("c") or ["0"])[0])
+                except ValueError:
+                    cid = 0
+                rol = (q.get("r") or [""])[0]
+                f = ficha_campeon(alm, rec, cid, rol) if cid and rol in LOLA_LINEA else None
+                return self._send(200 if f else 404, f or {"error": "Sin partidas con ese campeón en esa línea"})
             if ruta == "/api/progreso":
                 out = progreso(alm)
                 out["referencia"] = referencia_rango(alm)

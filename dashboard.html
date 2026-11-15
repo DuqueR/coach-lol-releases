@@ -653,6 +653,26 @@ button.chip .i{width:13px;height:13px}
 .mini .cd{fill:var(--rj);stroke:var(--s1);stroke-width:2}
 .mini svg text.ult{font-weight:700;font-size:12px;fill:var(--t1)}
 .camps td b.nm{font-size:16px}
+.cpool{display:flex;flex-wrap:wrap;gap:8px}
+.cpo{display:flex;align-items:center;gap:10px;padding:8px 14px 8px 8px;border-radius:12px;border:1px solid var(--linea);background:var(--s1);color:var(--t1);cursor:pointer;text-align:left;transition:background .12s,border-color .12s,transform .16s cubic-bezier(.23,1,.32,1)}
+.cpo:hover{background:var(--s2)} .cpo:active{transform:scale(.97)}
+.cpo.on{border-color:var(--az);background:var(--azs)}
+.cpo span{display:grid;gap:1px} .cpo small{font-size:11.5px;color:var(--t3)} .cpo small i{font-style:normal;font-weight:700}
+.camp-cab{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.camp-cab>div:nth-child(2){flex:1;min-width:180px}
+.cc-kpi{display:grid;justify-items:end;padding-left:18px;border-left:1px solid var(--linea)}
+.cc-kpi b{font-size:26px;line-height:1.1} .cc-kpi small{font-size:11.5px;color:var(--t3)}
+.cmp{display:grid;gap:16px}
+.cmp-t{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.cmp-b{display:grid;grid-template-columns:84px 1fr 64px;align-items:center;gap:10px;font-size:12.5px;color:var(--t2)}
+.cmp-b+.cmp-b{margin-top:4px} .cmp-b b{text-align:right;color:var(--t1)} .cmp-b.es-ref b{color:var(--t3);font-weight:600}
+.camp-mejora h3{margin:2px 0 4px} .mj-p{color:var(--t3);margin:0 0 10px} .mj-p b{font-size:20px;color:var(--rj)}
+.camp-enf td{white-space:nowrap}
+.riv2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.riv-l{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}
+.riv-l li{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:10px;align-items:center}
+.riv-l li .cp{grid-row:span 2} .riv-l li small{grid-column:2/4;font-size:11px;color:var(--t3);margin-top:-2px}
+@media (max-width:760px){ .riv2{grid-template-columns:1fr} .cc-kpi{border:0;padding:0} }
 .camps td small{display:block;font-size:11.5px;font-weight:700}
 .camps .kl small{font-weight:430;color:var(--t3)}
 .cal{display:grid;grid-auto-flow:column;grid-template-rows:16px repeat(7,auto);grid-template-columns:18px;grid-auto-columns:minmax(0,1fr);gap:5px;max-width:560px}
@@ -1021,7 +1041,7 @@ kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px sol
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "34";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "35";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1047,6 +1067,7 @@ const IC = {
   retos: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
   builds: '<path d="M6 3h12l3 6-9 12L3 9z"/><path d="M3 9h18"/><path d="m9 3-2 6 5 12 5-12-2-6"/>',
   progreso: '<path d="M3 20h18"/><path d="m4 15 5-5 4 3 7-8"/><path d="M15 5h5v5"/>',
+  campeones: '<path d="M12 3 4 6v5.5c0 4.6 3.4 8.3 8 9.5 4.6-1.2 8-4.9 8-9.5V6z"/><path d="m9 11.5 2.2 2.2L15.5 9.5"/>',
   ia: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
   ajustes: '<path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
   sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
@@ -1302,7 +1323,7 @@ async function recargarEstado(){ try{ const txt = await leerEstado(); S.estado =
 async function recargarPartida(){ if(!S.selId) return; try{ S.partida = await api("/api/partida/" + S.selId); }catch(_){} }
 
 /* ---------- marco: menu lateral, barra superior, navegacion ---------- */
-const TITULO = {inicio: "Inicio", partidas: "Partidas", retos: "Retos", builds: "Builds y runas", progreso: "Progreso", ia: "Coach con IA", ajustes: "Ajustes"};
+const TITULO = {inicio: "Inicio", partidas: "Partidas", campeones: "Campeones", retos: "Retos", builds: "Builds y runas", progreso: "Progreso", ia: "Coach con IA", ajustes: "Ajustes"};
 const VISTAS = {}, A = {};
 const MARCA = `<svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#63B5FF"/><stop offset="1" stop-color="#1B6FE0"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#mg)"/><path d="M21.6 11A7.7 7.7 0 1 0 21.6 21" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><circle cx="16" cy="16" r="2.3" fill="#fff"/></svg>`;
 
@@ -1318,6 +1339,7 @@ function htmlLat(){
     <nav class="nav" aria-label="Menú principal">
       ${b("inicio", "inicio", "Inicio")}
       ${b("partidas", "partidas", "Partidas", pend ? `<span class="cnt av" data-tip="Tienes algo por revisar en tu última partida">1</span>` : "")}
+      ${b("campeones", "campeones", "Campeones")}
       ${b("retos", "retos", "Retos", nRetos ? `<span class="cnt" data-tip="Retos activos">${nRetos}</span>` : "")}
       ${b("builds", "builds", "Builds y runas")}
       ${b("progreso", "progreso", "Progreso")}
@@ -1416,6 +1438,7 @@ async function ir(v, o = {}){
   }
   if(v === "retos") cargarRetos();
   if(v === "progreso") cargarProgreso();
+  if(v === "campeones") cargarCampeones();
   if(v === "ia") cargarIA();
   if(o.luego) o.luego();
 }
@@ -1493,7 +1516,7 @@ const CMD = {items: [], sel: 0};
 const norm = t => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 function cmdItems(){
   const e = E() || {partidas: []}, L = [];
-  const ICV = {inicio: "inicio", partidas: "partidas", retos: "retos", builds: "builds", progreso: "progreso", ia: "ia", ajustes: "ajustes"};
+  const ICV = {inicio: "inicio", partidas: "partidas", campeones: "campeones", retos: "retos", builds: "builds", progreso: "progreso", ia: "ia", ajustes: "ajustes"};
   for(const [v, t] of Object.entries(TITULO)) L.push({ic: ICV[v], t, k: "Pantalla", ir: () => ir(v, {teclado: true})});
   L.push({ic: temaActual() === "oscuro" ? "sol" : "luna", t: temaActual() === "oscuro" ? "Cambiar a tema claro" : "Cambiar a tema oscuro", k: "Acción", ir: () => A.tema()});
   L.push({ic: "copiar", t: "Copiar diagnóstico", k: "Acción", ir: () => A.diagnostico()});
@@ -2406,6 +2429,85 @@ A.desfijar = async el => {
     toast("Build quitada", r.deshacer ? () => deshacerCon(r.deshacer) : null); return true; }
   catch(e){ toast("No se pudo quitar."); return false; }
 };
+
+/* =========================================== CAMPEONES =========================================== */
+/* La pagina de cada campeon tuyo: tus numeros contra Esmeralda+, lo que mas te separa, tus enfrentamientos */
+async function cargarCampeones(){
+  try{ const r = await api("/api/campeones"); S.campPool = r.pool || []; }catch(_){ S.campPool = S.campPool || []; }
+  if(!S.campSel && S.campPool.length) S.campSel = S.campPool[0].cid + "-" + S.campPool[0].rol;
+  if(S.vista === "campeones") pintar();
+  cargarFichaCamp();
+}
+async function cargarFichaCamp(){
+  const k = S.campSel; if(!k) return;
+  S.campFicha = S.campFicha || {};
+  if(S.campFicha[k]) return;
+  const [c, r] = k.split("-");
+  try{ S.campFicha[k] = await api(`/api/campeon?c=${c}&r=${r}`); }catch(_){ S.campFicha[k] = {error: true}; }
+  if(S.vista === "campeones" && S.campSel === k) pintar();
+}
+A.campSel = el => { S.campSel = el.dataset.k; pintar(); cargarFichaCamp(); };
+VISTAS.campeones = () => {
+  const pool = S.campPool;
+  if(!pool) return `<div class="sk" style="height:84px;margin-bottom:16px"></div><div class="g"><div class="c7 sk" style="height:380px"></div><div class="c5 sk" style="height:380px"></div></div>`;
+  if(!pool.length) return `<section class="card vac-g">${ic("campeones", "l")}<h2 class="dz">Aún no hay campeones</h2><p>Juega algunas partidas con el coach abierto y aquí verás cada campeón tuyo contra los jugadores de Esmeralda o más.</p></section>`;
+  const f = (S.campFicha || {})[S.campSel];
+  return `<section class="card camp-pool" aria-label="Tus campeones"><div class="cpool">${pool.map(x => { const k = x.cid + "-" + x.rol;
+      return `<button class="cpo ${k === S.campSel ? "on" : ""}" data-a="campSel" data-k="${k}" aria-pressed="${k === S.campSel}">${cp(x.cid, x.nombre, 40)}
+        <span><b>${esc(x.nombre)}</b><small>${esc(ROL[x.rol] || x.rol)} · ${plural(x.n, "partida", "partidas")} · <i class="c-${x.wr >= 50 ? "vd" : "rj"}">${x.wr}%</i></small></span></button>`; }).join("")}</div></section>
+    ${!f ? `<div class="g"><div class="c7 sk" style="height:380px"></div><div class="c5 sk" style="height:380px"></div></div>`
+      : f.error ? `<section class="card"><p class="vacio">No pude cargar este campeón. ¿Está abierto el coach?</p></section>`
+      : `${B(cardCampCab, f)}<div class="g"><div class="c7">${B(cardCampNumeros, f)}</div><div class="c5">${B(cardCampMejora, f)}</div></div>
+         <div class="g"><div class="c7">${B(cardCampPropios, f)}</div><div class="c5">${B(cardCampRivales, f)}</div></div>`}`;
+};
+function cardCampCab(f){
+  return `<section class="card camp-cab">${cp(f.cid, f.nombre, 64)}
+    <div><span class="et">${esc(ROL[f.rol] || f.rol)}</span><h2 class="dz">${esc(f.nombre)}</h2>
+      <p class="t2">${plural(f.n, "partida tuya", "partidas tuyas")} · ${f.v}V ${f.n - f.v}D · KDA ${nat(f.kda)}</p></div>
+    <div class="cc-kpi"><b class="nm c-${f.wr >= 50 ? "vd" : "rj"}">${f.wr}%</b><small>tus victorias</small></div>
+    ${f.wr_ref != null ? `<div class="cc-kpi"><b class="nm">${dec(f.wr_ref)}%</b><small>en Esmeralda+</small></div>` : ""}</section>`;
+}
+function cardCampNumeros(f){
+  const ms = f.metricas || [];
+  const fila = m => {
+    const tope = Math.max(m.yo, m.ref || 0) * 1.12 || 1, bien = m.pct == null ? null : m.pct >= 100;
+    return `<div class="cmp-f"><div class="cmp-t"><b>${esc(m.titulo)}</b>${m.pct != null ? `<span class="chip ${bien ? "vd" : m.pct >= 85 ? "am" : "rj"}">${m.pct >= 110 ? "Mejor que Esmeralda+" : bien ? "Como Esmeralda+" : m.pct + "% de Esmeralda+"}</span>` : ""}</div>
+      <div class="cmp-b"><span>Tú</span>${metro(100 * m.yo / tope, bien === false ? (m.pct >= 85 ? "am" : "rj") : "az")}<b class="nm">${nat(m.yo)}</b></div>
+      ${m.ref != null ? `<div class="cmp-b es-ref"><span>Esmeralda+</span>${metro(100 * m.ref / tope, "t3")}<b class="nm">${nat(m.ref)}</b></div>` : ""}</div>`;
+  };
+  return `<section class="card" aria-label="Tus números contra Esmeralda+">
+    <div class="card-h"><h2>${ic("progreso")}Tú contra Esmeralda+</h2><span class="ay">${f.ref ? `${mil(f.ref.n)} partidas de ${esc(f.nombre)} en Esmeralda o más · parche ${esc(f.ref.parche)} (Lolalytics)` : "Sin datos de Lolalytics ahora: solo tus números"}</span></div>
+    <div class="cmp">${ms.map(fila).join("")}</div>
+    <p class="nota-p">Todo va por minuto para que no cuente si tus partidas duran más o menos. En “Muertes” menos es mejor.</p></section>`;
+}
+function cardCampMejora(f){
+  const m = f.mejora;
+  return `<section class="card camp-mejora ${m ? "" : "ok"}" aria-label="Lo que más te separa">
+    <div class="card-h"><h2>${ic(m ? "retos" : "estrella")}${m ? "Lo que más te separa" : "Vas a su nivel"}</h2></div>
+    ${m ? `<h3 class="dz">${esc(m.titulo)}</h3><p class="mj-p"><b class="nm">${m.pct}%</b> de lo que hacen en Esmeralda+</p><p>${esc(m.texto)}</p>`
+        : `<p>En lo que se puede comparar estás a la altura de Esmeralda+ con ${esc(f.nombre)}. Mira tus enfrentamientos para ver dónde se te escapan las partidas.</p>`}
+    ${f.fuerte ? `<p class="aviso-az">${ic("estrella", "s")}<span><b>Tu punto fuerte, ${esc(f.fuerte.titulo.toLowerCase())}:</b> ${nat(f.fuerte.yo)} tú, ${nat(f.fuerte.ref)} en Esmeralda+.</span></p>` : ""}</section>`;
+}
+function cardCampPropios(f){
+  const ps = f.propios || [];
+  return `<section class="card" aria-label="Tus enfrentamientos">
+    <div class="card-h"><h2>${ic("partidas")}Tus enfrentamientos</h2><span class="ay">Contra quién jugaste ${esc(f.nombre)} y cómo te fue en la línea</span></div>
+    ${ps.length ? `<div class="tabla-x"><table class="tb camp-enf"><thead><tr><th>Rival</th><th class="r">Tú</th><th class="r">CS al 10</th><th class="r">Oro al 14</th><th class="r">Esmeralda+</th></tr></thead><tbody>
+      ${ps.map(x => `<tr><td><span class="kl">${cp(x.cid, x.nombre, 30)}<b>${esc(x.nombre)}</b></span></td>
+        <td class="r"><b class="nm">${x.v}V ${x.n - x.v}D</b></td>
+        <td class="r nm ${x.cs10 == null ? "" : x.cs10 >= 0 ? "c-vd" : "c-rj"}">${x.cs10 == null ? "–" : sig(x.cs10)}</td>
+        <td class="r nm ${x.oro14 == null ? "" : x.oro14 >= 0 ? "c-vd" : "c-rj"}">${x.oro14 == null ? "–" : sig(x.oro14)}</td>
+        <td class="r nm">${x.wr_ref == null ? "–" : `<span class="c-${x.wr_ref >= 50 ? "vd" : "rj"}">${dec(x.wr_ref)}%</span>`}</td></tr>`).join("")}</tbody></table></div>
+      <p class="nota-p">CS y oro: tu diferencia contra tu rival de línea (media). Esmeralda+: cuánto gana ${esc(f.nombre)} en ese enfrentamiento.</p>`
+      : `<p class="vacio">Aún no hay partidas con rival de línea conocido.</p>`}</section>`;
+}
+function cardCampRivales(f){
+  if(!f.faciles || !f.faciles.length) return `<section class="card"><div class="card-h"><h2>${ic("retos")}Rivales fáciles y difíciles</h2></div><p class="vacio">Lolalytics no tiene datos de enfrentamientos ahora.</p></section>`;
+  const lista = (xs, tono) => `<ul class="riv-l">${xs.map(x => `<li>${cp(x.cid, x.nombre, 30)}<b>${esc(x.nombre)}</b><span class="nm c-${tono}">${dec(x.wr)}%</span><small>${mil(x.n)} partidas</small></li>`).join("")}</ul>`;
+  return `<section class="card" aria-label="Rivales fáciles y difíciles">
+    <div class="card-h"><h2>${ic("retos")}Rivales fáciles y difíciles</h2><span class="ay">Cuánto gana ${esc(f.nombre)} contra cada uno en Esmeralda+</span></div>
+    <div class="riv2"><div><span class="et c-vd">Te van bien</span>${lista(f.faciles, "vd")}</div><div><span class="et c-rj">Te cuestan</span>${lista(f.dificiles, "rj")}</div></div></section>`;
+}
 
 /* =========================================== PROGRESO =========================================== */
 async function cargarProgreso(){

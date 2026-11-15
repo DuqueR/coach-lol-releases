@@ -1,6 +1,6 @@
 {
-  "version": "34",
-  "notas": "scouting de los 10 en la pantalla de carga y por dónde empieza su jungla (con aviso en partida si va a tu línea)",
+  "version": "35",
+  "notas": "nueva pantalla Campeones: tus números contra Esmeralda+, lo que más te separa, tus enfrentamientos y rivales fáciles y difíciles",
   "archivos": [
     "coach.py",
     "dashboard.html",
