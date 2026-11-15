@@ -1,4 +1,4 @@
-﻿COACH LOL v29
+﻿COACH LOL v30
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,18 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v30: un tope de partidas que no es fijo
+------------------------------------------------------
+- El tope del día (4 por defecto, o el que salga de tus números) ya no corta sin mirar cómo vas.
+  Al llegar a él, si hoy ganas más de las que pierdes y tu última partida no fue claramente
+  peor que tu media del día, te deja una más. Así hasta 7 ("tope_maximo_dia" en coach.py).
+- Si la forma cae (pierdes más de lo que ganas o tu nota baja), el tope se queda donde estás
+  y sale el aviso de parar. 2 derrotas seguidas o marcar tilt siguen cortando el día.
+- Ventanita de la selección: el "cómo" de tu misión va justo debajo de ella (antes salía
+  debajo de otro consejo con el que no tenía que ver).
+- Los retos dicen qué se mide y cuánto: "Duelos: oro contra tu rival de línea al minuto 14,
+  al menos 308 de oro" en vez de "Duelos (≥ 308)". Los que no aplican a tu rol no salen.
 
 Lo nuevo en la v29: ventanas que se dejan
 ------------------------------------------

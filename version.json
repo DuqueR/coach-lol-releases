@@ -1,6 +1,6 @@
 {
-  "version": "29",
-  "notas": "la ventanita cabe siempre en pantalla; Ctrl+arrastrar las tarjetas en partida; no abre ventanas repetidas",
+  "version": "30",
+  "notas": "tope de partidas que se mueve con tu forma del día; misión y retos más claros",
   "archivos": [
     "coach.py",
     "dashboard.html",

@@ -53,6 +53,7 @@ CONFIG = {
 
     # ---- Anti-racha
     "tope_partidas_dia": 4,
+    "tope_maximo_dia": 7,          # aunque vayas bien, a partir de aqui el coach no estira mas el tope
     "derrotas_seguidas_para_parar": 2,
     "dia_empieza_hora": 5,                     # lo jugado antes de las 5:00 cuenta como el dia anterior
     "colas_anti_racha": [420, 440, 400, 430],  # 420 SoloQ, 440 Flex, 400 Normal Draft, 430 Normal a ciegas
@@ -105,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "29"
+VERSION = "30"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -4245,6 +4246,23 @@ def _reto_meta_personal(r, valores):
     return m
 
 
+def texto_reto(r):
+    """Un reto en una linea que se entiende sola: que se mide y cuanto pide. Las metas de rango dependen del
+    campeon y la linea de cada partida, asi que se dicen sin numero."""
+    medida = r["medida"][:1].lower() + r["medida"][1:]
+    op = "como mucho" if r.get("menor") else "al menos"
+    if r.get("tipo") == "rango":
+        return f"{r['nombre']}: {medida}, {'no más que' if r.get('menor') else 'igual o más que'} la media de {r.get('nivel_txt') or 'tu rango'} con tu campeón."
+    m = r["meta"]
+    if r.get("menor") and m == 0:
+        return f"{r['nombre']}: {medida}: ninguna."
+    num = (_dec(m, 2).rstrip("0").rstrip(",") if isinstance(m, float) else _miles(m) if abs(m) >= 1000 else str(m))
+    if not r.get("menor") and isinstance(m, (int, float)) and m < 0:
+        op = "perder como mucho por"
+        num = num.lstrip("-")
+    return f"{r['nombre']}: {medida}, {op} {num} {r.get('unidad') or ''}".rstrip() + "."
+
+
 def retos_estado(alm, rec):
     """Estado de todos los retos: nivel, meta, tus ultimas partidas y si estan activos. Sube el nivel de un reto
     activo cuando lo cumples en 3 de tus ultimas 5 partidas desde que lo activaste (o subiste)."""
@@ -4327,6 +4345,7 @@ def retos_estado(alm, rec):
                         "falta": falta, "subio": subio, "superados": len(st.get("superados") or []),
                         "estrellas": sum(x.get("estrellas", 1) for x in st.get("superados") or []),
                         "guarda": bool(r.get("guarda")), "origen": st.get("origen") if st.get("activo") else None,
+                        "sin": list(r.get("sin") or ()),
                         "motivo": st.get("motivo") if st.get("activo") else None, "dejado": bool(st.get("dejado")),
                         "maximo": rango and nivel >= len(RETO_NIVELES) - 1 and bool(st.get("superados")) and not st.get("activo")})
         if cambio:
@@ -5446,6 +5465,27 @@ def dato_tilt(partidas, racha_min):
                      f"({sum(tras)} de {len(tras)}). En el resto de tus partidas, el {wr}%."}
 
 
+def tope_del_dia(partidas, base):
+    """El tope de hoy no es fijo: hasta tu tope juegas normal; desde ahi, mientras hoy ganes mas de las que
+    pierdes y tu ultima partida no haya sido claramente peor que tu media del dia, te deja una mas (hasta
+    'tope_maximo_dia'). Si la forma cae, el tope se queda donde estas. Devuelve (tope, motivo de parar)."""
+    n = len(partidas)
+    maximo = max(base, int(CONFIG.get("tope_maximo_dia", 7)))
+    if n < base:
+        return base, ""
+    if n >= maximo:
+        return maximo, f"es el máximo del día aunque vayas bien"
+    v = sum(1 for p in partidas if p.get("victoria"))
+    notas = [p["veredicto"]["nota"] for p in partidas if p.get("veredicto")]
+    ult = (partidas[-1].get("veredicto") or {}).get("nota")
+    media = sum(notas) / len(notas) if notas else None
+    if 2 * v <= n:
+        return n, f"hoy vas {v}V-{n - v}D"
+    if ult is None or ult < NOTA_REGULAR or (media is not None and ult < media - 1):
+        return n, "tu última partida fue peor que las de antes"
+    return n + 1, ""
+
+
 def sesion(alm):
     with alm.lock:
         ahora = int(time.time() * 1000)
@@ -5462,7 +5502,8 @@ def sesion(alm):
                 break
             racha += 1
         tope_info = tope_personal(list(alm.d["partidas"].values()))
-        tope = tope_info["tope"]
+        tope_base = tope_info["tope"]
+        tope, tope_por = tope_del_dia(partidas, tope_base)
         lim_derr = CONFIG["derrotas_seguidas_para_parar"]
         tilt_dato = dato_tilt(list(alm.d["partidas"].values()), lim_derr)
         tilts = [p for p in partidas if (animos.get(p["id"]) or {}).get("estado") == "tilt"]
@@ -5477,16 +5518,23 @@ def sesion(alm):
         if tilts:
             actuales.append({"clave": "tilt", "texto": f"Marcaste tilt después de la partida con {tilts[-1]['yo']['campeon']}"})
         if n >= tope:
+            por = tope_por if tope > tope_base or tope_por.startswith("es el") else (
+                tope_info["motivo"][:1].lower() + tope_info["motivo"][1:].rstrip(".") if tope_info["fuente"] == "tus partidas" else tope_por)
             actuales.append({"clave": "tope", "texto": f"Llegaste a tu tope de {tope} partidas del día"
-                             + (f" ({tope_info['motivo'][:1].lower() + tope_info['motivo'][1:].rstrip('.')})"
-                                if tope_info["fuente"] == "tus partidas" else "")})
+                             + (f" ({por})" if por else "")})
         aviso = alm.d["avisos"].get(hoy)
         if actuales and not aviso:
             aviso = {"ts": ahora, "partidas_al_aviso": n, "motivos": [], "visto_clave": ""}
             alm.d["avisos"][hoy] = aviso
         if aviso:
+            if actuales and not aviso.get("motivos"):          # vuelve a tocar parar tras haberse levantado
+                aviso["ts"], aviso["partidas_al_aviso"] = ahora, n
             previos = {m["clave"]: m for m in aviso.get("motivos", [])}
             cambio = False
+            # el tope se mueve con tu forma de hoy: si ya no aplica, deja de pedirte parar (derrotas y tilt se quedan)
+            if "tope" in previos and not any(m["clave"] == "tope" for m in actuales):
+                del previos["tope"]
+                cambio = True
             for m in actuales:
                 if previos.get(m["clave"]) != m:
                     previos[m["clave"]] = m
@@ -5503,6 +5551,9 @@ def sesion(alm):
             estado, msg = "parar", "Para por hoy."
         elif racha == lim_derr - 1 and racha > 0:
             estado, msg = "ojo", "Una derrota más y toca parar por hoy."
+        elif n >= tope_base:
+            estado, msg = "ojo", (f"Pasaste tu tope de {tope_base}, pero hoy vas {v}V-{n - v}D y jugando bien: "
+                                  "te dejo una más. Si pierdes o tu nota baja, para.")
         elif n == tope - 1:
             estado, msg = "ojo", "Te queda una partida antes del tope del día."
         elif ultimo_animo == "molesto":
@@ -5512,7 +5563,7 @@ def sesion(alm):
         muertes = sum(p["yo"]["d"] for p in partidas)
         return {
             "dia": hoy, "partidas": n, "victorias": v, "derrotas": n - v, "racha_derrotas": racha,
-            "tope": tope, "tope_info": tope_info, "limite_derrotas": lim_derr, "ultimo_animo": ultimo_animo,
+            "tope": tope, "tope_base": tope_base, "tope_info": tope_info, "limite_derrotas": lim_derr, "ultimo_animo": ultimo_animo,
             "estado": estado, "mensaje": msg, "parada": parada, "motivos": motivos,
             "tilt_dato": tilt_dato if (tilt_dato and racha >= max(1, lim_derr - 1)) else None,
             "mostrar_aviso": mostrar, "clave_aviso": clave, "despues_del_aviso": max(0, despues),
@@ -6868,15 +6919,15 @@ class Ventana:
                     self._seccion("Misión de esta partida")
             else:
                 self._cabecera("Misión de esta partida", C["azul"])
-            self._lbl(s.get("regla", ""), 12 if comp else 14, "bold", pady=(3, 2 if comp else 6))
+            self._lbl(s.get("regla", ""), 12 if comp else 14, "bold", pady=(3, 2 if comp else 4))
             if comp:
                 self._pinta_opciones(s)
             if not comp:
-                if s.get("plan"):
-                    self._seccion("Lo más importante en esta partida", pady=(4, 1))
-                    self._lbl(s["plan"], 9, pady=(0, 6))
                 for c in s.get("como", [])[:2]:
-                    self._lbl("•  " + c, 9, color=C["gris"], pady=(0, 2))
+                    self._lbl("Cómo: " + c, 9, color=C["gris"], pady=(0, 6))
+                if s.get("plan"):
+                    self._seccion("Además, lo que más te cuesta", pady=(4, 1))
+                    self._lbl(s["plan"], 9, pady=(0, 6))
                 if s.get("retos_txt"):
                     self._lbl(s["retos_txt"], 9, "bold", C["verde"], bg=C["verde2"], pady=(6, 0))
                 if s.get("revision"):
@@ -7346,7 +7397,8 @@ class Coach:
         pp = plan_partida(self.alm, plan, rol)
         if pp.get("lo_mas_importante"):
             estado["plan"] = pp["lo_mas_importante"]["texto"]
-            estado["como"] = mision["como"][:1]
+        if (mision or {}).get("como"):
+            estado["como"] = mision["como"][:1]          # como cumplir la mision: va justo debajo de ella
         rv = stats_revision(self.alm)
         if rv["principal"]:
             estado["revision"] = (f"Tu causa nº1 de muertes: {rv['principal']['nombre'].lower()}. "
@@ -7361,11 +7413,10 @@ class Coach:
         if pick_txt:
             estado["pick_web"] = pick_txt
         try:
-            act = [r for r in retos_estado(self.alm, self.rec)["retos"] if r["activo"] and r["meta"] is not None]
+            act = [r for r in retos_estado(self.alm, self.rec)["retos"]
+                   if r["activo"] and r["meta"] is not None and not (rol and rol in (r.get("sin") or []))]
             if act:
-                estado["retos_txt"] = "Tus retos: " + "; ".join(
-                    f"{r['nombre']} ({'≤' if r['menor'] else '≥'} {_dec(r['meta'], 2).rstrip('0').rstrip(',') if isinstance(r['meta'], float) else r['meta']})"
-                    for r in act) + "."
+                estado["retos_txt"] = "Tus retos en esta partida:\n" + "\n".join("•  " + texto_reto(r) for r in act)
         except Exception:
             pass
         if build and build.get("hab_txt"):
