@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "37"
+VERSION = "37.1"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -8908,8 +8908,8 @@ class Coach:
                 gs = (h.get("games") or {}).get("games") or []
                 tl = self.lcu.get(f"/lol-match-history/v1/game-timelines/{gs[0]['gameId']}", timeout=15) if gs else None
                 arch.write_text(json.dumps({"sesion": ses, "historial": h, "timeline": tl}), encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as e:
+                log(f"Scouting: no pude guardar la muestra ({type(e).__name__}: {e}).")
 
         def pedir():
             threading.Thread(target=muestra, daemon=True).start()
@@ -8919,8 +8919,11 @@ class Coach:
             def una(f):
                 try:
                     ficha = ficha_jugador(self.lcu, f["puuid"], f["cid"])
-                except Exception:
+                except Exception as e:
                     ficha = {}
+                    if not getattr(self, "_ficha_err", False):
+                        self._ficha_err = True
+                        log(f"Scouting: no pude leer un jugador ({type(e).__name__}: {e}).")
                 with lock:
                     fichas[f["puuid"]] = ficha
                     f["rango"] = ficha.get("rango") or ""
@@ -8937,6 +8940,8 @@ class Coach:
             fin = time.time() + 45
             for t in hilos:
                 t.join(max(0.1, fin - time.time()))
+            log(f"Scouting: {sum(1 for x in fichas.values() if x.get('n'))} de {len(filas)} jugadores con historial leído"
+                f"{'' if jg else '; no sé quién va de jungla, lo busco por Castigo'}.")
             if jg is None and vigente():
                 # no se sabe quien va de jungla: el rival que mas partidas recientes juega con Castigo
                 cand = [(len(fichas.get(f["puuid"], {}).get("jungla") or []) / max(1, fichas.get(f["puuid"], {}).get("n") or 1), f)
@@ -9334,8 +9339,15 @@ class Coach:
                         rival = next((x for x in otro if (x.get("selectedPosition") or "").lower() == pos), None)
                         self.rol_partida = POSICION_LCU.get(pos, self.rol_partida)
                     break
-        except Exception:
-            pass
+            # diagnostico: que trae la sesion en la carga (una copia en datos/, que no se publica, y una linea en el log)
+            log(f"Carga: {len(t1)}+{len(t2)} jugadores en la sesión; te encontré: {'sí' if yo_eq else 'no'}; "
+                f"rivales con puuid: {sum(1 for x in suyos if x.get('puuid'))}/{len(suyos)}; "
+                f"posición: {(yo_eq or {}).get('selectedPosition') or '-'}; rival: {self.rec.campeon((rival or {}).get('championId')) or '-'}.")
+            arch = DATOS / "sesion_muestra.json"
+            if not arch.exists():
+                arch.write_text(json.dumps({"puuid_yo": self.puuid, "sesion": ses}, ensure_ascii=False), encoding="utf-8")
+        except Exception as e:
+            log(f"Carga: no pude leer la sesión ({type(e).__name__}: {e}).")
         plan = plan_actual(self.alm)
         mision = self.mision_partida or mision_para_rol(plan, self.rol_partida)
         self.mision_partida = mision
