@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "37.3"
+VERSION = "39"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -673,6 +673,101 @@ def mejor_pick(pool, enemigos, tablas, nombre):
         return ""
     lista = ", ".join(f"{nombre(c)} {_dec(wr)}%" for c, _, wr in filas)
     return f"De tu pool contra {nombre(rival)} (Lolalytics): {lista}."
+
+
+FASE_SEL = {"PLANNING": "Declaración de intenciones", "BAN_PICK": "Bloqueos y elecciones",
+            "FINALIZATION": "Últimos segundos: cambia runas y hechizos", "GAME_STARTING": "La partida empieza"}
+
+
+def draft_equipos(ses, ahora_ms=None):
+    """Lo que el cliente ya te enseña en la seleccion, ordenado para el panel: fase, cuenta atras, de quien es el
+    turno, los dos equipos y los bloqueos. Solo datos visibles en el cliente (sin nombres ocultos)."""
+    ahora_ms = ahora_ms if ahora_ms is not None else time.time() * 1000
+    celda = ses.get("localPlayerCellId")
+    tm = ses.get("timer") or {}
+    fase = (tm.get("phase") or "").upper()
+    accion, mi_turno, bans_n, bans_s, hover = "", False, [], [], {}
+    aliados_celdas = {m.get("cellId") for m in ses.get("myTeam") or []}
+    for grupo in ses.get("actions") or []:
+        for a in grupo or []:
+            tipo = a.get("type")
+            if tipo == "ban" and a.get("completed") and a.get("championId"):
+                (bans_n if a.get("actorCellId") in aliados_celdas else bans_s).append(a["championId"])
+            if a.get("isInProgress"):
+                if not accion:
+                    accion = tipo if tipo in ("ban", "pick") else ""
+                if a.get("actorCellId") == celda:
+                    mi_turno = True
+                    accion = tipo if tipo in ("ban", "pick") else accion
+                if tipo == "pick" and a.get("championId"):
+                    hover[a.get("actorCellId")] = a["championId"]
+    b = ses.get("bans") or {}
+    if not bans_n and not bans_s:
+        bans_n = [c for c in b.get("myTeamBans") or [] if c]
+        bans_s = [c for c in b.get("theirTeamBans") or [] if c]
+
+    def fila(m, mio):
+        cid = m.get("championId") or 0
+        intento = 0 if cid else (m.get("championPickIntent") or 0)
+        h = hover.get(m.get("cellId"))
+        if h and not cid:
+            intento = h
+        return {"celda": m.get("cellId"), "cid": cid or None, "intento": intento or None,
+                "pos": POSICION_LCU.get((m.get("assignedPosition") or "").lower(), ""),
+                "yo": bool(mio and m.get("cellId") == celda)}
+    aliados = [fila(m, True) for m in ses.get("myTeam") or []]
+    rivales = [fila(m, False) for m in ses.get("theirTeam") or []]
+    restante = tm.get("adjustedTimeLeftInPhase")
+    t_fin = int(ahora_ms + restante) if isinstance(restante, (int, float)) and restante > 0 else None
+    if fase == "BAN_PICK":
+        fase_txt = ("Tu turno: bloquea" if accion == "ban" else "Tu turno: elige") if mi_turno else (
+            "Bloqueos" if accion == "ban" else "Elecciones" if accion == "pick" else FASE_SEL[fase])
+    else:
+        fase_txt = FASE_SEL.get(fase, "Selección de campeón")
+    return {"fase": fase, "fase_txt": fase_txt, "accion": accion, "mi_turno": mi_turno, "t_fin": t_fin,
+            "aliados": aliados, "rivales": rivales, "bans_nuestros": bans_n, "bans_suyos": bans_s}
+
+
+def draft_sugerencias(pool_rol, tabla_de, rival, ocupados, mi_cid=None, maximo=5):
+    """Picks para tu linea y bloqueos sugeridos.
+    pool_rol: tus campeones de esa linea [{cid, nombre, n, v, wr}] (del mas jugado al menos).
+    tabla_de(cid) -> {rival: (wr, partidas)} de Lolalytics (o None/{} si aun no esta).
+    rival: el rival probable de tu linea (o None). ocupados: campeones ya elegidos o bloqueados.
+    Devuelve {"picks": [...], "bans": [...]}."""
+    picks = []
+    for x in pool_rol:
+        if x["cid"] in ocupados and x["cid"] != mi_cid:
+            continue
+        tu = (x["v"] + 2.5) / (x["n"] + 5) * 100            # tu % con 5 partidas "neutras" para no fiarse de 1-0
+        vs = None
+        t = tabla_de(x["cid"]) if rival else None
+        if t and rival in t and t[rival][1] >= 100:
+            vs = round(t[rival][0], 1)
+        puntos = tu + (2 * (vs - 50) if vs is not None else 0) + min(x["n"], 10) * 0.6
+        motivo = []
+        if x["n"]:
+            motivo.append(f"{x['v']}V {x['n'] - x['v']}D tuyas")
+        if vs is not None:
+            motivo.append(f"{_dec(vs)} % contra el rival")
+        picks.append({"cid": x["cid"], "nombre": x["nombre"], "n": x["n"], "wr": x["wr"], "vs": vs,
+                      "puntos": round(puntos, 1), "motivo": " · ".join(motivo)})
+    picks.sort(key=lambda f: -f["puntos"])
+    if picks:
+        picks[0]["mejor"] = True
+    bans, vistos = [], set(ocupados)
+    base = mi_cid or (pool_rol[0]["cid"] if pool_rol else None)
+    t = tabla_de(base) if base else None
+    if t:
+        n_tot = sum(v[1] for v in t.values())
+        minimo = max(150, 0.008 * n_tot)
+        for rid, (wr, n) in sorted(t.items(), key=lambda kv: kv[1][0]):
+            if n < minimo or rid in vistos or wr >= 49:
+                continue
+            bans.append({"cid": rid, "wr": round(wr, 1), "base": base, "motivo": "dificil"})
+            vistos.add(rid)
+            if len(bans) >= 3:
+                break
+    return {"picks": picks[:maximo], "bans": bans}
 
 
 def build_web(cid, rol):
@@ -8230,6 +8325,8 @@ class Coach:
         self.envivo = None
         self._sel_clave = None
         self.carga = None
+        self.draft = None             # panel de la seleccion para el dashboard
+        self._sel_estado = None
         self.plan_jungla, self._aviso_jungla = None, False
         self._obj_avisados, self.cola_partida = set(), None
         self._ev_muestra, self._ev_raros, self._obj_cfg = False, set(), (0.0, None)
@@ -8448,7 +8545,7 @@ class Coach:
         return Counter(roles).most_common(1)[0][0] if roles else ""
 
     def _seleccion(self):
-        rol, champ, elegido, enemigos = "", None, None, []
+        rol, champ, elegido, enemigos, ses = "", None, None, [], None
         try:
             ses = self.lcu.get("/lol-champ-select/v1/session", timeout=5)
             if self.pantalla == 0 and ((ses.get("timer") or {}).get("phase") or "").upper() == "GAME_STARTING":
@@ -8471,6 +8568,12 @@ class Coach:
             rol = self._rol_habitual(champ)      # partidas sin posiciones: el rol en que sueles jugarlo
         self.rol_partida = rol
         plan = plan_actual(self.alm)
+        try:
+            self._draft(ses, rol, champ, enemigos, plan)
+        except Exception as e:
+            if not getattr(self, "_draft_err", False):
+                self._draft_err = True
+                log(f"Selección: no pude preparar el panel ({type(e).__name__}: {e}).")
         s = sesion(self.alm)
         mision = mision_para_rol(plan, rol)
         if self._opcion_clic and self._opcion_clic_champ != elegido:
@@ -8583,6 +8686,7 @@ class Coach:
             estado["build_txt"] = build["texto"]
             estado["build_iconos"] = [x for x in (self._ico("item", i) for i in build["orden"][:6]) if x]
         self._con_dano(estado, enemigos, champ)
+        self._sel_estado = estado
         # cabecera, banda del dia y resumenes de los apartados plegados
         estado["cab"] = {"campeon": self.rec.campeon(champ) if champ else "Elige campeón",
                          "rol": ROL_TXT.get(rol, rol).capitalize() if rol else "",
@@ -8613,6 +8717,84 @@ class Coach:
                     "Casi todo su daño es " + ("físico" if "daño físico:" in estado["dano_txt"] else "mágico") + ". " + dtx)
                 estado["dano_iconos"] = []
         self._ventana(estado)
+
+
+    def _draft(self, ses, rol, champ, enemigos, plan):
+        """Panel de la seleccion para el dashboard (se refresca en cada vuelta, sin pedir nada que bloquee)."""
+        if not ses:
+            return
+        d = draft_equipos(ses)
+        nombre = self.rec.campeon
+        for f in d["aliados"] + d["rivales"]:
+            f["nombre"] = nombre(f["cid"] or f["intento"]) if (f["cid"] or f["intento"]) else ""
+        ocupados = set(d["bans_nuestros"] + d["bans_suyos"])
+        ocupados |= {f["cid"] for f in d["aliados"] + d["rivales"] if f["cid"]}
+        ocupados |= {f["intento"] for f in d["aliados"] if f["intento"] and not f["yo"]}
+        mio = next((f for f in d["aliados"] if f["yo"]), None)
+        mi_cid = (mio or {}).get("cid") or (mio or {}).get("intento")
+        rp = (plan or {}).get("roles") or {}
+        pool_plan = [x["id"] for x in (rp.get("pools") or {}).get(rol) or []]
+        propios = [x for x in pool_campeones(self.alm) if x["rol"] == rol] if rol else []
+        por_cid = {x["cid"]: x for x in propios}
+        pool = []
+        for cid in pool_plan + [x["cid"] for x in propios if x["n"] >= 2]:
+            if cid in [x["cid"] for x in pool]:
+                continue
+            x = por_cid.get(cid) or {"cid": cid, "nombre": nombre(cid), "n": 0, "v": 0, "wr": None}
+            pool.append(dict(x, nombre=x.get("nombre") or nombre(cid)))
+        pool = pool[:8]
+        lola = rol in LOLA_LINEA
+        tabla_de = (lambda c: self._tabla_rivales(c, rol)) if lola else (lambda c: None)
+        rival = None
+        if lola and enemigos:
+            for c in ([mi_cid] if mi_cid else []) + [x["cid"] for x in pool[:3]]:
+                rival = self._rival_probable(c, rol, enemigos)
+                if rival:
+                    break
+        with self.alm.lock:
+            partidas = list(self.alm.d["partidas"].values())
+        sug = draft_sugerencias(pool, tabla_de, rival, ocupados, mi_cid)
+        for b in sug["bans"]:
+            b["nombre"] = nombre(b["cid"])
+            b["motivo"] = f"{nombre(b['base'])} gana solo el {_dec(b['wr'])} % contra él (Esmeralda+)"
+        # rivales que mas te ganan en tus partidas (al menos 2 y sin victorias o casi)
+        malos = []
+        for cid in {(p.get("datos_h") or {}).get("rival_id") for p in partidas if p.get("rol") == rol} - {None}:
+            h = historial_contra(partidas, cid)
+            if h and h["n"] >= 2 and h["d"] > h["v"] and cid not in ocupados:
+                malos.append({"cid": cid, "nombre": nombre(cid), "motivo": f"Tu historial contra él: {h['v']}V {h['d']}D",
+                              "hist": True, "orden": h["v"] - h["d"]})
+        malos.sort(key=lambda x: x["orden"])
+        sug["bans"] = (malos[:2] + [b for b in sug["bans"] if b["cid"] not in {m["cid"] for m in malos[:2]}])[:4]
+        riv = None
+        if rival:
+            h = historial_contra(partidas, rival)
+            t = tabla_de(mi_cid) if mi_cid else None
+            nm = nota_matchup(self.alm, mi_cid, rival)
+            riv = {"cid": rival, "nombre": nombre(rival), "hist": f"{h['v']}V {h['d']}D" if h else "",
+                   "vs": round(t[rival][0], 1) if t and rival in t and t[rival][1] >= 100 else None,
+                   "nota": (nm or {}).get("texto") or ""}
+        contras = []
+        tr = tabla_de(rival) if rival else None
+        if tr:                       # quien le gana al rival de tu linea (su % contra ellos, el mas bajo primero)
+            minimo = max(150, 0.008 * sum(v[1] for v in tr.values()))
+            for rid, (wr, n) in sorted(tr.items(), key=lambda kv: kv[1][0]):
+                if (n >= minimo and wr < 48.5 and rid not in ocupados
+                        and rid not in {x["cid"] for x in sug["picks"] + sug["bans"]}):
+                    contras.append({"cid": rid, "nombre": nombre(rid), "wr": round(100 - wr, 1)})
+                if len(contras) >= 3:
+                    break
+        d.update({"rol": rol, "rol_txt": ROL_TXT.get(rol, rol) if rol else "", "yo_cid": mi_cid,
+                  "picks": sug["picks"], "bans_sug": sug["bans"], "rival": riv, "contras": contras,
+                  "nombres": {str(x): nombre(x) for x in d["bans_nuestros"] + d["bans_suyos"]},
+                  "esperando_lola": lola and any(self._tabla_rivales(x["cid"], rol) is None for x in pool[:4])})
+        e = getattr(self, "_sel_estado", None) or {}
+        d["coach"] = {k: e.get(k) for k in ("regla", "como", "plan", "runas", "hab_txt", "hab_corta", "build_txt",
+                                            "hechizos_txt", "dano_txt", "matchup", "nota_rol", "revision", "opciones",
+                                            "opciones_nota", "pick", "pick_ok", "banda") if e.get(k)}
+        if self.build_info:
+            d["build"] = self.build_info
+        self.draft = d
 
     # -- runas y build
     def _runas(self, champ, rol, enemigos):
@@ -9684,8 +9866,11 @@ def crear_handler(coach):
                     # retos superados (activos o no) + tareas superadas: el dashboard lanza confeti si sube
                     "logros": sum(r.get("superados") or 0 for r in retos_todos) + ((avance(alm) or {}).get("n_superadas") or 0),
                     "build_info": coach.build_info if coach.fase in EN_JUEGO + ("ChampSelect",) else None,
+                    "draft": coach.draft if coach.fase == "ChampSelect" else None,
                     "ahora": siguiente_paso(alm, plan, sesion(alm)), "proxima": plan_partida(alm, plan),
                 })
+            if ruta == "/api/draft":
+                return self._send(200, {"fase": coach.fase, "draft": coach.draft if coach.fase == "ChampSelect" else None})
             if ruta == "/api/retos":
                 return self._send(200, retos_estado(alm, rec))
             if ruta == "/api/campeones":

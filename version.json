@@ -1,6 +1,6 @@
 {
-  "version": "37.3",
-  "notas": "análisis con IA más rápido y sin nombres técnicos de modelos; mensajes de error más claros",
+  "version": "39",
+  "notas": "nueva pantalla Selección: picks y bloqueos para tu línea, tu rival probable, equipos y cuenta atrás; interfaz más pulida",
   "archivos": [
     "coach.py",
     "dashboard.html",

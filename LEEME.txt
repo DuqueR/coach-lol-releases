@@ -12,6 +12,27 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v39: la selección de campeón, en el panel
+- Al entrar en la selección, el panel abre solo la pantalla "Selección" (y vuelve a
+  Inicio al terminar). Arriba: la fase, si te toca bloquear o elegir y la cuenta atrás.
+- Picks para tu línea: tus campeones de esa línea ordenados por tus partidas y por
+  cómo rinden contra tu rival (Lolalytics Esmeralda+), con el recomendado marcado,
+  y campeones fuera de tu pool que le ganan a ese rival.
+- Bloqueos sugeridos: los rivales que más te ganan en tus partidas y los que peor
+  se le dan a tu campeón principal. En tu turno de bloquear salen primero.
+- Tu rival de línea probable, los dos equipos con lo que cada uno está pensando
+  (lo que ya ves en el cliente), los bloqueos, tu misión y lo que el coach aplica.
+
+Lo nuevo en la v38: interfaz más pulida
+- Coach con IA: cuando la IA ya funciona solo ves "Conexión · Lista". Las claves,
+  el servicio de respaldo y dónde se guardan quedan dentro de "Cambiar o quitar claves".
+- Mejor contraste en el tema claro y en las etiquetas pequeñas; la letra más
+  pequeña (MVP, ACE, puesto) ahora se lee bien.
+- Tamaños de letra y esquinas unificados en toda la app.
+- Si el coach se cierra, la página lo dice arriba con un aviso claro y se
+  reconecta sola.
+- Botones pequeños (posición de las tarjetas, enlaces) más fáciles de pulsar.
+
 Lo nuevo en la v37.3: la IA, más rápida y más clara
 --------------------------------------------------
 - El análisis con IA ya no enseña el nombre técnico del modelo que lo escribió (salía "OpenRouter: nvidia/…").
