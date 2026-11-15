@@ -12,6 +12,19 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v50: estudio de vídeos
+- Nueva pantalla "Vídeos" en el menú: tus partidas con jugadas grabadas, con
+  foto, campeón, resultado, KDA y cuánto espacio ocupan.
+- Al abrir una, a la izquierda tienes sus jugadas y en el centro el vídeo,
+  que empieza justo en la jugada. En la barra salen marcadas las kills,
+  muertes y objetivos con la cara del campeón: pincha una para ir ahí.
+- Velocidad de 0,25x a 2x, "Seguidas" para ver una detrás de otra, pantalla
+  completa y atajos (Espacio, flechas, Mayús + flechas, F, M).
+- Marca con la estrella las que quieras guardar: esas no se borran nunca
+  solas. También puedes descargarlas o borrarlas.
+- Arreglado: el contador de segundos de la selección de campeón iba mal
+  (se quedaba alto); ahora cuenta lo que de verdad queda.
+
 Lo nuevo en la v49: vídeos con sonido y una campanita propia
 - Tus jugadas grabadas ahora tienen sonido: el del juego (y también Discord o
   la música si suenan). Se quita en Ajustes con "Con sonido". Si cambias de

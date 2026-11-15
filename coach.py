@@ -107,7 +107,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "49"
+VERSION = "50"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -718,8 +718,13 @@ def draft_equipos(ses, ahora_ms=None):
                 "yo": bool(mio and m.get("cellId") == celda)}
     aliados = [fila(m, True) for m in ses.get("myTeam") or []]
     rivales = [fila(m, False) for m in ses.get("theirTeam") or []]
-    restante = tm.get("adjustedTimeLeftInPhase")
-    t_fin = int(ahora_ms + restante) if isinstance(restante, (int, float)) and restante > 0 else None
+    # El cliente da lo que quedaba cuando actualizo el reloj (internalNowInEpochMs, misma hora del PC), no lo que
+    # queda ahora: sumarlo a la hora actual hacia que el contador volviera a subir con cada lectura.
+    restante, base = tm.get("adjustedTimeLeftInPhase"), tm.get("internalNowInEpochMs")
+    if not isinstance(base, (int, float)) or abs(base - ahora_ms) > 600000:
+        base = ahora_ms
+    t_fin = (int(base + restante) if isinstance(restante, (int, float)) and restante > 0 and not tm.get("isInfinite")
+             and base + restante > ahora_ms else None)
     if fase == "BAN_PICK":
         fase_txt = ("Tu turno: bloquea" if accion == "ban" else "Tu turno: elige") if mi_turno else (
             "Bloqueos" if accion == "ban" else "Elecciones" if accion == "pick" else FASE_SEL[fase])
@@ -2004,7 +2009,8 @@ def minuto_a_minuto(juego, tl, puuid, rec):
             tipo = ("muerte" if vid == yo_id else "kill" if kid == yo_id else "asist" if yo_id in asis
                     else "kill_eq" if nuestro else "muerte_eq")
             eventos.append({"ts": ts, "tipo": tipo, "nuestro": nuestro, "victima": camp(vid),
-                            "asesino": camp(kid) or "una torre o súbditos"})
+                            "asesino": camp(kid) or "una torre o súbditos",
+                            "cv": (parts.get(vid) or {}).get("championId"), "ck": (parts.get(kid) or {}).get("championId")})
         elif t == "ELITE_MONSTER_KILL":
             kid = e.get("killerId")
             nuestro = (parts[kid].get("teamId") == equipo) if kid in parts else e.get("killerTeamId") == equipo
@@ -7691,7 +7697,7 @@ def podar_clips(pid, jugadas):
         lista, cambio = clips_meta(), False
         segs = [j["seg"] for j in jugadas or []]
         for c in list(lista):
-            if str(c.get("partida")) != str(pid) or c.get("revisado"):
+            if str(c.get("partida")) != str(pid) or c.get("revisado") or c.get("fav"):
                 continue
             if any(_cubre(c, x) for x in segs):
                 c["revisado"] = True
@@ -7719,9 +7725,11 @@ def limitar_clips():
     """Si los videos pasan de CLIPS_MAX_GB, se borran los mas viejos (cuenta todos los .mp4 de la carpeta, esten o
     no en clips.json) y se quitan de la lista los que ya no existen."""
     with _CLIPS_LOCK:
+        lista = clips_meta()
+        favs = {c["archivo"] for c in lista if c.get("fav")}
         try:
-            fs = sorted(CLIPS.glob("*.mp4"), key=lambda f: f.stat().st_mtime)
-            total = sum(f.stat().st_size for f in fs)
+            fs = sorted((f for f in CLIPS.glob("*.mp4") if f.name not in favs), key=lambda f: f.stat().st_mtime)
+            total = sum(f.stat().st_size for f in fs)        # los favoritos no cuentan para el tope
         except Exception:
             return
         for f in fs:
@@ -7733,10 +7741,108 @@ def limitar_clips():
                 continue
             if _borrar(f):
                 total -= tam
-        lista = clips_meta()
+        for j in CLIPS.glob("*.jpg"):              # miniaturas de videos que ya no estan
+            if not j.stem.endswith("_tmp") and not j.with_suffix(".mp4").exists():
+                _borrar(j)
         vivos = [c for c in lista if (CLIPS / c["archivo"]).exists()]
         if len(vivos) != len(lista):
             _guardar_meta(vivos)
+
+
+_MINI_LOCK = threading.Lock()
+_MINI_MAL = set()
+
+
+def miniatura_clip(nombre):
+    """La foto de un video (un fotograma de la mitad, 480 px de ancho), junto al video con .jpg. Se hace la primera
+    vez que se pide y queda guardada. None si no se puede."""
+    f = CLIPS / nombre
+    j = f.with_suffix(".jpg")
+    if j.exists():
+        return j
+    ff = ruta_ffmpeg()
+    if not ff or not f.exists() or nombre in _MINI_MAL:
+        return None
+    with _MINI_LOCK:
+        if j.exists():
+            return j
+        c = next((x for x in clips_meta() if x.get("archivo") == nombre), None)
+        dur = (c["seg_fin"] - c["seg_ini"]) if c else 10
+        tmp = j.with_name(j.stem + "_tmp.jpg")
+        for ss in (max(0.0, dur * 0.5 - 1), 0.0):
+            try:
+                _borrar(tmp)
+                r = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{ss:.2f}",
+                                    "-i", str(f), "-frames:v", "1", "-vf", "scale=480:-2", "-q:v", "5", str(tmp)],
+                                   capture_output=True, timeout=20, **_sin_ventana())
+                if r.returncode == 0 and tmp.exists() and tmp.stat().st_size:
+                    os.replace(tmp, j)
+                    return j
+            except Exception:
+                pass
+        _borrar(tmp)
+        _MINI_MAL.add(nombre)
+        return None
+
+
+_MINI_HILO = {"activo": False}
+
+
+def generar_miniaturas():
+    """Hace en segundo plano las fotos que faltan, una detras de otra. Devuelve cuantas faltan."""
+    faltan = [c["archivo"] for c in clips_meta() if c.get("archivo") and c["archivo"] not in _MINI_MAL
+              and (CLIPS / c["archivo"]).exists() and not (CLIPS / c["archivo"]).with_suffix(".jpg").exists()]
+    if not faltan or _MINI_HILO["activo"] or not ruta_ffmpeg():
+        return len(faltan) if ruta_ffmpeg() else 0
+    _MINI_HILO["activo"] = True
+
+    def hacer():
+        try:
+            for n in faltan:
+                miniatura_clip(n)
+        finally:
+            _MINI_HILO["activo"] = False
+    threading.Thread(target=hacer, daemon=True).start()
+    return len(faltan)
+
+
+def cambiar_clip(nombre, fav=None, borrar=False):
+    """Marcar un video como favorito (no se borra nunca solo) o borrarlo de tu PC. True si se hizo."""
+    with _CLIPS_LOCK:
+        lista = clips_meta()
+        c = next((x for x in lista if x.get("archivo") == nombre), None)
+        if c is None:
+            return False
+        if borrar:
+            for _ in range(5):                  # el panel acaba de soltar el video: el servidor puede tardar un poco
+                if _borrar(CLIPS / nombre):
+                    break
+                time.sleep(0.25)
+            else:
+                return False
+            _borrar((CLIPS / nombre).with_suffix(".jpg"))
+            lista.remove(c)
+        else:
+            c["fav"] = bool(fav)
+        _guardar_meta(lista)
+    return True
+
+
+def lista_videos():
+    """Los videos guardados, con lo que necesita el panel (la partida la junta el panel con su resumen)."""
+    out, total = [], 0
+    for c in clips_meta():
+        f = CLIPS / c.get("archivo", "")
+        try:
+            tam = f.stat().st_size
+        except Exception:
+            continue
+        total += tam
+        q = urllib.parse.quote(c["archivo"])
+        out.append({"archivo": c["archivo"], "url": "/clips/" + q, "img": "/clips/" + q[:-4] + ".jpg",
+                    "partida": str(c.get("partida") or ""), "seg_ini": c.get("seg_ini", 0), "seg_fin": c.get("seg_fin", 0),
+                    "fav": bool(c.get("fav")), "creado": c.get("creado", 0), "mb": round(tam / 1024 ** 2, 1)})
+    return {"clips": out, "gb": round(total / 1024 ** 3, 2), "max_gb": CLIPS_MAX_GB, "fotos_pendientes": generar_miniaturas()}
 
 
 def _cubre(c, seg):
@@ -7979,6 +8085,7 @@ class Grabadora:
                 meta.append({"archivo": nombre, "partida": self.partida, "seg_ini": round(seg_ini, 1),
                              "seg_fin": round(seg_ini + (fin - ini), 1), "eventos": evs, "creado": time.time()})
                 _guardar_meta(meta)
+            miniatura_clip(nombre)
         except Exception as e:
             log(f"Grabación: error al cortar ({type(e).__name__}: {e}).")
         finally:
@@ -11632,6 +11739,8 @@ def crear_handler(coach):
             ok = {f"127.0.0.1:{pto}", f"localhost:{pto}"}
             if (self.headers.get("Host") or "") not in ok:
                 return False
+            if (self.headers.get("Sec-Fetch-Site") or "") == "cross-site":
+                return False
             o = self.headers.get("Origin")
             return not post or o is None or o in {"http://" + x for x in ok}
 
@@ -11643,6 +11752,16 @@ def crear_handler(coach):
                 return self._send(200, html_path.read_bytes(), "text/html; charset=utf-8")
             if ruta == "/fuente/archivo.woff2":
                 return self._send(200, (RECURSOS / "fuente" / "archivo.woff2").read_bytes(), "font/woff2", cache=True)
+            m = re.match(r"^/clips/([\w-]+)\.jpg$", ruta)
+            if m:
+                j = (CLIPS / m.group(1)).with_suffix(".jpg")
+                if not j.exists():
+                    generar_miniaturas()
+                    return self._send(404, {"error": "sin foto"})
+                try:
+                    return self._send(200, j.read_bytes(), "image/jpeg", cache=True)
+                except Exception:
+                    return self._send(404, {"error": "sin foto"})
             m = re.match(r"^/clips/([\w.-]+\.mp4)$", ruta)
             if m:
                 f = CLIPS / m.group(1)
@@ -11681,6 +11800,8 @@ def crear_handler(coach):
                     except (ConnectionError, OSError):
                         pass
                 return
+            if ruta == "/api/videos":
+                return self._send(200, lista_videos())
             if ruta == "/api/ping":
                 return self._send(200, {"app": "coach-lol", "v": VERSION, "huella": _HUELLA})
             if ruta == "/api/diagnostico":
@@ -11929,6 +12050,12 @@ def crear_handler(coach):
             if ruta == "/api/probar-sonido":
                 threading.Thread(target=sonar_aviso, daemon=True).start()
                 return self._send(200, {"ok": True})
+            if ruta == "/api/clip":
+                nombre = str(body.get("archivo") or "")
+                if not re.match(r"^[\w-]+\.mp4$", nombre):
+                    return self._send(400, {"error": "archivo"})
+                ok = cambiar_clip(nombre, fav=body.get("fav"), borrar=bool(body.get("borrar")))
+                return self._send(200, {"ok": ok, "msg": "" if ok else "No pude cambiarlo: puede que esté abierto. Prueba en unos segundos."})
             if ruta == "/api/abrir-clips":
                 CLIPS.mkdir(parents=True, exist_ok=True)
                 try:

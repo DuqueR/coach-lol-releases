@@ -523,11 +523,6 @@ button.chip .i{width:13px;height:13px}
 .pg{display:grid;grid-template-columns:348px minmax(0,1fr);gap:20px;align-items:start}
 .lista{position:sticky;top:76px;max-height:calc(100vh - 96px);overflow-y:auto;padding-right:6px;margin-right:-6px}
 .aj-b{display:flex;align-items:center;gap:10px}
-.vd-m .vd-c{width:min(1100px,100%);padding:0;overflow:hidden;background:#000;border:0;border-radius:16px;box-shadow:0 30px 80px -10px rgba(0,0,0,.7)}
-.vd-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 18px;background:var(--s1)}
-.vd-h b{font-size:var(--fs-6);font-weight:720}
-.vd-h span{display:flex;gap:8px}
-.vd-c video{display:block;width:100%;max-height:calc(100vh - 140px);background:#000}
 .rec{width:8px;height:8px;border-radius:50%;background:var(--rj);animation:rec 1.2s ease-in-out infinite}
 @keyframes rec{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.rec{animation:none}}
@@ -560,6 +555,97 @@ button.chip .i{width:13px;height:13px}
 .imp .nota-p{display:flex;gap:6px;align-items:flex-start}
 @media (max-width:520px){.imp-cat{grid-template-columns:repeat(2,minmax(0,1fr))}.imp-eq>li{grid-template-columns:26px 70px minmax(0,1fr) 46px}}
 .cl-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+/* ---------- Vídeos: galería y estudio de jugadas ---------- */
+.vg-cab{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:center;padding:22px 24px}
+.vg-cab h2{font-size:34px;text-transform:uppercase}
+.vg-cab p{color:var(--t2);max-width:620px;margin-top:8px}
+.vg-cab p .i{display:inline-block;vertical-align:-2px}
+.vg-n{display:flex;gap:26px;align-items:center}
+.vg-n>div{display:grid;gap:5px;min-width:64px}
+.vg-n b{font-size:28px;line-height:1} .vg-n b small{font-size:var(--fs-4);color:var(--t3);font-weight:600}
+@media (max-width:1100px){.vg-cab{grid-template-columns:minmax(0,1fr)}.vg-n{flex-wrap:wrap}}
+.vg-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:14px;margin-top:16px}
+.vg-c{all:unset;box-sizing:border-box;cursor:pointer;display:grid;border-radius:var(--r);overflow:hidden;background:var(--s1);border:1px solid var(--linea);
+  transition:transform .2s var(--ease-out),border-color .15s,box-shadow .2s var(--ease-out);animation:cl-in .32s calc(var(--i) * 40ms) var(--ease-out) both}
+@media (hover:hover){.vg-c:hover{transform:translateY(-2px);border-color:var(--linea2);box-shadow:0 16px 36px -16px rgba(0,0,0,.65)}.vg-c:hover .vg-play{opacity:1;transform:none}}
+.vg-c:active{transform:scale(.985)}
+.vg-c:focus-visible{outline:2px solid var(--az);outline-offset:2px}
+.vg-m{position:relative;display:block;aspect-ratio:16/9;background:linear-gradient(135deg,var(--s3),var(--pozo))}
+.vg-m img,.st-mi img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.vg-m::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 52%,rgba(0,0,0,.62))}
+.vg-res{position:absolute;left:0;top:0;bottom:0;width:3px;z-index:1;background:var(--c)}
+.vg-play{position:absolute;inset:0;margin:auto;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;z-index:1;color:#fff;
+  background:rgba(0,0,0,.5);backdrop-filter:blur(6px);opacity:0;transform:scale(.9);transition:opacity .18s var(--ease-out),transform .18s var(--ease-out)}
+.vg-play .i{width:20px;height:20px;fill:currentColor}
+.vg-b{position:absolute;z-index:1;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:var(--r3);font-size:var(--fs-2);font-weight:700;color:#fff;background:rgba(0,0,0,.58);backdrop-filter:blur(6px)}
+.vg-b.n{left:10px;top:10px} .vg-b.d{right:10px;bottom:10px} .vg-b.f{right:10px;top:10px;color:#F2C94C}
+.vg-b .i.s{width:12px;height:12px}
+.vg-i{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 14px}
+.vg-i b{display:block;font-size:var(--fs-5);font-weight:720} .vg-i small{display:block;color:var(--t3);font-size:var(--fs-2)}
+.vg-k{text-align:right} .vg-k b{font-size:var(--fs-6)}
+.fav .i,.i.fav{fill:#F2C94C;color:#F2C94C}
+.st-top{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.st-tt{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+.st-tt b{font-size:var(--fs-7);font-weight:740;display:block} .st-tt small{color:var(--t3);font-size:var(--fs-3)}
+.st-g{display:grid;grid-template-columns:286px minmax(0,1fr) 236px;gap:16px;align-items:start}
+@media (max-width:1420px){.st-g{grid-template-columns:262px minmax(0,1fr)}.st-ot{grid-column:1/-1}.st-ot .st-ol{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}}
+@media (max-width:900px){.st-g{grid-template-columns:minmax(0,1fr)}}
+.st-l,.st-ot{padding:12px;position:sticky;top:76px;max-height:calc(100vh - 96px);overflow:auto}
+@media (max-width:1420px){.st-ot{position:static;max-height:none}}
+.st-lh{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:2px 4px 10px}
+.st-lh .sw{transform:scale(.82);transform-origin:right center}
+.st-lh label{display:flex;align-items:center;gap:6px;font-size:var(--fs-2);color:var(--t3);font-weight:650}
+.st-li{display:grid;gap:4px}
+.st-i,.st-o{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;align-items:center;padding:6px;border-radius:var(--r-m);position:relative;transition:background .12s}
+@media (hover:hover){.st-i:hover,.st-o:hover{background:var(--s2)}}
+.st-i:focus-visible,.st-o:focus-visible{outline:2px solid var(--az);outline-offset:-2px}
+.st-i.on{background:color-mix(in srgb,var(--tono) 12%,var(--s2));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tono) 50%,transparent)}
+.st-i.on::before{content:"";position:absolute;left:-12px;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--tono)}
+.st-mi{position:relative;display:block;aspect-ratio:16/9;border-radius:var(--r3);overflow:hidden;background:linear-gradient(135deg,var(--s3),var(--pozo))}
+.st-mi>.tn{position:absolute;right:4px;bottom:4px;z-index:1;font-size:10px;font-weight:700;line-height:15px;color:#fff;background:rgba(0,0,0,.62);padding:0 4px;border-radius:3px}
+.st-d{display:grid;gap:2px;min-width:0}
+.st-d b{font-size:var(--fs-4);font-weight:700;line-height:1.25;display:flex;align-items:center;gap:4px;min-width:0}
+.st-d b span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-d small{font-size:var(--fs-2);color:var(--t3)}
+.st-vc{display:flex;gap:3px;margin-top:2px}
+.st-c{min-width:0}
+.st-pl{position:relative;aspect-ratio:16/10;max-height:calc(100vh - 290px);margin:0 auto;background:#000;border-radius:var(--r) var(--r) 0 0;overflow:hidden}
+.st-pl video{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain;cursor:pointer;background:#000}
+.st-pl::after{content:"";position:absolute;inset:0;margin:auto;width:66px;height:66px;border-radius:50%;pointer-events:none;
+  background:rgba(0,0,0,.5) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M8.5 5.5v13l10-6.5z'/%3E%3C/svg%3E") center/28px no-repeat;
+  backdrop-filter:blur(6px);opacity:0;transform:scale(.92);transition:opacity .18s var(--ease-out),transform .18s var(--ease-out)}
+.st-pl.pausa::after{opacity:1;transform:none}
+.st-ctl{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--s1);border:1px solid var(--linea);border-top:0;border-radius:0 0 var(--r) var(--r)}
+.st-b{all:unset;box-sizing:border-box;cursor:pointer;width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:var(--r2);color:var(--t1);transition:background .12s,transform .16s var(--ease-out)}
+@media (hover:hover){.st-b:hover{background:var(--s2)}}
+.st-b:active{transform:scale(.94)}
+.st-b:focus-visible{outline:2px solid var(--az)}
+.st-b:disabled{opacity:.3;cursor:default;transform:none}
+#st-pp .i{fill:currentColor}
+.st-t{font-size:var(--fs-3);color:var(--t2);min-width:78px;text-align:center}
+.st-tl{position:relative;flex:1;min-width:120px;height:36px;cursor:pointer;touch-action:none}
+.st-tl::before{content:"";position:absolute;left:0;right:0;top:50%;height:4px;margin-top:-2px;border-radius:2px;background:var(--s3)}
+.st-pr{position:absolute;left:0;top:50%;height:4px;margin-top:-2px;border-radius:2px;background:var(--az);width:0;pointer-events:none}
+.st-pr::after{content:"";position:absolute;right:-6px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px color-mix(in srgb,var(--az) 45%,transparent)}
+.st-mk{position:absolute;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;padding:0;border-radius:50%;border:2px solid var(--c);background:var(--s1);overflow:hidden;z-index:1;
+  display:grid;place-items:center;color:var(--c);font-size:9px;font-weight:800;transition:transform .16s var(--ease-out)}
+.st-mk img{width:100%;height:100%;object-fit:cover;display:block}
+.st-mk .i{width:11px;height:11px}
+.st-mk.yo{width:24px;height:24px;margin:-12px 0 0 -12px;box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 30%,transparent)}
+@media (hover:hover){.st-mk:hover{transform:scale(1.18);z-index:2}}
+.st-vel{display:flex;padding:2px;gap:2px;border-radius:var(--r2);background:var(--s2)}
+.st-vel button{border:0;background:none;height:28px;padding:0 7px;border-radius:var(--r3);font-size:var(--fs-2);font-weight:700;color:var(--t3)}
+.st-vel button.on{background:var(--s1);color:var(--t1);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.st-inf{margin-top:14px;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:14px;align-items:center}
+.st-inf b{font-size:var(--fs-7);font-weight:740;line-height:1.25}
+.st-inf small{display:block;color:var(--t2);font-size:var(--fs-4)}
+.st-inf b{display:block}
+.st-acc{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.st-kb{margin-top:10px;font-size:var(--fs-2);color:var(--t3);display:flex;gap:14px;flex-wrap:wrap}
+.st-kb kbd{font:inherit;font-weight:700;color:var(--t2);background:var(--s2);border:1px solid var(--linea2);border-radius:4px;padding:0 5px;margin-right:4px}
+.st-ol{display:grid;gap:4px}
+.st-o small{display:block;font-size:var(--fs-2);color:var(--t3)} .st-o b{display:block;font-size:var(--fs-4);font-weight:700}
+@media (max-width:640px){.st-vel,.st-t{display:none}}
 @media (max-width:1560px){.cop-r span{display:none}.cop-r{padding:0 9px}}
 .cl{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 12px 12px 14px;border-radius:var(--r);
   background:linear-gradient(135deg,color-mix(in srgb,var(--tono) 9%,var(--s2)),var(--s2) 60%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tono) 22%,var(--linea));
@@ -1256,7 +1342,6 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
 </div>
 <div class="modal" id="aviso" role="alertdialog" aria-modal="true" aria-labelledby="aviso-t"><div class="modal-c" id="aviso-c"></div></div>
 <div class="modal" id="rev" role="dialog" aria-modal="true" aria-label="Revisar una muerte"><div class="modal-c" id="rev-c"></div></div>
-<div class="modal vd-m" id="vid" role="dialog" aria-modal="true" aria-labelledby="vid-t"><div class="modal-c vd-c" id="vid-c"></div></div>
 <div class="modal nv" id="nov" role="dialog" aria-modal="true" aria-labelledby="nov-t"><div class="modal-c nv-c" id="nov-c"></div></div>
 <div class="modal" id="conf" role="alertdialog" aria-modal="true" aria-labelledby="conf-t"><div class="modal-c" id="conf-c"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -1267,7 +1352,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "49";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "50";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1306,6 +1391,15 @@ const IC = {
   oro: '<circle cx="12" cy="12" r="9"/><path d="M14.8 9.3c-.5-1-1.6-1.6-2.9-1.6-1.7 0-3 .9-3 2.2 0 3 6.2 1.3 6.2 4.3 0 1.300-1.400 2.200-3.200 2.200-1.400 0-2.600-.6-3.100-1.700"/><path d="M12 5.800v1.900M12 16.400v1.800"/>',
   ojo: '<path d="M2 12s3.600-7 10-7 10 7 10 7-3.600 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
   play: '<path d="M7 4.500v15l12-7.500z"/>',
+  pausa: '<path d="M8.500 5v14M15.500 5v14"/>',
+  video: '<rect x="2.500" y="6" width="14" height="12" rx="2.500"/><path d="m16.500 10.200 5-3v9.600l-5-3z"/>',
+  ant: '<path d="M6 5v14"/><path d="M18 5.500 9 12l9 6.500z"/>', sig: '<path d="M18 5v14"/><path d="M6 5.500 15 12l-9 6.500z"/>',
+  vol: '<path d="M4 9.500h3.500L12 5.500v13l-4.500-4H4z"/><path d="M15.500 9a4 4 0 0 1 0 6M18 6.500a7.500 7.500 0 0 1 0 11"/>',
+  mudo: '<path d="M4 9.500h3.500L12 5.500v13l-4.500-4H4z"/><path d="m16 9.500 5 5M21 9.500l-5 5"/>',
+  pantalla: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  papelera: '<path d="M4 7h16"/><path d="M9.500 7V4.500h5V7"/><path d="M6.500 7l1 13h9l1-13"/>',
+  carpeta: '<path d="M3 6.500A1.500 1.500 0 0 1 4.500 5H9l2 2.500h8.500A1.500 1.500 0 0 1 21 9v9.500a1.500 1.500 0 0 1-1.500 1.500h-15A1.500 1.500 0 0 1 3 18.500z"/>',
+  atras: '<path d="M19 12H5"/><path d="m11 6-6 6 6 6"/>',
   estrella: '<path d="m12 3 2.700 5.800 6.300.800-4.600 4.400 1.200 6.300L12 17.200l-5.600 3.100 1.200-6.300L3 9.600l6.300-.800z"/>',
   corona: '<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.700" r=".9" fill="currentColor"/>',
@@ -1525,7 +1619,7 @@ document.addEventListener("error", e => {
   if(!im || im.tagName !== "IMG") return;
   const ruta = im.getAttribute("src") || "";
   if(im.classList.contains("arte")){ im.style.visibility = "hidden"; return; }
-  if(!ruta.startsWith("/img/") || S.imgMal.has(ruta)) return;
+  if(!(ruta.startsWith("/img/") || ruta.startsWith("/clips/")) || S.imgMal.has(ruta)) return;
   S.imgMal.add(ruta);
   clearTimeout(S._imgT); S._imgT = setTimeout(() => { pintar(true); }, 120);
 }, true);
@@ -1549,7 +1643,7 @@ async function recargarEstado(){ try{ const txt = await leerEstado(); S.estado =
 async function recargarPartida(){ if(!S.selId) return; try{ S.partida = await api("/api/partida/" + S.selId); }catch(_){} }
 
 /* ---------- marco: menu lateral, barra superior, navegacion ---------- */
-const TITULO = {seleccion: "Selección de campeón", inicio: "Inicio", partidas: "Partidas", campeones: "Campeones", retos: "Retos", builds: "Builds y runas", progreso: "Progreso", ia: "Coach con IA", ajustes: "Ajustes"};
+const TITULO = {seleccion: "Selección de campeón", inicio: "Inicio", partidas: "Partidas", videos: "Vídeos", campeones: "Campeones", retos: "Retos", builds: "Builds y runas", progreso: "Progreso", ia: "Coach con IA", ajustes: "Ajustes"};
 const VISTAS = {}, A = {};
 const MARCA = `<svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#63B5FF"/><stop offset="1" stop-color="#1B6FE0"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#mg)"/><path d="M21.6 11A7.7 7.7 0 1 0 21.6 21" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><circle cx="16" cy="16" r="2.3" fill="#fff"/></svg>`;
 
@@ -1566,6 +1660,7 @@ function htmlLat(){
       ${S.draft ? b("seleccion", "mando", "Selección", `<span class="cnt vivo" data-tip="Estás en la selección de campeón">●</span>`) : ""}
       ${b("inicio", "inicio", "Inicio")}
       ${b("partidas", "partidas", "Partidas", pend ? `<span class="cnt av" data-tip="Tienes algo por revisar en tu última partida">1</span>` : "")}
+      ${b("videos", "video", "Vídeos")}
       ${b("campeones", "campeones", "Campeones")}
       ${b("retos", "retos", "Retos", nRetos ? `<span class="cnt" data-tip="Retos activos">${nRetos}</span>` : "")}
       ${b("builds", "builds", "Builds y runas")}
@@ -1592,6 +1687,10 @@ function htmlTope(){
   let miga = "";
   if(S.vista === "partidas" && S.partida && String(S.partida.id) === String(S.selId))
     miga = `<span class="miga">/ ${esc(S.partida.yo.campeon)} · ${S.partida.victoria ? "Victoria" : "Derrota"} · ${fechaCorta(S.partida.fecha)}</span>`;
+  else if(S.vista === "videos" && S.vidPid){
+    const r = (E().partidas || []).find(x => String(x.id) === S.vidPid);
+    if(r) miga = `<span class="miga">/ ${esc(r.campeon)} · ${r.victoria ? "Victoria" : "Derrota"} · ${fechaCorta(r.fecha)}</span>`;
+  }
   const perfil = j ? `<div class="jug">${j.icono && !S.imgMal.has("/img/perfil/" + j.icono) ? `<img class="pf" src="/img/perfil/${j.icono}" alt="">` : ""}
       <div><div class="nb">${esc(j.nombre)}${j.tag ? `<span> #${esc(j.tag)}</span>` : ""}</div>
       <div class="rg">${r ? esc(r.texto) + (r.tier && r.tier !== "NONE" ? ` · ${r.lp} LP` : "") : ""}${j.nivel ? ` · nivel ${j.nivel}` : ""}</div></div></div>` : "";
@@ -1614,6 +1713,7 @@ function pintar(forzar){
   if(medir()) poner(main, pagina());        /* segunda pasada en el mismo instante, ya con los anchos reales: no se ve ningún salto */
   document.body.dataset.vista = S.vista;
   try{ efectos(); }catch(e){ console.error(e); }
+  try{ syncVideo(); }catch(e){ console.error(e); }
 }
 
 /* ---------- detalles de movimiento tras cada repintado ---------- */
@@ -1653,13 +1753,17 @@ function animar(){ const m = $("#main"); m.classList.remove("entra"); void m.off
 
 async function ir(v, o = {}){
   if(!TITULO[v]) v = "inicio";
-  const cambia = v !== S.vista || (v === "partidas" && o.id && String(o.id) !== String(S.selId));
+  const cambia = v !== S.vista || (v === "partidas" && o.id && String(o.id) !== String(S.selId))
+    || (v === "videos" && String(o.pid || "") !== String(S.vidPid || ""));
   S.vista = v;
   if(v === "partidas"){
     const id = o.id || S.selId || ultimaId();
     if(o.tab) S.tab = o.tab; else if(String(id) !== String(S.selId)) S.tab = "resumen";
     if(String(id) !== String(S.selId) || !S.partida){ S.selId = id; S.partida = null; S.verErrores = false; S.cargando = !!id; }
     history.replaceState(null, "", "#partidas" + (id ? "/" + id : ""));
+  } else if(v === "videos"){
+    S.vidPid = o.pid ? String(o.pid) : null;                 /* sin partida: la galería */
+    history.replaceState(null, "", "#videos" + (S.vidPid ? "/" + S.vidPid : ""));
   } else history.replaceState(null, "", "#" + v);
   if(cambia){ if(!o.teclado) animar(); window.scrollTo(0, 0); }      /* desde el teclado (Ctrl+K), sin animación */
   pintar();
@@ -1669,6 +1773,7 @@ async function ir(v, o = {}){
     S.cargando = false; if(S.vista === "partidas") pintar();
   }
   if(v === "retos") cargarRetos();
+  if(v === "videos"){ cargarVideos(); if(S.vidPid) cargarDetalleVid(S.vidPid); }
   if(v === "progreso") cargarProgreso();
   if(v === "campeones") cargarCampeones();
   if(v === "ia") cargarIA();
@@ -1748,7 +1853,7 @@ const CMD = {items: [], sel: 0};
 const norm = t => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 function cmdItems(){
   const e = E() || {partidas: []}, L = [];
-  const ICV = {inicio: "inicio", partidas: "partidas", campeones: "campeones", retos: "retos", builds: "builds", progreso: "progreso", ia: "ia", ajustes: "ajustes"};
+  const ICV = {inicio: "inicio", partidas: "partidas", videos: "video", campeones: "campeones", retos: "retos", builds: "builds", progreso: "progreso", ia: "ia", ajustes: "ajustes"};
   for(const [v, t] of Object.entries(TITULO)) L.push({ic: ICV[v], t, k: "Pantalla", ir: () => ir(v, {teclado: true})});
   L.push({ic: temaActual() === "oscuro" ? "sol" : "luna", t: temaActual() === "oscuro" ? "Cambiar a tema claro" : "Cambiar a tema oscuro", k: "Acción", ir: () => A.tema()});
   L.push({ic: "copiar", t: "Copiar diagnóstico", k: "Acción", ir: () => A.diagnostico()});
@@ -2225,7 +2330,7 @@ function tabClips(p){
     <div class="cl-g">${cl.map((c, i) => `<article class="cl ${c === top ? "top" : ""}" style="--tono:var(--${c.tono});--i:${i}">
       <span class="cl-ic">${ic(CLIP_IC[c.tipo] || "estrella")}</span>
       <div class="cl-c"><span class="cl-m tn">${mmss(c.seg / 60)}${c === top ? `<em>La mejor</em>` : ""}</span><b>${esc(c.titulo)}</b><small>${esc(c.sub)}</small></div>
-      ${c.video ? `<button class="btn pq p" data-a="video" data-u="${esc(c.video.url)}" data-d="${c.video.desde}" data-t="${esc(c.titulo)}" aria-label="Ver el vídeo de ${esc(c.titulo)}">${ic("play", "s")}Vídeo</button>`
+      ${c.video ? `<button class="btn pq p" data-a="video" data-pid="${esc(p.id)}" data-f="${esc(decodeURIComponent(c.video.url.slice(7)))}" data-d="${c.video.desde}" aria-label="Ver el vídeo de ${esc(c.titulo)}">${ic("play", "s")}Vídeo</button>`
         : `<button class="btn pq" data-a="ver" data-s="${c.seg}" aria-label="Ver ${esc(c.titulo)} en la repetición, minuto ${mmss(c.seg / 60)}" data-tip="Abre la repetición en el cliente de LoL">${ic("play", "s")}Ver</button>`}</article>`).join("")}</div>
     <p class="nota-p">${cl.some(c => c.video) ? "Las de <b>Vídeo</b> están grabadas en tu PC. " : ""}${cl.some(c => !c.video) ? "Las demás se abren en la repetición del cliente de LoL (solo partidas del parche actual)." : ""}${(E().grabar || {}).activa ? "" : " Para guardarlas en vídeo, activa <b>Grabar jugadas</b> en Ajustes."}</p></section>`;
 }
@@ -3480,38 +3585,281 @@ setInterval(() => {                        /* cuenta atrás sin repintar la pág
   }
 }, 250);
 
-/* =========================================== VIDEO DE UNA JUGADA =========================================== */
-A.video = el => {
-  S.vidAntes = document.activeElement;
-  poner($("#vid-c"), `<div class="vd-h"><b id="vid-t">${esc(el.dataset.t)}</b>
-      <span><a class="btn pq" href="${esc(el.dataset.u)}" download>${ic("baja", "s")}Descargar</a>
-      <button class="btn pq" data-a="vid-cerrar" aria-label="Cerrar">${ic("no", "s")}</button></span></div>
-    <video id="vid-v" src="${esc(el.dataset.u)}" controls autoplay playsinline preload="auto"></video>`);
-  $("#vid").classList.add("on");
-  $("#vid-c [data-a=vid-cerrar]").focus();
-  const v = $("#vid-v"), d = +el.dataset.d || 0;
-  v.addEventListener("loadedmetadata", () => { try{ v.currentTime = Math.min(d, Math.max(0, v.duration - 1)); }catch(_){} }, {once: true});
-  v.addEventListener("error", () => toast("No pude abrir el vídeo."), {once: true});
-};
-function cerrarVideo(){
-  if(!$("#vid").classList.contains("on")) return;
-  const v = $("#vid-v"); if(v){ v.pause(); v.removeAttribute("src"); v.load(); }
-  const c = $("#vid-c"); c.innerHTML = ""; c.__html = null;        // si se abre el mismo, poner() lo vuelve a pintar
-  $("#vid").classList.remove("on");
-  try{ S.vidAntes && S.vidAntes.focus(); }catch(_){}
-}
-A["vid-cerrar"] = cerrarVideo;
-document.addEventListener("keydown", ev => {
-  if(!$("#vid").classList.contains("on")) return;
-  if(ev.key === "Escape"){ ev.preventDefault(); cerrarVideo(); return; }
-  if(ev.key === "Tab"){                                   // el foco no sale del video mientras esta abierto
-    const f = [...$("#vid-c").querySelectorAll("a[href],button,video")];
-    if(!f.length) return;
-    const i = f.indexOf(document.activeElement), n = ev.shiftKey ? i - 1 : i + 1;
-    if(i < 0 || n < 0 || n >= f.length){ ev.preventDefault(); f[ev.shiftKey ? f.length - 1 : 0].focus(); }
+/* =========================================== VÍDEOS: galería y estudio de jugadas =========================================== */
+/* Solo los momentos clave que grabó el coach (no la partida entera). A la izquierda las jugadas de la partida, en el centro
+   el reproductor con las kills marcadas en la barra y a la derecha las otras partidas con vídeo. */
+const VID = {vel: 1, seguidas: true, mudo: false};
+try{ Object.assign(VID, JSON.parse(localStorage.getItem("coach-video") || "{}")); }catch(_){}
+const guardarVID = () => { try{ localStorage.setItem("coach-video", JSON.stringify(VID)); }catch(_){} };
+const VELS = [0.25, 0.5, 1, 2];
+if(!VELS.includes(VID.vel)) VID.vel = 1;
+const mmssS = x => { x = Math.max(0, Math.floor(x || 0)); return `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}`; };
+const foto = (url, alt = "") => url && !S.imgMal.has(url) ? `<img src="${esc(url)}" alt="${esc(alt)}" loading="lazy" decoding="async">` : "";
+
+async function cargarVideos(){
+  try{ S.videos = await api("/api/videos"); }catch(_){ if(!S.videos) S.videos = {clips: [], gb: 0, max_gb: 8, fallo: true}; }
+  clearTimeout(cargarVideos.t);
+  if(S.vista !== "videos") return;
+  if(S.videos.fotos_pendientes || S._fotosAntes){          /* las fotos se hacen aparte: se vuelven a mirar */
+    for(const c of S.videos.clips) S.imgMal.delete(c.img);
+    S._fotosAntes = !!S.videos.fotos_pendientes;
+    if(S._fotosAntes) cargarVideos.t = setTimeout(cargarVideos, 1500);
   }
+  pintar();
+}
+async function cargarDetalleVid(pid){
+  S.vidDet = S.vidDet || {};
+  if(S.vidDet[pid] !== undefined) return;
+  S.vidDet[pid] = null;                                    /* cargando */
+  let p = null, no = false; try{ p = await api("/api/partida/" + pid); }catch(e){ no = String(e.message) === "404"; }
+  if(p || no) S.vidDet[pid] = p || false; else delete S.vidDet[pid];      /* fallo de red: se reintenta la próxima vez */
+  if(!p && !no){ if(S.vista === "videos" && S.vidPid === pid) setTimeout(() => { if(S.vista === "videos" && S.vidPid === pid) cargarDetalleVid(pid); }, 3000); return; }
+  await cargarVideos();                                    /* abrir la partida quita los vídeos que no eran jugadas */
+}
+/* partidas con vídeo, la más nueva primero, con su resumen del historial */
+function partidasVid(){
+  const V = S.videos; if(!V) return [];
+  const res = new Map((E().partidas || []).map(p => [String(p.id), p])), g = new Map();
+  for(const c of V.clips){ if(!g.has(c.partida)) g.set(c.partida, []); g.get(c.partida).push(c); }
+  return [...g].map(([id, cs]) => {
+    cs.sort((a, b) => a.seg_ini - b.seg_ini);
+    const r = res.get(id) || {campeon: (cs[0].archivo.split("_")[2] || "").replace(/\.mp4$/, "")};
+    return {id, r, clips: cs, creado: Math.max(...cs.map(c => c.creado || 0)), seg: cs.reduce((t, c) => t + Math.max(0, c.seg_fin - c.seg_ini), 0)};
+  }).sort((a, b) => b.creado - a.creado);
+}
+/* cada vídeo con su jugada (la de más peso que cae dentro) y lo que pasó en él, de la línea de tiempo de la partida */
+function momentos(g){
+  const det = S.vidDet && S.vidDet[g.id], t = det && det.tiempo, jug = (t && t.clips) || [], evs = (t && t.eventos) || [];
+  return g.clips.map(c => {
+    const dur = Math.max(1, c.seg_fin - c.seg_ini);
+    const top = jug.filter(j => j.seg >= c.seg_ini - 5 && j.seg <= c.seg_fin + 5).reduce((a, j) => !a || j.peso > a.peso ? j : a, null);
+    const ev = evs.filter(e => e.ts / 1000 >= c.seg_ini - 1 && e.ts / 1000 <= c.seg_fin + 1);
+    const k = ev.filter(e => e.tipo === "kill").length, a = ev.filter(e => e.tipo === "asist").length;
+    return {...c, dur, ev,
+      titulo: top ? top.titulo : k > 1 ? `${k} kills tuyas` : k ? "Kill tuya" : a ? "Pelea con tu equipo" : "Jugada",
+      sub: top ? top.sub : "", tono: top ? top.tono : "az", tipo: top ? top.tipo : "",
+      desde: top ? Math.max(0, Math.min(top.seg - c.seg_ini - 3, dur - 4)) : 0,
+      victimas: ev.filter(e => e.tipo === "kill" || e.tipo === "asist").map(e => [e.cv, e.victima])};
+  });
+}
+function vidActual(){
+  const g = partidasVid().find(x => x.id === S.vidPid); if(!g) return {};
+  const ms = momentos(g), i = Math.max(0, ms.findIndex(m => m.archivo === S.vidArch));
+  return {g, ms, i, m: ms[i]};
+}
+function marcaTxt(e){
+  return e.tipo === "kill" ? `Matas a ${e.victima}` : e.tipo === "asist" ? `Ayudas a matar a ${e.victima}` : e.tipo === "muerte" ? `Te mata ${e.asesino}`
+    : e.tipo === "kill_eq" || e.tipo === "muerte_eq" ? `${e.asesino} mata a ${e.victima}`
+    : e.tipo === "objetivo" ? `${e.nuestro ? "Tu equipo coge" : "El rival coge"} ${e.nombre}` : `${e.nuestro ? "Tu equipo tira" : "El rival tira"} ${e.nombre}`;
+}
+const MK_TONO = {kill: "vd", asist: "az", muerte: "rj", kill_eq: "az", muerte_eq: "rj"};
+function marcas(m){
+  return m.ev.map(e => {
+    const t = e.ts / 1000 - m.seg_ini, pct = Math.max(1.5, Math.min(98.5, t / m.dur * 100));
+    const obj = e.tipo === "objetivo" || e.tipo === "torre", c = obj ? (e.nuestro ? "or" : "rj") : MK_TONO[e.tipo] || "t3";
+    const id = e.tipo === "muerte" ? e.ck : e.cv, yo = e.tipo === "kill" || e.tipo === "asist" || e.tipo === "muerte";
+    const dentro = e.tipo === "objetivo" ? esc(e.sigla || "") : obj ? ic("torre") : id && !S.imgMal.has("/img/campeon/" + id) ? `<img src="/img/campeon/${id}" alt="">` : "";
+    return `<button class="st-mk ${yo ? "yo" : ""}" style="left:${pct.toFixed(2)}%;--c:var(--${c})" data-a="st-ir" data-t="${Math.max(0, t - 2).toFixed(1)}" data-tip="${esc(mmssS(e.ts / 1000) + " · " + marcaTxt(e))}" aria-label="Ir a: ${esc(marcaTxt(e))}">${dentro}</button>`;
+  }).join("");
+}
+
+VISTAS.videos = () => {
+  if(!S.videos) return `<div class="sk" style="height:132px;margin-bottom:16px"></div><div class="vg-g">${'<div class="sk" style="height:240px"></div>'.repeat(4)}</div>`;
+  const gs = partidasVid();
+  return S.vidPid && gs.some(g => g.id === S.vidPid) ? estudio(gs) : galeria(gs);
+};
+function galeria(gs){
+  const gr = E().grabar || {}, V = S.videos, n = gs.reduce((t, x) => t + x.clips.length, 0);
+  if(S.vidPid && S.vidDet && S.vidDet[S.vidPid] === null) return `<div class="sk" style="height:520px"></div>`;
+  if(!gs.length) return `<section class="card vac-g">${ic("video", "l")}<h2 class="dz">${gr.activa ? "Aún no hay vídeos" : "Tus jugadas en vídeo"}</h2>
+    <p>${gr.activa ? "Juega una partida en la Grieta del Invocador: el coach guarda solo tus momentos clave (kills, peleas ganadas, objetivos) y aquí los verás, con sonido."
+      : "Activa <b>Grabar jugadas</b> en Ajustes y el coach guardará en tu PC solo tus momentos clave de cada partida, con sonido, para verlos aquí."}</p>
+    ${gr.activa ? "" : `<button class="btn p" data-a="ir" data-v="ajustes">${ic("ajustes", "s")}Ir a Ajustes</button>`}</section>`;
+  const lleno = V.gb > V.max_gb * .85;
+  return `<section class="card vg-cab"><div><h2 class="dz">Tus jugadas en vídeo</h2>
+      <p>Solo tus momentos clave de cada partida, guardados en tu PC. Las que marques con ${ic("estrella", "s fav")} no se borran nunca; del resto, si pasas de ${V.max_gb} GB se van las más viejas.</p></div>
+    <div class="vg-n"><div><span class="et">Partidas</span><b class="nm">${gs.length}</b></div><div><span class="et">Jugadas</span><b class="nm">${n}</b></div>
+      <div><span class="et">Espacio</span><b class="nm">${dec(V.gb, 1)}<small> / ${V.max_gb} GB</small></b>${metro(V.gb / V.max_gb * 100, lleno ? "am" : "az")}</div>
+      <button class="btn" data-a="abrir-clips">${ic("carpeta", "s")}Abrir carpeta</button></div></section>
+    <div class="vg-g">${gs.map(tarjetaVid).join("")}</div>`;
+}
+function tarjetaVid(x, i){
+  const r = x.r, fav = x.clips.some(c => c.fav), img = (x.clips.find(c => c.fav) || x.clips[0]).img;
+  const res = r.victoria === true ? "Victoria" : r.victoria === false ? "Derrota" : "";
+  return `<button class="vg-c" data-a="vid-abrir" data-id="${esc(x.id)}" data-k="vg-${esc(x.id)}" style="--i:${Math.min(i, 12)}" aria-label="Ver ${plural(x.clips.length, "jugada", "jugadas")} con ${esc(r.campeon || "")}${res ? ", " + res : ""}">
+    <span class="vg-m">${foto(img)}<i class="vg-res" style="--c:var(--${r.victoria === true ? "vd" : r.victoria === false ? "rj" : "t4"})"></i>
+      <span class="vg-b n">${ic("play", "s")}${plural(x.clips.length, "jugada", "jugadas")}</span>${fav ? `<span class="vg-b f">${ic("estrella", "s fav")}</span>` : ""}
+      <span class="vg-b d tn">${mmssS(x.seg)}</span><span class="vg-play">${ic("play")}</span></span>
+    <span class="vg-i">${cp(r.campeon_id, r.campeon, 34)}<span style="min-width:0"><b>${esc(r.campeon || "Partida")}</b><small>${[res, r.cola && esc(r.cola), r.fecha && fechaCorta(r.fecha)].filter(Boolean).join(" · ")}</small></span>
+      ${r.kda ? `<span class="vg-k"><b class="nm">${esc(r.kda)}</b><small>KDA</small></span>` : ""}</span></button>`;
+}
+function estudio(gs){
+  const {g, ms, i, m} = vidActual(); if(!m) return "";
+  const r = g.r, res = r.victoria === true ? "Victoria" : r.victoria === false ? "Derrota" : "", enHist = (E().partidas || []).some(p => String(p.id) === g.id);
+  const otras = gs.filter(x => x.id !== g.id);
+  const fila = (x, j) => `<button class="st-i ${j === i ? "on" : ""}" data-a="st-sel" data-f="${esc(x.archivo)}" data-k="si-${esc(x.archivo)}" style="--tono:var(--${x.tono})" ${j === i ? 'aria-current="true"' : ""}>
+      <span class="st-mi">${foto(x.img)}<span class="tn">${mmssS(x.dur)}</span></span>
+      <span class="st-d"><b>${x.fav ? ic("estrella", "s fav") : ""}<span>${esc(x.titulo)}</span></b><small class="tn">Minuto ${mmssS(x.seg_ini)}</small>
+        ${x.victimas.length ? `<span class="st-vc">${x.victimas.slice(0, 5).map(([id, nb]) => cp(id, nb, 18)).join("")}</span>` : ""}</span></button>`;
+  return `<div class="st-top"><button class="btn pq" data-a="vid-volver">${ic("atras", "s")}Todos los vídeos</button>
+      <div class="st-tt">${cp(r.campeon_id, r.campeon, 36)}<span><b>${esc(r.campeon || "Partida")}${res ? ` · <span class="c-${r.victoria ? "vd" : "rj"}">${res}</span>` : ""}</b>
+        <small>${[r.kda && "KDA " + esc(r.kda), r.cola && esc(r.cola), r.fecha && fechaCorta(r.fecha), plural(ms.length, "jugada", "jugadas")].filter(Boolean).join(" · ")}</small></span></div>
+      ${enHist ? `<button class="btn pq" data-a="ir" data-v="partidas" data-id="${esc(g.id)}" data-tab="clips">Ver la revisión${ic("flecha", "s")}</button>` : ""}</div>
+    <div class="st-g">
+      <aside class="card st-l" aria-label="Jugadas de la partida"><div class="st-lh"><span class="et">Jugadas · ${ms.length}</span>
+        <label>Seguidas<button class="sw ${VID.seguidas ? "on" : ""}" role="switch" aria-checked="${VID.seguidas}" data-a="st-seg" aria-label="Reproducir las jugadas seguidas" data-tip="Al acabar una jugada empieza la siguiente"><i></i></button></label></div>
+        <div class="st-li">${ms.map(fila).join("")}</div></aside>
+      <section class="st-c" aria-label="Reproductor">
+        <div class="st-pl pausa" data-fijo data-k="st-pl"><video id="st-v" playsinline preload="auto"></video></div>
+        <div class="st-ctl">
+          <button class="st-b" data-a="st-paso" data-d="-1" ${i ? "" : "disabled"} aria-label="Jugada anterior" data-tip="Jugada anterior (Mayús ←)">${ic("ant", "s")}</button>
+          <button class="st-b" id="st-pp" data-a="st-pp" data-fijo aria-label="Reproducir">${ic("play")}</button>
+          <button class="st-b" data-a="st-paso" data-d="1" ${i < ms.length - 1 ? "" : "disabled"} aria-label="Jugada siguiente" data-tip="Jugada siguiente (Mayús →)">${ic("sig", "s")}</button>
+          <span class="st-t tn" id="st-tt" data-fijo>0:00 / ${mmssS(m.dur)}</span>
+          <div class="st-tl" data-k="tl-${esc(m.archivo)}"><span class="st-pr" id="st-pr" data-fijo></span>${marcas(m)}</div>
+          <span class="st-vel" role="group" aria-label="Velocidad">${VELS.map(v => `<button class="${VID.vel === v ? "on" : ""}" data-a="st-vel" data-v="${v}" aria-pressed="${VID.vel === v}">${String(v).replace(".", ",")}×</button>`).join("")}</span>
+          <button class="st-b" data-a="st-mudo" aria-label="${VID.mudo ? "Activar el sonido" : "Silenciar"}" data-tip="${VID.mudo ? "Activar el sonido" : "Silenciar"} (M)">${ic(VID.mudo ? "mudo" : "vol", "s")}</button>
+          <button class="st-b" data-a="st-pantalla" aria-label="Pantalla completa" data-tip="Pantalla completa (F)">${ic("pantalla", "s")}</button>
+        </div>
+        <div class="st-inf" style="--tono:var(--${m.tono})"><span class="cl-ic">${ic(CLIP_IC[m.tipo] || "video")}</span>
+          <div style="min-width:0"><span class="cl-m tn">Jugada ${i + 1} de ${ms.length} · minuto ${mmssS(m.seg_ini)}</span><b>${esc(m.titulo)}</b>${m.sub ? `<small>${esc(m.sub)}</small>` : ""}</div>
+          <div class="st-acc"><button class="btn pq ${m.fav ? "fav" : ""}" data-a="st-fav" data-f="${esc(m.archivo)}" aria-pressed="${!!m.fav}" data-tip="${m.fav ? "Quitar de favoritos" : "Las favoritas no se borran nunca solas"}">${ic("estrella", "s")}${m.fav ? "Favorita" : "Guardar"}</button>
+            <a class="btn pq" href="${esc(m.url)}" download="${esc(m.archivo)}">${ic("baja", "s")}Descargar</a>
+            <button class="btn pq" data-a="st-borrar" data-f="${esc(m.archivo)}" aria-label="Borrar este vídeo" data-tip="Borrar este vídeo de tu PC">${ic("papelera", "s")}</button></div></div>
+        <div class="st-kb" aria-hidden="true"><span><kbd>Espacio</kbd>pausa</span><span><kbd>←</kbd><kbd>→</kbd>5 s</span><span><kbd>Mayús</kbd>+ flechas: otra jugada</span><span><kbd>F</kbd>pantalla completa</span></div>
+      </section>
+      ${otras.length ? `<aside class="card st-ot" aria-label="Otras partidas con vídeo"><div class="st-lh"><span class="et">Otras partidas · ${otras.length}</span></div>
+        <div class="st-ol">${otras.slice(0, 12).map(x => `<button class="st-o" data-a="vid-abrir" data-id="${esc(x.id)}" data-k="so-${esc(x.id)}">
+          <span class="st-mi">${foto((x.clips.find(c => c.fav) || x.clips[0]).img)}<span class="tn">${x.clips.length}</span></span>
+          <span style="min-width:0"><b>${esc(x.r.campeon || "Partida")}</b><small>${[x.r.victoria === true ? "Victoria" : x.r.victoria === false ? "Derrota" : "", x.r.fecha && fechaCorta(x.r.fecha)].filter(Boolean).join(" · ")}</small></span></button>`).join("")}</div></aside>` : ""}
+    </div>`;
+}
+
+/* ---------- el reproductor (fijo: el repintado no lo toca; se maneja aquí) ---------- */
+const viendoVideo = () => S.vista === "videos" && !!S.vidPid && !!$("#st-v");
+function apagarVideo(v){ try{ v.pause(); v.removeAttribute("src"); v.load(); delete v.dataset.arch; }catch(_){} }
+function videoEl(){
+  const v = $("#st-v"); if(!v) return null;
+  if(v._listo) return v;
+  v._listo = true;
+  const tick = () => { pintarCabezal(); if(!v.paused && !v.ended && v.isConnected) requestAnimationFrame(tick); };
+  v.addEventListener("play", () => { botonPlay(); requestAnimationFrame(tick); });
+  v.addEventListener("pause", botonPlay);
+  v.addEventListener("timeupdate", pintarCabezal);
+  v.addEventListener("durationchange", pintarCabezal);
+  v.addEventListener("ended", () => { botonPlay(); if(VID.seguidas) vidPaso(1, true); });
+  v.addEventListener("error", () => { if(v.getAttribute("src")) toast("No pude abrir el vídeo."); });
+  v.addEventListener("click", () => { clearTimeout(v._clic); v._clic = setTimeout(vidPlay, 220); });   /* doble clic: solo pantalla completa */
+  v.addEventListener("dblclick", () => { clearTimeout(v._clic); vidPantalla(); });
+  v.addEventListener("volumechange", () => { if(VID.mudo !== v.muted){ VID.mudo = v.muted; guardarVID(); pintar(); } });
+  v.addEventListener("fullscreenchange", () => { v.controls = document.fullscreenElement === v; });
+  return v;
+}
+function syncVideo(){
+  if(S._stV && !S._stV.isConnected){ apagarVideo(S._stV); S._stV = null; }    /* se fue de la pantalla: que no siga sonando */
+  if(S.vista !== "videos") return;
+  const v = videoEl(); if(!v) return;
+  S._stV = v;
+  const {g, m} = vidActual();
+  if(v.dataset.arch && !(g && g.clips.some(c => c.archivo === v.dataset.arch))){ apagarVideo(v); pintarCabezal(); botonPlay(); }   /* otra partida */
+  if(!S.vidDet || S.vidDet[S.vidPid] == null) return;          /* espera a la partida: sabe dónde empieza la jugada */
+  if(!m || m.archivo === S.vidBorrando) return;
+  if(v.dataset.arch === m.archivo){ S.vidAuto = false; S.vidDesde = null; return; }
+  v.dataset.arch = m.archivo;
+  const desde = S.vidDesde != null ? S.vidDesde : m.desde, auto = S.vidAuto, tok = (v._tok || 0) + 1;
+  S.vidDesde = null; S.vidAuto = false; v._tok = tok;
+  v.src = m.url; v.muted = !!VID.mudo; v.defaultPlaybackRate = v.playbackRate = VID.vel;
+  v.addEventListener("loadedmetadata", () => {
+    if(v._tok !== tok) return;
+    const pl = v.parentElement; if(pl && v.videoWidth && v.videoHeight) pl.style.aspectRatio = `${v.videoWidth}/${v.videoHeight}`;
+    try{ v.currentTime = Math.min(desde, Math.max(0, v.duration - 1)); }catch(_){}
+    v.playbackRate = VID.vel;
+    if(auto) v.play().catch(() => {});
+  }, {once: true});
+  pintarCabezal(); botonPlay();
+}
+function pintarCabezal(){
+  const v = $("#st-v"); if(!v) return;
+  const d = isFinite(v.duration) ? v.duration : 0, t = v.currentTime || 0;
+  const pr = $("#st-pr"); if(pr) pr.style.width = (d ? Math.min(100, t / d * 100) : 0) + "%";
+  const tt = $("#st-tt"); if(tt){ const x = `${mmssS(t)} / ${mmssS(d)}`; if(tt.textContent !== x) tt.textContent = x; }
+}
+function botonPlay(){
+  const v = $("#st-v"), b = $("#st-pp"), p = !v || v.paused;
+  if(b && b._p !== p){ b._p = p; b.innerHTML = ic(p ? "play" : "pausa"); b.setAttribute("aria-label", p ? "Reproducir" : "Pausar"); }
+  const pl = $(".st-pl"); if(pl) pl.classList.toggle("pausa", p);
+}
+function vidPlay(){ const v = $("#st-v"); if(!v || !v.getAttribute("src")) return; if(v.paused || v.ended) v.play().catch(() => {}); else v.pause(); }
+function vidPantalla(){ const v = $("#st-v"); if(!v) return; if(document.fullscreenElement) document.exitFullscreen().catch(() => {}); else v.requestFullscreen().catch(() => {}); }
+function vidPaso(d, auto){
+  const {ms, i} = vidActual(), x = ms && ms[i + d]; if(!x) return;
+  const v = $("#st-v");
+  S.vidArch = x.archivo; S.vidAuto = auto || (!!v && !v.paused); S.vidDesde = null;
+  pintar();
+}
+function abrirEstudio(pid, arch, desde){
+  S.vidArch = arch || null; S.vidDesde = desde != null ? desde : null; S.vidAuto = true;
+  ir("videos", {pid: String(pid)});
+}
+A.video = el => abrirEstudio(el.dataset.pid, el.dataset.f, +el.dataset.d || 0);
+A["vid-abrir"] = el => abrirEstudio(el.dataset.id);
+A["vid-volver"] = () => ir("videos");
+A["st-sel"] = el => { if($("#st-v") && $("#st-v").dataset.arch === el.dataset.f){ vidPlay(); return; }
+  S.vidArch = el.dataset.f; S.vidAuto = true; S.vidDesde = null; pintar(); };
+A["st-pp"] = vidPlay;
+A["st-paso"] = el => vidPaso(+el.dataset.d);
+A["st-ir"] = el => { const v = $("#st-v"); if(!v || !v.getAttribute("src")) return; v.currentTime = +el.dataset.t || 0; pintarCabezal(); v.play().catch(() => {}); };
+A["st-vel"] = el => { VID.vel = +el.dataset.v; guardarVID(); const v = $("#st-v"); if(v) v.defaultPlaybackRate = v.playbackRate = VID.vel; pintar(); };
+A["st-mudo"] = () => { VID.mudo = !VID.mudo; guardarVID(); const v = $("#st-v"); if(v) v.muted = VID.mudo; pintar(); };
+A["st-seg"] = () => { VID.seguidas = !VID.seguidas; guardarVID(); pintar(); };
+A["st-pantalla"] = vidPantalla;
+A["st-fav"] = async el => {
+  const f = el.dataset.f, c = (S.videos.clips || []).find(x => x.archivo === f); if(!c) return;
+  const nuevo = !c.fav; c.fav = nuevo; pintar();
+  try{ const r = await api("/api/clip", {archivo: f, fav: nuevo}); if(!r.ok) throw 0;
+    toast(nuevo ? "Favorita: este vídeo no se borrará nunca solo" : "Quitada de favoritas"); }
+  catch(_){ c.fav = !nuevo; pintar(); toast("No pude cambiarlo. ¿Está abierto el coach?"); }
+};
+A["st-borrar"] = async el => {
+  const f = el.dataset.f, v0 = $("#st-v");
+  if(v0) v0.pause();                                       /* que no salte a la siguiente con el diálogo abierto */
+  if(!await confirmar("¿Borrar este vídeo?", "Se borra de tu PC y no se puede recuperar.", "Borrar", true)) return;
+  const {ms} = vidActual(), i = ms ? ms.findIndex(x => x.archivo === f) : -1, sig = i >= 0 ? (ms[i + 1] || ms[i - 1]) : null, v = $("#st-v");
+  S.vidBorrando = f;                                       /* el repintado no lo vuelve a abrir mientras se borra */
+  if(v && v.dataset.arch === f) apagarVideo(v);
+  let r = null; try{ r = await api("/api/clip", {archivo: f, borrar: true}); }catch(_){}
+  S.vidBorrando = null;
+  if(!r || !r.ok){ toast((r && r.msg) || "No pude borrarlo."); pintar(); return; }
+  S.videos.clips = S.videos.clips.filter(c => c.archivo !== f);
+  toast("Vídeo borrado");
+  if(sig){ S.vidArch = sig.archivo; S.vidDesde = null; pintar(); } else ir("videos");
+  cargarVideos();
+};
+/* arrastrar en la barra para moverse por el vídeo */
+document.addEventListener("pointerdown", ev => {
+  const tl = ev.button === 0 && ev.target.closest && ev.target.closest(".st-tl"); if(!tl || ev.target.closest(".st-mk")) return;
+  const v = $("#st-v"); if(!v || !isFinite(v.duration) || !v.duration) return;
+  const mover = e => { const r = tl.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * v.duration; pintarCabezal(); };
+  mover(ev);
+  try{ tl.setPointerCapture(ev.pointerId); }catch(_){}
+  const fin = () => { tl.removeEventListener("pointermove", mover); tl.removeEventListener("pointerup", fin); tl.removeEventListener("pointercancel", fin); };
+  tl.addEventListener("pointermove", mover); tl.addEventListener("pointerup", fin); tl.addEventListener("pointercancel", fin);
 });
-$("#vid").addEventListener("mousedown", ev => { if(ev.target.id === "vid") cerrarVideo(); });
+document.addEventListener("keydown", ev => {
+  const v = $("#st-v");
+  if(S.vista !== "videos" || !v || ev.ctrlKey || ev.altKey || ev.metaKey || $(".modal.on") || $("#cmd").classList.contains("on")) return;
+  const a = document.activeElement, tag = a && a.tagName;
+  if(tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (a && a.isContentEditable)) return;
+  const k = ev.key;
+  if(k === " " && (tag === "BUTTON" || tag === "A")) return;          /* espacio sobre un botón: ese botón */
+  if(k === " " || k.toLowerCase() === "k"){ ev.preventDefault(); vidPlay(); }
+  else if((k === "ArrowLeft" || k === "ArrowRight") && ev.shiftKey){ ev.preventDefault(); vidPaso(k === "ArrowLeft" ? -1 : 1, true); }
+  else if(k === "ArrowLeft" || k === "ArrowRight"){
+    if(!isFinite(v.duration)) return; ev.preventDefault();
+    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + (k === "ArrowLeft" ? -5 : 5))); pintarCabezal(); }
+  else if(k.toLowerCase() === "f"){ ev.preventDefault(); vidPantalla(); }
+  else if(k.toLowerCase() === "m"){ ev.preventDefault(); A["st-mudo"](); }
+});
 
 /* =========================================== NOVEDADES =========================================== */
 const NV_TONO = {nuevo: ["az", "Nuevo", "ia"], mejora: ["or", "Mejora", "rayo"], arreglo: ["vd", "Arreglo", "ok"]};
@@ -3593,8 +3941,9 @@ async function refrescar(){
   if(primera){
     $("#carga").remove(); $(".app").hidden = false;
     S.vistaNueva = e.ultima_nueva;
-    const h = location.hash.slice(1), m = h.match(/^partidas?[\/=](\d+)/);
+    const h = location.hash.slice(1), m = h.match(/^partidas?[\/=](\d+)/), mv = h.match(/^videos\/(\d+)/);
     if(m && ids.includes(m[1])) await ir("partidas", {id: m[1]});
+    else if(mv) await ir("videos", {pid: mv[1]});
     else if(h === "partida") await ir("partidas");
     else if(h === "plan" || h === "aviso") await ir("inicio");
     else await ir(TITULO[h.split("/")[0]] ? h.split("/")[0] : "inicio");
@@ -3609,11 +3958,12 @@ async function refrescar(){
     S.vistaNueva = e.ultima_nueva; S.prog = null;
     S.llega = String(e.ultima_nueva); clearTimeout(S._llegaT); S._llegaT = setTimeout(() => { S.llega = null; pintar(true); }, 1600);
     toast("Partida nueva analizada");
-    if(!escribiendo() && !$("#rev").classList.contains("on") && ids.includes(String(e.ultima_nueva))){ await ir("partidas", {id: e.ultima_nueva}); revisarAviso(); return; }
+    if(!escribiendo() && !$("#rev").classList.contains("on") && !viendoVideo() && ids.includes(String(e.ultima_nueva))){ await ir("partidas", {id: e.ultima_nueva}); revisarAviso(); return; }
   }
   const cambio = k => JSON.stringify(antes[k]) !== JSON.stringify(e[k]);
   if(S.vista === "progreso" && (cambio("partidas") || cambio("revision") || cambio("entreno"))) cargarProgreso();
   if(S.vista === "retos" && (cambio("retos_activos") || cambio("partidas"))) cargarRetos();
+  if(S.vista === "videos" && cambio("partidas")) cargarVideos();
   if(S.vista === "partidas" && S.partida && cambio("partidas") && !escribiendo()) recargarPartida().then(() => pintar());
   if(S.vista === "partidas" && !S.selId && ids.length) ir("partidas");
   pintar();
@@ -3623,8 +3973,10 @@ window.addEventListener("hashchange", () => {
   const h = location.hash.slice(1);
   if(h === "aviso"){ S.forzarAviso = true; if(S.estado) revisarAviso(); return; }
   if(!S.estado) return;
-  const m = h.match(/^partidas?[\/=](\d+)/);
-  if(m) ir("partidas", {id: m[1]}); else if(TITULO[h] && h !== S.vista) ir(h);
+  const m = h.match(/^partidas?[\/=](\d+)/), mv = h.match(/^videos\/(\d+)/);
+  if(m) ir("partidas", {id: m[1]});
+  else if(mv){ if(mv[1] !== S.vidPid || S.vista !== "videos") ir("videos", {pid: mv[1]}); }
+  else if(TITULO[h] && (h !== S.vista || (h === "videos" && S.vidPid))) ir(h);
 });
 document.addEventListener("visibilitychange", () => { if(!document.hidden) refrescar(); });
 refrescar();

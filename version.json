@@ -1,6 +1,6 @@
 {
-  "version": "49",
-  "notas": "tus vídeos con sonido, campanita propia en los avisos y visión para supports",
+  "version": "50",
+  "notas": "estudio de vídeos con tus jugadas y el contador de la selección arreglado",
   "archivos": [
     "coach.py",
     "dashboard.html",
