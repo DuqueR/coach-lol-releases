@@ -1,4 +1,4 @@
-﻿COACH LOL v31
+﻿COACH LOL v32
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,18 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v32: la partida minuto a minuto
+----------------------------------------------
+- En cada partida, pestaña "Minuto a minuto": gráfica de tu probabilidad de ganar (estimada
+  con el oro de tu equipo), la ventaja de oro del equipo y tu oro, XP y CS contra tu rival
+  de línea. Pasa el ratón por encima para ver cada minuto.
+- Debajo, en la misma gráfica: tus kills y muertes, objetivos (D dragón, B Barón, H Heraldo,
+  L larvas, A anciano) y torres, de color azul si fueron de tu equipo y rojo si del rival.
+- "Los momentos que decidieron la partida": los mayores cambios de oro en 2 minutos, qué
+  pasó, qué aprender y un botón para ver la repetición en ese momento.
+- Arreglo: al arrastrar las tarjetas de partida con Ctrl también se movía la ventanita de la
+  selección y podía quedar fuera de la pantalla. Ya no, y siempre aparece dentro.
 
 Lo nuevo en la v31: ventanita de selección nueva
 ------------------------------------------------

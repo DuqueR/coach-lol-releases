@@ -870,6 +870,40 @@ main>.card,main>.kpis{margin-bottom:16px}
 .est-c.on i{background:var(--vd);box-shadow:0 0 0 3px var(--vds)}
 @media (max-width:1500px){ .est-c{display:inline-flex} }
 @media (max-width:900px){ .est-c,.tope .miga{display:none} }
+/* minuto a minuto */
+.mt-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
+.mt-lee{margin:12px 0 4px;font-size:12.5px;color:var(--t2);min-height:19px}
+.mt-lee b{color:var(--t1)} .c-vd{color:var(--vd)} .c-rj{color:var(--rj)}
+.mt-g{overflow-x:auto}
+.mt-svg{width:100%;min-width:520px;height:auto;display:block;touch-action:pan-y}
+.mt-svg .g1{stroke:var(--linea);stroke-width:1} .mt-svg .g0{stroke:var(--linea3);stroke-width:1;stroke-dasharray:3 3}
+.mt-svg .gy{fill:var(--t3);font-size:10.5px;text-anchor:end;font-variant-numeric:tabular-nums}
+.mt-svg .gx{fill:var(--t3);font-size:10.5px;text-anchor:middle}
+.mt-svg .a-bien{fill:var(--vds)} .mt-svg .a-mal{fill:var(--rjs)}
+.mt-svg .ln-t{fill:none;stroke:var(--az);stroke-width:2;stroke-linejoin:round}
+.mt-svg .cur{stroke:var(--t3);stroke-width:1}
+.mt-svg .k-muerte{stroke:var(--rj);stroke-width:2.4;stroke-linecap:round;fill:none}
+.mt-svg .k-kill{fill:var(--vd)}
+.mt-svg .k-obj.n{fill:var(--az)} .mt-svg .k-obj.s{fill:var(--rj)}
+.mt-svg .k-sig{fill:#fff;font-size:9.5px;font-weight:700;text-anchor:middle;pointer-events:none}
+.mt-svg .k-torre.n{fill:var(--az)} .mt-svg .k-torre.s{fill:var(--rj)}
+.mt-svg .ev{cursor:help}
+.mt-ley{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;font-size:11.5px;color:var(--t3)}
+.mt-ley span{display:flex;align-items:center;gap:6px}
+.mt-ley i{width:10px;height:10px;display:inline-block;border-radius:50%}
+.mt-ley .k-kill{background:var(--vd)} .mt-ley .k-muerte{background:var(--rj);border-radius:2px;transform:rotate(45deg);width:8px;height:8px}
+.mt-ley .k-obj{border-radius:3px} .mt-ley .k-obj.n{background:var(--az)} .mt-ley .k-obj.s{background:var(--rj)}
+.mt-ley .k-torre{background:var(--t3);clip-path:polygon(50% 0,100% 100%,0 100%);border-radius:0}
+.mts{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.mmt{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:14px;align-items:start;padding:12px 14px;border-radius:var(--r2);background:var(--s2);border-left:3px solid var(--t4)}
+.mmt.bien{border-left-color:var(--vd)} .mmt.mal{border-left-color:var(--rj)}
+.mt-t{font-size:15px;font-weight:700;display:flex;flex-direction:column;line-height:1.2}
+.mt-t small{font-size:11.5px;color:var(--t3);font-weight:500}
+.mt-c{display:flex;flex-direction:column;gap:4px;min-width:0}
+.mt-c p{margin:0;color:var(--t2);font-size:13px}
+.mt-c .mt-l{color:var(--t1)}
+.mt-c .chip{align-self:flex-start;margin-top:2px}
+@media (max-width:600px){.mmt{grid-template-columns:minmax(0,1fr)}}
 
 /* ---------- tu contra tu rival: filas que caben en cualquier ancho ---------- */
 .vs-cab{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--linea)}
@@ -987,7 +1021,7 @@ kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px sol
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "31";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "32";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1777,9 +1811,9 @@ function htmlRevision(){
   if(!p || String(p.id) !== String(S.selId)) return `<div class="sk" style="height:210px;margin-bottom:16px"></div><div class="sk" style="height:42px;margin-bottom:16px"></div><div class="g"><div class="c7 sk" style="height:420px"></div><div class="c5 sk" style="height:420px"></div></div>`;
   const nRev = p.muertes.filter(d => d.clave_rev && !d.causa).length;
   const tabs = [["resumen", "Resumen", ""], ["muertes", "Muertes", p.muertes.length ? `<span class="n ${nRev ? "av" : ""}" ${nRev ? `data-tip="${plural(nRev, "muerte clave", "muertes clave")} por revisar"` : ""}>${p.muertes.length}</span>` : ""],
-    ["linea", p.rival ? "Tú contra " + esc(p.rival.campeon) : "Línea", ""], ["equipo", "Los 10 jugadores", p.puesto ? `<span class="n">${p.puesto}.º</span>` : ""], ["build", "Runas y build", ""]];
+    ["linea", p.rival ? "Tú contra " + esc(p.rival.campeon) : "Línea", ""], ["tiempo", "Minuto a minuto", ""], ["equipo", "Los 10 jugadores", p.puesto ? `<span class="n">${p.puesto}.º</span>` : ""], ["build", "Runas y build", ""]];
   if(!tabs.some(t => t[0] === S.tab)) S.tab = "resumen";
-  const cuerpo = {resumen: tabResumen, muertes: tabMuertes, linea: tabLinea, equipo: tabEquipo, build: tabBuild}[S.tab];
+  const cuerpo = {resumen: tabResumen, muertes: tabMuertes, linea: tabLinea, tiempo: tabTiempo, equipo: tabEquipo, build: tabBuild}[S.tab];
   return B(banda, p) + `<div class="tabs" role="tablist">${IND_TAB}${tabs.map(([k, t, n]) => `<button role="tab" data-a="tab" data-t="${k}" class="${S.tab === k ? "on" : ""}" aria-selected="${S.tab === k}">${t}${n}</button>`).join("")}
       <span style="margin-left:auto;align-self:center"><button class="btn pq" data-a="copiar" data-tip="Copia un resumen en texto para pegarlo en un chat con Claude">${ic("copiar", "s")}<span>Copiar resumen</span></button></span></div>
     <div data-k="tab-${S.tab}">${B(cuerpo, p)}</div>`;
@@ -1803,6 +1837,91 @@ function banda(p){
       <div class="chips">${p.puesto ? `<span class="chip ${p.puesto <= 3 ? "az" : ""}" data-tip="Tu puesto entre los 10 jugadores por rendimiento">${p.puesto}.º de 10</span>` : ""}${culpa ? `<span class="chip ${culpa[1]}">${culpa[0]}</span>` : ""}</div></div>
   </header>`;
 }
+
+/* ---------- pestaña Minuto a minuto (como dpm.lol / itero) ---------- */
+const SERIES_T = {
+  pv: {t: "Prob. de ganar", v: s => s.pv, pct: true, ayuda: "Estimada con la ventaja de oro de tu equipo y el minuto."},
+  eq: {t: "Oro del equipo", v: s => s.eq, ayuda: "Oro de tu equipo menos el del rival."},
+  oro: {t: "Oro vs rival", v: s => s.oro_r == null ? null : s.oro - s.oro_r, ayuda: "Tu oro menos el de tu rival de línea."},
+  xp: {t: "XP vs rival", v: s => s.xp_r == null ? null : s.xp - s.xp_r, ayuda: "Tu experiencia menos la de tu rival de línea."},
+  cs: {t: "CS vs rival", v: s => s.cs_r == null ? null : s.cs - s.cs_r, ayuda: "Tus súbditos y monstruos menos los de tu rival."}};
+A["serie-t"] = el => { S.serieT = el.dataset.k; pintar(); };
+const firmado = v => (v > 0 ? "+" : v < 0 ? "−" : "") + mil(Math.abs(Math.round(v)));
+const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, "0")}`;
+function tabTiempo(p){
+  const t = p.tiempo;
+  if(!t) return `<section class="card vac-g">${ic("partidas", "l")}<h2 class="dz">Sin minuto a minuto</h2><p>El cliente no guardó la línea de tiempo de esta partida.</p></section>`;
+  if(!SERIES_T[S.serieT] || (S.serieT !== "pv" && S.serieT !== "eq" && !t.rival)) S.serieT = "pv";
+  const r = t.resumen || {};
+  const chips = [r.historia ? `<span class="chip ${p.victoria ? "vd" : "rj"}">${esc(r.historia)}</span>` : "",
+    r.max && r.max.dif > 0 ? `<span class="chip ln">Máxima ventaja: <b class="nm">${firmado(r.max.dif)}</b> (min ${Math.floor(r.max.m)})</span>` : "",
+    r.min && r.min.dif < 0 ? `<span class="chip ln">Peor momento: <b class="nm">${firmado(r.min.dif)}</b> (min ${Math.floor(r.min.m)})</span>` : ""].join("");
+  return `<div class="pila">
+    <section class="card" aria-label="Minuto a minuto">
+      <div class="card-h"><h2>${ic("progreso")}Minuto a minuto</h2><span class="ay">${esc(SERIES_T[S.serieT].ayuda)}</span></div>
+      <div class="filtros">${Object.entries(SERIES_T).filter(([k]) => k === "pv" || k === "eq" || t.rival).map(([k, x]) =>
+        `<button class="chip ${S.serieT === k ? "az" : "ln"}" data-a="serie-t" data-k="${k}">${esc(k === "oro" || k === "xp" || k === "cs" ? x.t.replace("rival", t.rival) : x.t)}</button>`).join("")}</div>
+      ${chips ? `<div class="mt-chips">${chips}</div>` : ""}
+      <div class="mt-lee" id="mt-lee">Pasa el ratón por la gráfica para ver cada minuto.</div>
+      ${grafTiempo(t, S.serieT)}
+      <div class="mt-ley"><span><i class="k-kill"></i>Tus kills</span><span><i class="k-muerte"></i>Tus muertes</span><span><i class="k-obj n"></i>Objetivo tuyo</span><span><i class="k-obj s"></i>Objetivo suyo</span><span><i class="k-torre"></i>Torre</span></div>
+    </section>
+    ${t.momentos.length ? `<section class="card" aria-label="Momentos clave"><div class="card-h"><h2>${ic("rayo")}Los momentos que decidieron la partida</h2><span class="ay">Los mayores cambios de oro en 2 minutos</span></div>
+      <ol class="mts">${t.momentos.map(m => `<li class="mmt ${m.bien ? "bien" : "mal"}">
+        <span class="mt-t nm">${mmss(m.desde)}<small>${mmss(m.hasta)}</small></span>
+        <div class="mt-c"><b>${m.bien ? "Tu equipo gana" : "Tu equipo pierde"} ${mil(Math.abs(m.dif))} de oro</b>
+          <p>${esc(m.que.charAt(0).toUpperCase() + m.que.slice(1))}</p><p class="mt-l">${esc(m.leccion)}</p>
+          <span class="chip ln nm">Prob. de ganar ${m.pv_antes}% → ${m.pv_despues}%</span></div>
+        <button class="btn pq" data-a="ver" data-s="${m.seg}" data-tip="Abre la repetición 15 segundos antes">${ic("play", "s")}Ver</button></li>`).join("")}</ol></section>` : ""}
+  </div>`;
+}
+function grafTiempo(t, k){
+  const ser = t.serie, def = SERIES_T[k], W = 720, H = 268, L = 46, Rr = 12, T = 12, B = 200;
+  const pts = ser.map(s => [s.m, def.v(s)]).filter(x => x[1] != null);
+  if(pts.length < 2) return `<p class="dim">Sin datos para esta gráfica.</p>`;
+  const maxM = Math.max(...ser.map(s => s.m), 1);
+  let lo, hi, base;
+  if(def.pct){ lo = 0; hi = 100; base = 50; }
+  else { const a = Math.max(...pts.map(x => Math.abs(x[1])), 1); const paso = a > 4000 ? 2000 : a > 1500 ? 1000 : a > 600 ? 500 : a > 150 ? 100 : a > 40 ? 20 : 5;
+    hi = Math.ceil(a / paso) * paso; lo = -hi; base = 0; }
+  const X = m => L + m / maxM * (W - L - Rr), Y = v => T + (hi - v) / (hi - lo) * (B - T);
+  const linea = pts.map((x, i) => `${i ? "L" : "M"}${X(x[0]).toFixed(1)},${Y(x[1]).toFixed(1)}`).join("");
+  const area = `${linea}L${X(pts[pts.length - 1][0]).toFixed(1)},${Y(base).toFixed(1)}L${X(pts[0][0]).toFixed(1)},${Y(base).toFixed(1)}Z`;
+  const marcas = def.pct ? [0, 25, 50, 75, 100] : [lo, lo / 2, 0, hi / 2, hi];
+  const fmt = v => def.pct ? v + "%" : firmado(v);
+  const grid = marcas.map(v => `<line x1="${L}" x2="${W - Rr}" y1="${Y(v)}" y2="${Y(v)}" class="${v === base ? "g0" : "g1"}"/><text x="${L - 6}" y="${Y(v) + 4}" class="gy">${fmt(v)}</text>`).join("");
+  const xs = []; for(let m = 0; m <= maxM; m += 5) xs.push(`<text x="${X(m)}" y="${H - 4}" class="gx">${m}</text>`);
+  const tip = e => esc(`${mmss(e.ts / 60000)} · ` + ({muerte: `Moriste (te mató ${e.asesino})`, kill: `Mataste a ${e.victima}`, asist: `Asistencia en ${e.victima}`,
+    kill_eq: `Tu equipo mató a ${e.victima}`, muerte_eq: `Cayó ${e.victima} (de los tuyos)`,
+    objetivo: `${e.nuestro ? "Tu equipo" : "Ellos"} tomaron ${e.nombre}`, torre: `${e.nuestro ? "Tu equipo destruyó" : "Perdisteis"} ${e.nombre}`}[e.tipo] || ""));
+  const ev = t.eventos.map(e => { const x = X(e.ts / 60000).toFixed(1);
+    if(e.tipo === "muerte") return `<g data-tip="${tip(e)}" class="ev"><path d="M${x - 5},${B + 13}l10,10M${+x + 5},${B + 13}l-10,10" class="k-muerte"/><rect x="${x - 7}" y="${B + 10}" width="14" height="16" fill="transparent"/></g>`;
+    if(e.tipo === "kill") return `<g data-tip="${tip(e)}" class="ev"><circle cx="${x}" cy="${B + 18}" r="5" class="k-kill"/></g>`;
+    if(e.tipo === "asist") return `<g data-tip="${tip(e)}" class="ev"><circle cx="${x}" cy="${B + 18}" r="2.6" class="k-kill"/></g>`;
+    if(e.tipo === "objetivo") return `<g data-tip="${tip(e)}" class="ev"><rect x="${x - 7}" y="${B + 32}" width="14" height="14" rx="3" class="k-obj ${e.nuestro ? "n" : "s"}"/><text x="${x}" y="${B + 42.5}" class="k-sig">${esc(e.sigla)}</text></g>`;
+    if(e.tipo === "torre") return `<g data-tip="${tip(e)}" class="ev"><path d="M${x},${B + 33}l6,11h-12z" class="k-torre ${e.nuestro ? "n" : "s"}"/></g>`;
+    return ""; }).join("");
+  return `<div class="mt-g"><svg class="mt-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(def.t)} por minuto" data-l="${L}" data-w="${W - L - Rr}" data-max="${maxM}" data-k="${k}">
+    <defs><clipPath id="mt-arr"><rect x="0" y="0" width="${W}" height="${Y(base)}"/></clipPath><clipPath id="mt-aba"><rect x="0" y="${Y(base)}" width="${W}" height="${H}"/></clipPath></defs>
+    ${grid}${xs.join("")}
+    <path d="${area}" class="a-bien" clip-path="url(#mt-arr)"/><path d="${area}" class="a-mal" clip-path="url(#mt-aba)"/>
+    <path d="${linea}" class="ln-t"/>
+    <line id="mt-cur" x1="-10" x2="-10" y1="${T}" y2="${B}" class="cur"/>
+    <line x1="${L}" x2="${W - Rr}" y1="${B + 28}" y2="${B + 28}" class="g1"/>${ev}</svg></div>`;
+}
+document.addEventListener("pointermove", ev => {
+  const svg = ev.target.closest && ev.target.closest(".mt-svg"); const t = S.partida && S.partida.tiempo;
+  if(!svg || !t) return;
+  const r = svg.getBoundingClientRect(), vx = (ev.clientX - r.left) / r.width * 720;
+  const m = (vx - +svg.dataset.l) / +svg.dataset.w * +svg.dataset.max;
+  let s = t.serie[0]; for(const x of t.serie) if(Math.abs(x.m - m) < Math.abs(s.m - m)) s = x;
+  const cur = svg.querySelector("#mt-cur"), x = +svg.dataset.l + s.m / +svg.dataset.max * +svg.dataset.w;
+  cur.setAttribute("x1", x); cur.setAttribute("x2", x);
+  const lee = document.getElementById("mt-lee"); if(!lee) return;
+  const vs = (a, b, n) => b == null ? "" : ` · ${n}: <b class="nm">${mil(a)}</b> vs ${mil(b)} <span class="${a >= b ? "c-vd" : "c-rj"}">(${firmado(a - b)})</span>`;
+  lee.innerHTML = `<b>Min ${Math.round(s.m)}</b> · Prob. de ganar <b class="nm">${s.pv}%</b> · Oro equipo <b class="nm ${s.eq >= 0 ? "c-vd" : "c-rj"}">${firmado(s.eq)}</b>`
+    + vs(s.oro, s.oro_r, "Oro") + vs(s.cs, s.cs_r, "CS") + (s.niv_r != null ? ` · Nivel ${s.niv} vs ${s.niv_r}` : "");
+});
 
 /* ---------- pestaña Resumen ---------- */
 function tabResumen(p){

@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "31"
+VERSION = "32"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -1458,6 +1458,125 @@ def _nombre_monstruo(e):
     return {"DRAGON": "el dragón", "ELDER_DRAGON": "el dragón anciano", "BARON_NASHOR": "el Barón",
             "RIFTHERALD": "el Heraldo", "HORDE": "las larvas del vacío", "ATAKHAN": "Atakhan"}.get(
         (e.get("monsterType") or "").upper(), "")
+
+
+_SIGLA_OBJ = {"DRAGON": "D", "ELDER_DRAGON": "A", "BARON_NASHOR": "B", "RIFTHERALD": "H", "HORDE": "L", "ATAKHAN": "K"}
+
+
+def minuto_a_minuto(juego, tl, puuid, rec):
+    """La partida minuto a minuto (como dpm.lol o itero): tu oro, XP y CS contra tu rival de linea, la ventaja de oro
+    de tu equipo con su probabilidad de ganar estimada, lo que paso y los momentos que decidieron la partida."""
+    frames = (tl or {}).get("frames") or []
+    if len(frames) < 4:
+        return None
+    mins = max(_dur_seg(juego.get("gameDuration")) / 60.0, 1.0)
+    idents = {pi.get("participantId"): (pi.get("player") or {}) for pi in juego.get("participantIdentities") or []}
+    parts = {p.get("participantId"): p for p in juego.get("participants") or []}
+    yo_id = next((pid for pid, pl in idents.items() if pl.get("puuid") == puuid), None)
+    if yo_id not in parts:
+        return None
+    equipo = parts[yo_id].get("teamId")
+    roles = _roles(parts, frames, mins)
+    rival_id = _encontrar_rival(yo_id, parts, frames, roles)
+    nuestros = {pid for pid, q in parts.items() if q.get("teamId") == equipo}
+    camp = lambda pid: rec.campeon(parts[pid].get("championId")) if pid in parts else ""
+
+    serie = []
+    for f in frames:
+        m = round((f.get("timestamp") or 0) / 60000, 2)
+        yo, rv = _pf(f, yo_id) or {}, (_pf(f, rival_id) or {}) if rival_id else {}
+        oro = lambda pids: sum((_pf(f, pid) or {}).get("totalGold") or 0 for pid in pids)
+        dif = oro(nuestros) - oro(set(parts) - nuestros)
+        serie.append({"m": m, "oro": yo.get("totalGold"), "oro_r": rv.get("totalGold"), "xp": yo.get("xp"),
+                      "xp_r": rv.get("xp"), "cs": _cs_pf(yo) if yo else None, "cs_r": _cs_pf(rv) if rv else None,
+                      "niv": yo.get("level"), "niv_r": rv.get("level"), "eq": dif,
+                      "pv": prob_victoria(dif, max(m, 1)) if m >= 1 else 50})
+
+    eventos = []
+    for t, e in _eventos(frames):
+        ts = e.get("timestamp") or 0
+        if t == "CHAMPION_KILL":
+            kid, vid, asis = e.get("killerId"), e.get("victimId"), e.get("assistingParticipantIds") or []
+            nuestro = (parts[kid].get("teamId") == equipo) if kid in parts else ((parts.get(vid) or {}).get("teamId") != equipo)
+            tipo = ("muerte" if vid == yo_id else "kill" if kid == yo_id else "asist" if yo_id in asis
+                    else "kill_eq" if nuestro else "muerte_eq")
+            eventos.append({"ts": ts, "tipo": tipo, "nuestro": nuestro, "victima": camp(vid),
+                            "asesino": camp(kid) or "una torre o súbditos"})
+        elif t == "ELITE_MONSTER_KILL":
+            kid = e.get("killerId")
+            nuestro = (parts[kid].get("teamId") == equipo) if kid in parts else e.get("killerTeamId") == equipo
+            mt = (e.get("monsterType") or "").upper()
+            eventos.append({"ts": ts, "tipo": "objetivo", "nuestro": nuestro, "nombre": _nombre_monstruo(e),
+                            "sigla": _SIGLA_OBJ.get(mt, "?")})
+        elif t == "BUILDING_KILL" and _nombre_edificio(e):
+            eventos.append({"ts": ts, "tipo": "torre", "nuestro": e.get("teamId") != equipo, "nombre": _nombre_edificio(e)})
+
+    # momentos que decidieron la partida: los mayores cambios de la ventaja del equipo en 2 minutos
+    cambios = []
+    for i in range(2, len(serie)):
+        d = serie[i]["eq"] - serie[i - 2]["eq"]
+        if abs(d) >= 900:
+            cambios.append((abs(d), i, d))
+    elegidos = []
+    for _, i, d in sorted(cambios, reverse=True):
+        if all(abs(i - j) >= 3 for j, _ in elegidos):
+            elegidos.append((i, d))
+        if len(elegidos) == 3:
+            break
+    momentos = []
+    for i, d in sorted(elegidos):
+        a, b = serie[i - 2], serie[i]
+        ev = [x for x in eventos if a["m"] * 60000 < x["ts"] <= b["m"] * 60000]
+        bien = d > 0
+        caen_nuestros = [x for x in ev if x["tipo"] in ("muerte", "muerte_eq")]
+        caen_suyos = [x for x in ev if x["tipo"] in ("kill", "kill_eq", "asist")]
+        obj_n = [x["nombre"] for x in ev if x["tipo"] in ("objetivo", "torre") and x["nuestro"]]
+        obj_s = [x["nombre"] for x in ev if x["tipo"] in ("objetivo", "torre") and not x["nuestro"]]
+        mia = next((x for x in ev if x["tipo"] == "muerte"), None)
+        partes = []
+        caen = lambda k: "cayó 1" if k == 1 else f"cayeron {k}"
+        if caen_suyos:
+            partes.append(f"{caen(len(caen_suyos))} de los suyos")
+        if caen_nuestros:
+            partes.append(f"{caen(len(caen_nuestros))} de los tuyos" + (" (tú incluido)" if mia else ""))
+        if obj_n:
+            partes.append("tu equipo se llevó " + _lista_y(obj_n[:3]))
+        if obj_s:
+            partes.append("ellos se llevaron " + _lista_y(obj_s[:3]))
+        que = (_lista_y(partes) + ".") if partes else "Nadie murió: fue farmeo y presión de oleadas."
+        if not bien and obj_s and len(caen_nuestros) >= 2:
+            leccion = ("Perder la pelea les dio el objetivo. Si caen 2 de los tuyos, cede ese objetivo y defiende: "
+                       "no regales más.")
+        elif not bien and mia:
+            leccion = (f"Tu muerte (te mató {mia['asesino']}) abrió el hueco. Antes de entrar, mira cuántos "
+                       "enemigos no ves en el mapa.")
+        elif not bien and caen_nuestros:
+            leccion = "Pelea perdida. Si vais con menos gente o menos vida, no se entra: se espera a la siguiente."
+        elif not bien:
+            leccion = "Perdisteis oro sin pelear: oleadas y campamentos que se llevó el rival. Junta oleadas antes de ir a otro sitio."
+        elif obj_n:
+            leccion = "Bien convertido: tras ganar la pelea, fuisteis a por el objetivo. Eso es lo que gana partidas."
+        elif caen_suyos:
+            leccion = "Ganasteis la pelea pero no tomasteis nada. Después de ganar una pelea, ve a por torre o dragón."
+        else:
+            leccion = "Ventaja de farmeo: sigue así y conviértela en un objetivo."
+        primero = min((x["ts"] for x in ev if x["tipo"] not in ("asist",)), default=int(a["m"] * 60000))
+        momentos.append({"desde": a["m"], "hasta": b["m"], "dif": d, "bien": bien, "que": que, "leccion": leccion,
+                         "pv_antes": a["pv"], "pv_despues": b["pv"], "seg": max(0, int(primero / 1000))})
+
+    resumen = {}
+    eqs = [(x["eq"], x["m"]) for x in serie]
+    if eqs:
+        mx, mn = max(eqs), min(eqs)
+        resumen["max"] = {"dif": mx[0], "m": mx[1]}
+        resumen["min"] = {"dif": mn[0], "m": mn[1]}
+        gano = bool((parts[yo_id].get("stats") or {}).get("win"))
+        if gano and mn[0] <= -2500:
+            resumen["historia"] = f"Remontada: tu equipo llegó a ir {_miles(-mn[0])} de oro por detrás (min {int(mn[1])})."
+        elif not gano and mx[0] >= 2500:
+            resumen["historia"] = f"Ventaja perdida: tu equipo llegó a ir {_miles(mx[0])} de oro por delante (min {int(mx[1])})."
+    return {"serie": serie, "eventos": [x for x in eventos if x["tipo"] != "kill_eq" or True], "momentos": momentos,
+            "resumen": resumen, "rival": camp(rival_id) if rival_id else ""}
 
 
 def _lista_y(items):
@@ -6543,6 +6662,11 @@ class Ventana:
             pass
 
     def _ini_drag(self, e):
+        # bind_all tambien recibe los clics de las tarjetas de partida: solo se arrastra si el clic es en esta ventana
+        w = str(e.widget)
+        if w != str(self.win) and not w.startswith(str(self.win) + "."):
+            self._drag = None
+            return
         self._drag = (e.x_root - self.win.winfo_x(), e.y_root - self.win.winfo_y(), False)
 
     def _mover(self, e):
@@ -6593,7 +6717,7 @@ class Ventana:
             h = self.marco.winfo_reqheight() + 2
             l, t, r, b = self._area(self.pos[0] + w // 2, self.pos[1] + 20)
             vis = min(h, max(120, b - t - 8))
-            x = self.pos[0]
+            x = max(l, min(self.pos[0], r - w))          # siempre dentro de la pantalla (si no, no se ve)
             y = max(t, min(self.pos[1], b - vis))
             self._sobra = max(0, h - vis)
             self._scroll = max(0, min(self._scroll, self._sobra))
@@ -8424,6 +8548,13 @@ def crear_handler(coach):
                 out["entreno"] = estado_entreno(alm, plan_actual(alm))
                 return self._send(200, out)
             m = re.match(r"^/api/partida/(\d+)$", ruta)
+            if m and m.group(1) not in _TIEMPO:
+                try:                       # el minuto a minuto sale del archivo crudo (se calcula una vez)
+                    crudo = json.loads((CRUDO / f"{m.group(1)}.json").read_text(encoding="utf-8"))
+                    _TIEMPO[m.group(1)] = minuto_a_minuto(crudo.get("juego") or {}, crudo.get("timeline") or {},
+                                                         crudo.get("puuid"), rec)
+                except Exception:
+                    _TIEMPO[m.group(1)] = None
             if m:
                 plan = plan_actual(alm)
                 with alm.lock:
@@ -8452,6 +8583,7 @@ def crear_handler(coach):
                                       for m in p.get("muertes") or []]
                     out["causas"] = {k: {"nombre": v["nombre"], "tipo": v["tipo"]} for k, v in CAUSAS.items()}
                     out["fin_lineas_ms"] = CONFIG["fin_fase_lineas_min"] * 60000
+                    out["tiempo"] = _TIEMPO.get(p["id"])
                     rv_id = (p.get("rival") or {}).get("campeon_id")
                     nm = alm.d.get("matchups", {}).get(f"{p['yo']['campeon_id']}:{rv_id}") if rv_id else None
                     out["nota_matchup"] = (nm or {}).get("texto", "")
@@ -8870,6 +9002,9 @@ def mostrar_panel(url, coach=None, destino=""):
     if coach is not None and time.time() - coach.ultimo_poll_pagina < 75:
         return                                       # abierto en una pestaña normal del navegador
     abrir_app(url + (f"/#{destino}" if destino else ""))
+
+
+_TIEMPO = {}                 # partida -> minuto a minuto (de su archivo crudo)
 
 
 def _cerrar_ventanas_del_panel():

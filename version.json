@@ -1,6 +1,6 @@
 {
-  "version": "31",
-  "notas": "ventanita de selección rediseñada: primero la build, luego la misión, lo demás plegado",
+  "version": "32",
+  "notas": "partida minuto a minuto con los momentos que la decidieron; arreglo: la ventanita de selección salía fuera de pantalla",
   "archivos": [
     "coach.py",
     "dashboard.html",
