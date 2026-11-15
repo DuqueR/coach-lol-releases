@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "42.4"
+VERSION = "43"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -10114,6 +10114,20 @@ def crear_handler(coach):
                 })
             if ruta == "/api/draft":
                 return self._send(200, {"fase": coach.fase, "draft": coach.draft if coach.fase == "ChampSelect" else None})
+            if ruta == "/api/novedades":
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                txt, mejor = "", ()
+                for f in (DIR / "LEEME.txt", Path(getattr(sys, "_MEIPASS", DIR)) / "LEEME.txt"):
+                    try:   # el del exe puede ser mas nuevo que el instalado al lado (o al reves)
+                        t = f.read_text(encoding="utf-8-sig")
+                        top = (novedades_leeme(t, maximo=1) or [{"v": "0"}])[0]["v"]
+                        if _version_num(top) > mejor:
+                            txt, mejor = t, _version_num(top)
+                    except Exception:
+                        pass
+                desde = (q.get("desde") or [""])[0] or None
+                lista = novedades_leeme(txt, desde=desde, hasta=VERSION, maximo=60 if desde else 6)
+                return self._send(200, {"actual": VERSION, "desde": desde, "lista": lista})
             if ruta == "/api/retos":
                 return self._send(200, retos_estado(alm, rec))
             if ruta == "/api/campeones":
@@ -10602,6 +10616,51 @@ def actualizar_ahora():
     log(f"Actualizando a v{_ACTU['nueva']} desde el dashboard: reinicio.")
     threading.Timer(0.8, _reiniciar).start()
     return True, f"Actualizando a la versión {_ACTU['nueva']}…"
+
+
+NOV_ARREGLO = ("arregl", "bien contad", "sin mezclas", "un solo coach", "fallo", "error", "roto", "ya salta", "no se abr")
+NOV_MEJORA = ("más ", "mejor", "pulid", "justo", "justa", "clara", "rápid", "limpi")
+
+
+def novedades_leeme(txt, desde=None, hasta=None, maximo=6):
+    """Las secciones "Lo nuevo en la vX: titulo" del LEEME, de la mas nueva a la mas vieja, con sus puntos.
+    desde (excluida) y hasta (incluida) acotan por version. tipo: nuevo, mejora o arreglo."""
+    out, cur = [], None
+    lineas = txt.splitlines()
+    subraya = re.compile(r"^\s*([-=])\1{3,}\s*$")
+    for i, linea in enumerate(lineas):
+        m = re.match(r"^Lo nuevo en la v([\d.]+)(?:\s*a\s*v[\d.]+)?\s*:?\s*(.*)$", linea.strip())
+        if m:
+            cur = {"v": m.group(1), "titulo": m.group(2).strip(), "puntos": []}
+            out.append(cur)
+            continue
+        if subraya.match(linea):
+            continue
+        if i + 1 < len(lineas) and subraya.match(lineas[i + 1]):
+            cur = None        # otra cabecera subrayada ("Versiones anteriores"...): se acabo la seccion
+            continue
+        if cur is None or not linea.strip():
+            continue
+        p = re.match(r"^(?:-|\d+\.)\s+(.*)$", linea)
+        if p:
+            cur["puntos"].append(p.group(1).strip())
+        elif linea.startswith(" ") and cur["puntos"]:
+            cur["puntos"][-1] += " " + linea.strip()
+        elif not cur["puntos"] and not cur["titulo"]:
+            cur["titulo"] = linea.strip()
+        else:
+            cur["puntos"].append(linea.strip())
+    filas = []
+    for x in out:
+        v = _version_num(x["v"])
+        if (desde and v <= _version_num(desde)) or (hasta and v > _version_num(hasta)):
+            continue
+        t = x["titulo"].lower()
+        x["tipo"] = "arreglo" if any(k in t for k in NOV_ARREGLO) else "mejora" if any(k in t for k in NOV_MEJORA) else "nuevo"
+        x["titulo"] = (x["titulo"][:1].upper() + x["titulo"][1:]) if x["titulo"] else f"Versión {x['v']}"
+        filas.append(x)
+    filas.sort(key=lambda x: _version_num(x["v"]), reverse=True)
+    return filas[:maximo]
 
 
 def novedades_actualizacion():

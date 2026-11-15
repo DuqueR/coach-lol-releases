@@ -295,6 +295,68 @@ html[data-tema="claro"] .modal{background:rgba(20,28,44,.45)}
 @starting-style{#tip{opacity:0;transform:scale(.97)}}
 #tip.instante{transition:none}
 
+/* ---------- novedades tras actualizar ---------- */
+.nv .nv-c{width:min(640px,100%);padding:0;border-radius:22px;border:0;overflow:hidden;display:flex;flex-direction:column;
+  background:var(--s1);box-shadow:0 0 0 1px color-mix(in srgb,var(--az) 28%,var(--linea2)),0 30px 80px -10px rgba(0,0,0,.6),0 0 120px -30px color-mix(in srgb,var(--az) 55%,transparent)}
+.nv.on .nv-c{transition:opacity .26s var(--ease-out),transform .32s var(--ease-out)}
+@starting-style{.nv.on .nv-c{opacity:0;transform:translateY(10px) scale(.965)}}
+.nv-h{position:relative;padding:30px 30px 26px;overflow:hidden;isolation:isolate;flex:none}
+.nv-h::before{content:"";position:absolute;inset:-40%;z-index:-2;
+  background:radial-gradient(40% 50% at 18% 30%,color-mix(in srgb,var(--az) 55%,transparent),transparent 70%),
+    radial-gradient(35% 45% at 82% 20%,color-mix(in srgb,var(--vi) 50%,transparent),transparent 70%),
+    radial-gradient(40% 40% at 70% 95%,color-mix(in srgb,var(--or) 38%,transparent),transparent 70%);
+  filter:blur(18px);opacity:.75;animation:nv-aurora 16s ease-in-out infinite alternate}
+.nv-h::after{content:"";position:absolute;inset:0;z-index:-1;
+  background-image:linear-gradient(var(--linea) 1px,transparent 1px),linear-gradient(90deg,var(--linea) 1px,transparent 1px);background-size:26px 26px;
+  -webkit-mask-image:radial-gradient(80% 90% at 50% 0%,#000 20%,transparent 75%);mask-image:radial-gradient(80% 90% at 50% 0%,#000 20%,transparent 75%)}
+@keyframes nv-aurora{to{transform:translate3d(4%,6%,0) rotate(8deg)}}
+.nv-ce{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;border:0;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--s1) 55%,transparent);color:var(--t2);backdrop-filter:blur(6px);transition:background .15s,color .15s,transform .16s var(--ease-out)}
+@media (hover:hover){.nv-ce:hover{background:var(--s3);color:var(--t1)}}
+.nv-ce:active{transform:scale(.94)}
+.nv-eb{display:inline-flex;align-items:center;gap:8px;padding:5px 11px 5px 8px;border-radius:999px;font-size:var(--fs-2);font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--t1);background:color-mix(in srgb,var(--s1) 60%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--az) 35%,transparent);backdrop-filter:blur(6px)}
+.nv-eb .i{width:15px;height:15px;color:var(--or)}
+.nv-v{display:flex;align-items:flex-end;gap:16px;margin-top:16px}
+.nv-num{position:relative;font-size:76px;line-height:.86;letter-spacing:-.01em;
+  background:linear-gradient(180deg,var(--t1) 30%,color-mix(in srgb,var(--az) 70%,var(--t1)));-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:nv-pop .5s .08s var(--ease-out) both}
+.nv-num::after{content:attr(data-t);position:absolute;inset:0;color:transparent;
+  background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.85) 50%,transparent 65%);background-size:250% 100%;background-position:120% 0;
+  -webkit-background-clip:text;background-clip:text;animation:nv-brillo 1.1s .45s ease-out both}
+@keyframes nv-pop{from{opacity:0;transform:translateY(8px) scale(.94)}}
+@keyframes nv-brillo{to{background-position:-30% 0}}
+.nv-v small{display:block;font-size:var(--fs-4);color:var(--t2);line-height:1.35;padding-bottom:6px}
+.nv-v small b{color:var(--t1)}
+.nv-h h2{font-size:30px;text-transform:uppercase;margin-top:14px;text-wrap:balance}
+.nv-b{padding:6px 30px 8px;overflow:auto;flex:1 1 auto;min-height:0}
+.nv-l{position:relative;display:grid;gap:4px;padding:8px 0 4px}
+.nv-l::before{content:"";position:absolute;left:11px;top:22px;bottom:22px;width:2px;border-radius:2px;
+  background:linear-gradient(var(--az),color-mix(in srgb,var(--az) 10%,transparent))}
+.nv-it{position:relative;padding:12px 0 12px 38px;animation:nv-sube .42s calc(.12s + var(--i) * 60ms) var(--ease-out) both}
+@keyframes nv-sube{from{opacity:0;transform:translateY(8px)}}
+.nv-it>i{position:absolute;left:4px;top:15px;width:16px;height:16px;border-radius:50%;background:var(--s1);
+  box-shadow:0 0 0 2px var(--tono),0 0 0 6px color-mix(in srgb,var(--tono) 18%,transparent)}
+.nv-it>i::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--tono)}
+.nv-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nv-cab .chip{background:color-mix(in srgb,var(--tono) 15%,transparent);color:var(--tono)}
+.nv-cab small{color:var(--t3);font-size:var(--fs-3);font-weight:650}
+.nv-it h3{font-size:var(--fs-7);font-weight:720;margin-top:6px;line-height:1.3}
+.nv-it ul{display:grid;gap:7px;margin-top:9px}
+.nv-it li{display:grid;grid-template-columns:18px 1fr;gap:8px;color:var(--t2);font-size:var(--fs-4);line-height:1.5}
+.nv-it li .i{width:16px;height:16px;margin-top:3px;color:var(--tono)}
+.nv-mas{margin:2px 0 6px 38px}
+.nv-f{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:16px 30px 20px;flex:none;
+  border-top:1px solid var(--linea);background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--az) 4%,transparent))}
+.nv-f p{display:flex;align-items:center;gap:8px;color:var(--t3);font-size:var(--fs-3)}
+.nv-f p .i{width:15px;height:15px;color:var(--vd)}
+.nv-f .btn{min-width:150px}
+.nv-vacio{padding:26px 0;color:var(--t2)}
+@media (prefers-reduced-motion:reduce){.nv-h::before,.nv-num,.nv-num::after,.nv-it{animation:none}}
+html[data-tema="claro"] .nv-h::before{opacity:.45}
+html[data-tema="claro"] .nv-num::after{background-image:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.95) 50%,transparent 65%)}
+@media (max-width:560px){.nv-h,.nv-b,.nv-f{padding-left:20px;padding-right:20px}.nv-num{font-size:56px}.nv-h h2{font-size:24px}.nv-f .btn{flex:1}}
+
 /* ============================ comunes de las vistas ============================ */
 .chips{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}
 .pie{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
@@ -1120,6 +1182,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
 </div>
 <div class="modal" id="aviso" role="alertdialog" aria-modal="true" aria-labelledby="aviso-t"><div class="modal-c" id="aviso-c"></div></div>
 <div class="modal" id="rev" role="dialog" aria-modal="true" aria-label="Revisar una muerte"><div class="modal-c" id="rev-c"></div></div>
+<div class="modal nv" id="nov" role="dialog" aria-modal="true" aria-labelledby="nov-t"><div class="modal-c nv-c" id="nov-c"></div></div>
 <div class="modal" id="conf" role="alertdialog" aria-modal="true" aria-labelledby="conf-t"><div class="modal-c" id="conf-c"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="tip" role="tooltip"></div>
@@ -1129,7 +1192,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "42.4";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "43";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -3077,7 +3140,7 @@ VISTAS.ajustes = () => {
             : e.actualizacion && e.actualizacion.pendiente ? `Hay una versión ${esc(e.actualizacion.pendiente)}: pulsa Actualizar arriba`
             : "Automáticas: al abrir el coach y cada 20 minutos"}</b></li></ul>
         <p class="nota-p">¿Algo falla o tienes una idea? Copia el diagnóstico (no lleva tus claves) y pégalo en tu comentario.</p>
-        <div class="pie izq"><button class="btn" data-a="diagnostico">${ic("info", "s")}Copiar diagnóstico</button>
+        <div class="pie izq"><button class="btn" data-a="novedades">${ic("ia", "s")}Novedades</button><button class="btn" data-a="diagnostico">${ic("info", "s")}Copiar diagnóstico</button>
           <button class="btn" data-a="feedback">Enviar comentario</button>
           <button class="btn pe mantener" data-a="salir" data-tip="Mantén pulsado para cerrar"><i class="hold" aria-hidden="true"></i>${ic("salir", "s")}<span>Cerrar el coach</span></button></div></section>
     </div></div>`;
@@ -3228,6 +3291,52 @@ setInterval(() => {                        /* cuenta atrás sin repintar la pág
   }
 }, 250);
 
+/* =========================================== NOVEDADES =========================================== */
+const NV_TONO = {nuevo: ["az", "Nuevo", "ia"], mejora: ["or", "Mejora", "rayo"], arreglo: ["vd", "Arreglo", "ok"]};
+async function abrirNovedades(desde){
+  let r;
+  try{ r = await api("/api/novedades" + (desde ? "?desde=" + encodeURIComponent(desde) : ""), null, 8000); }catch(_){ return; }
+  const l = r.lista || [];
+  if(desde && !l.length) return;
+  S.novTodo = false; S.novDatos = {r, desde};
+  S.novAntes = document.activeElement;
+  pintarNovedades();
+  $("#nov").classList.add("on");
+  setTimeout(() => { const b = $("#nov-ok"); if(b) b.focus(); }, 60);
+}
+function pintarNovedades(){
+  const {r, desde} = S.novDatos, l = r.lista || [];
+  const vistas = S.novTodo ? l : l.slice(0, 3), resto = l.length - vistas.length;
+  const ult = l[0] || {v: r.actual, titulo: "Coach al día", puntos: [], tipo: "nuevo"};
+  const sub = desde ? `Antes tenías la <b>v${esc(desde)}</b>${l.length > 1 ? ` · ${l.length} versiones nuevas` : ""}` : "Lo último que trae el coach";
+  poner($("#nov-c"), `<header class="nv-h">
+      <button class="nv-ce" data-a="nov-cerrar" aria-label="Cerrar">${ic("no")}</button>
+      <span class="nv-eb">${ic("ia")}${desde ? "Coach actualizado" : "Novedades"}</span>
+      <div class="nv-v"><b class="nv-num dz nm" data-t="v${esc(r.actual)}">v${esc(r.actual)}</b><small>${sub}</small></div>
+      <h2 class="dz" id="nov-t">${esc(ult.titulo)}</h2>
+    </header>
+    <div class="nv-b">${l.length ? `<div class="nv-l">${vistas.map((x, i) => {
+        const [tono, et, icono] = NV_TONO[x.tipo] || NV_TONO.nuevo;
+        return `<article class="nv-it" style="--i:${i};--tono:var(--${tono})"><i aria-hidden="true"></i>
+          <div class="nv-cab"><span class="chip">${ic(icono)}${et}</span><small class="tn">v${esc(x.v)}</small></div>
+          ${i || !x.titulo ? `<h3>${esc(x.titulo)}</h3>` : ""}
+          <ul>${x.puntos.map(t => `<li>${ic("ok")}<span>${esc(t)}</span></li>`).join("")}</ul></article>`;
+      }).join("")}</div>${resto > 0 ? `<button class="enl nv-mas" data-a="nov-todo">Ver ${plural(resto, "versión más", "versiones más")}${ic("chev", "s")}</button>` : ""}`
+      : `<p class="nv-vacio">No hay notas para esta versión.</p>`}</div>
+    <footer class="nv-f"><p>${ic("escudo")}Tus partidas, claves y ajustes siguen igual.</p>
+      <button class="btn p gr" id="nov-ok" data-a="nov-cerrar">${desde ? "¡A jugar!" : "Entendido"}</button></footer>`);
+}
+function cerrarNovedades(){
+  if(!$("#nov").classList.contains("on")) return;
+  $("#nov").classList.remove("on");
+  try{ S.novAntes && S.novAntes.focus && S.novAntes.focus(); }catch(_){}
+}
+A["nov-cerrar"] = cerrarNovedades;
+A["nov-todo"] = () => { S.novTodo = true; pintarNovedades(); };
+A["novedades"] = () => abrirNovedades();
+document.addEventListener("keydown", ev => { if(ev.key === "Escape" && $("#nov").classList.contains("on")){ ev.preventDefault(); cerrarNovedades(); } });
+$("#nov").addEventListener("mousedown", ev => { if(ev.target.id === "nov") cerrarNovedades(); });
+
 /* =========================================== CICLO =========================================== */
 const escribiendo = () => { const a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "range")) && a.value.trim().length > 0; };
 async function refrescar(){
@@ -3255,7 +3364,7 @@ async function refrescar(){
   if(primera && nov){
     let visto = null; try{ visto = localStorage.getItem("coach-novedades"); }catch(_){}
     if(visto !== nov.a){ try{ localStorage.setItem("coach-novedades", nov.a); }catch(_){}
-      setTimeout(() => toast(`Coach actualizado a la versión ${nov.a}${nov.notas ? ": " + nov.notas : ""}`), 600); }
+      setTimeout(() => abrirNovedades(nov.de || null).then(() => { if(!$("#nov").classList.contains("on")) toast(`Coach actualizado a la versión ${nov.a}`); }), 700); }
   }
   if(e.tema && e.tema !== temaActual() && (primera || !antes || antes.tema !== e.tema)) ponerTema(e.tema);
   try{ localStorage.setItem("coach-tema", temaActual()); }catch(_){}

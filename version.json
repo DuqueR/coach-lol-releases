@@ -1,6 +1,6 @@
 {
-  "version": "42.4",
-  "notas": "nunca se abren dos coaches a la vez (ni dos ventanitas)",
+  "version": "43",
+  "notas": "al actualizarse, el coach te enseña las novedades en una ventana",
   "archivos": [
     "coach.py",
     "dashboard.html",

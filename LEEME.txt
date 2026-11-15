@@ -12,6 +12,12 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v43: las novedades, en una ventana
+- Cuando el coach se actualiza, al abrirlo te enseña una ventana con lo que
+  trae la versión nueva: cada cambio marcado como Nuevo, Mejora o Arreglo, y
+  si te saltaste varias versiones, todas juntas.
+- Puedes volver a verla cuando quieras en Ajustes > Novedades.
+
 Lo nuevo en la v42.4: un solo coach a la vez
 - Si el coach se reiniciaba mientras el anterior aún se cerraba, podían quedar dos
   abiertos (dos ventanitas, y runas y hechizos puestos dos veces). Ahora el nuevo espera
