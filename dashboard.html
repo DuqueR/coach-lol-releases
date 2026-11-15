@@ -1066,7 +1066,7 @@ kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px sol
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "37.2";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "37.3";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -2864,11 +2864,11 @@ function cardIA(p){
     <div class="pie"><button class="btn" data-a="ir" data-v="ia">${ic("llave", "s")}Poner la clave</button></div></section>`;
   const seg = esp ? Math.round((Date.now() - esp) / 1000) : 0;
   return `<section class="card ia-c on" aria-label="Análisis con IA">
-    <div class="card-h"><h2>${ic("ia")}Análisis escrito por IA</h2>${a ? `<span class="der"><span class="chip vi">${esc(a.modelo)}</span></span>` : ""}</div>
+    <div class="card-h"><h2>${ic("ia")}Análisis escrito por IA</h2>${a ? `<span class="der"><span class="chip vi">${ic("ok")}Listo</span></span>` : ""}</div>
     ${a ? textoIA(a.texto) : esp ? "" : `<p class="t2">Esta partida aún no tiene análisis.</p>`}
     ${esp ? `<p class="ia-paso" role="status"><span class="gira"></span><span>${esc(S.iaPaso[p.id] || "Preparando los datos…")} <span class="tn t3">(${seg} s)</span></span></p>
         <div class="sk-txt" aria-hidden="true"><i class="sk" style="width:94%"></i><i class="sk" style="width:88%"></i><i class="sk" style="width:97%"></i><i class="sk" style="width:62%"></i></div>
-        <p class="nota-p">Prueba los modelos gratis uno por uno hasta que alguno responde. Si están saturados tarda más; puedes seguir usando el coach mientras tanto.</p>`
+        <p class="nota-p">Suele tardar menos de un minuto. Puedes seguir usando el coach: el análisis aparece aquí solo.</p>`
       : `<div class="pie"><button class="btn ${a ? "" : "p"}" data-a="ia-pedir" data-id="${esc(p.id)}" data-f="${a ? 1 : 0}">${ic("ia", "s")}${a ? "Volver a generar" : "Analizar con IA"}</button></div>`}
     <p class="nota-p">Redactado por una IA con los números del coach. Puede equivocarse: si contradice un dato de esta página, vale el dato.</p></section>`;
 }
@@ -2910,7 +2910,7 @@ function cardClaves(i){
   return `<section class="card" aria-label="Claves de la IA">
     <div class="card-h"><h2>${ic("llave")}Tus claves</h2><span class="ay">Se guardan solo en tu PC, en datos\\ia.json</span></div>
     <div class="clave"><div class="cb"><b>Gemini, de Google</b><span class="chip ${i.gemini ? "vd" : ""}">${i.gemini ? `${ic("ok")}Guardada · termina en ${esc(i.gemini_fin || "")}` : "Sin clave"}</span></div>
-      <p class="t2">${i.gemini ? `Es la primera que se usa. Último modelo que respondió: <b>${esc(i.modelo || "ninguno todavía")}</b>.`
+      <p class="t2">${i.gemini ? `Es la primera que se usa. ${i.modelo ? "Funciona: ya escribió análisis de tus partidas." : "Todavía no ha escrito ningún análisis."}`
         : `Entra en <b>aistudio.google.com/apikey</b> con tu cuenta de Google, pulsa “Create API key” y pégala aquí. Es gratis y no pide tarjeta.`}</p>
       <div class="fila-c"><input class="campo" id="ia-clave" type="password" placeholder="${i.gemini ? "Pega otra clave para cambiarla" : "Pega aquí tu clave de Gemini"}" autocomplete="off" spellcheck="false">
         <button class="btn ${i.gemini ? "" : "p"}" data-a="ia-guardar">${i.gemini ? "Cambiar" : "Guardar"}</button>${i.gemini ? `<button class="btn pe" data-a="ia-quitar">Quitar</button>` : ""}</div></div>

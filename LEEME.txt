@@ -12,6 +12,14 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v37.3: la IA, más rápida y más clara
+--------------------------------------------------
+- El análisis con IA ya no enseña el nombre técnico del modelo que lo escribió (salía "OpenRouter: nvidia/…").
+  Mientras escribe dice "Escribiendo tu análisis…" en vez de "Probando modelo…".
+- Más rápido: el coach recuerda qué modelo de Gemini responde bien y empieza por él. Los que se quedan colgados o
+  están saturados pasan al final durante 24 horas y se espera menos por ellos. Antes podía tardar más de 2 minutos.
+- Los errores se explican con una frase ("La IA está muy ocupada ahora mismo…"); el detalle técnico va al registro.
+
 Lo nuevo en la v37.2
 --------------------
 - En "Tu rendimiento", las curvas de un rol con pocas partidas (por ejemplo, Mid con 7) salían en gris porque no

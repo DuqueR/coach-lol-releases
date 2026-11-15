@@ -1,6 +1,6 @@
 {
-  "version": "37.2",
-  "notas": "las curvas de 'Tu rendimiento' tienen color también en roles con pocas partidas",
+  "version": "37.3",
+  "notas": "análisis con IA más rápido y sin nombres técnicos de modelos; mensajes de error más claros",
   "archivos": [
     "coach.py",
     "dashboard.html",

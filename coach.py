@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "37.2"
+VERSION = "37.3"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -5073,7 +5073,7 @@ def ia_pedir_abierto(prov, clave, texto, sistema):
         return max([float(x) for x in ns] or [0])
     ultimo = f"{nombre} no tiene modelos de texto para tu clave."
     for modelo in sorted(ids, key=lambda i: -tam(i))[:3]:
-        IA_PASO["txt"] = f"Probando {nombre}: {modelo}…"
+        IA_PASO["txt"] = "Hay mucha gente usando la IA ahora: lo intento por otra vía…"
         t0 = time.time()
         cuerpo = json.dumps({"model": modelo, "temperature": 0.3,
                              "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": texto}]}).encode("utf-8")
@@ -5112,7 +5112,7 @@ def ia_pedir(texto, sistema=IA_SISTEMA, json_=False):
             error = e
             # saturado o con limite: una segunda pasada tras unos segundos suele bastar (solo si la primera fue rapida)
             if ("saturado" in str(e) or "límite" in str(e)) and time.time() - t_ini < 30:
-                IA_PASO["txt"] = "Gemini saturado, reintento en unos segundos…"
+                IA_PASO["txt"] = "Hay mucha gente usando la IA ahora: espera unos segundos…"
                 log("IA: Gemini saturado; reintento en 8 s.")
                 time.sleep(8)
                 try:
@@ -5129,16 +5129,28 @@ def ia_pedir(texto, sistema=IA_SISTEMA, json_=False):
 
 def _ia_pedir_gemini(cfg, texto, sistema, json_=False):
     modelos = ([cfg["modelo"]] if cfg["modelo"] else []) + [m for m in ia_modelos(cfg["clave"]) if m != cfg["modelo"]]
-    # el ultimo modelo que respondio va primero durante 6 horas (se recuerda tambien al reabrir el coach): los mas
-    # nuevos suelen estar saturados en el plan gratis y esperar por ellos en cada partida tarda minutos
+    # el ultimo modelo que respondio va primero durante 7 dias y los que se colgaron o estaban saturados en las
+    # ultimas 24 h van al final (se recuerda al reabrir el coach): los mas nuevos suelen estar saturados en el plan
+    # gratis y esperar 45 s por cada uno hacia que el analisis tardara minutos
     if not _IA_MODELOS["ok"]:
         try:
             g = json.loads((CACHE / "ia_ok.json").read_text(encoding="utf-8"))
             _IA_MODELOS["ok"], _IA_MODELOS["ok_ts"] = g.get("modelo"), g.get("ts") or 0
+            _IA_MODELOS["lentos"] = {k: v for k, v in (g.get("lentos") or {}).items() if time.time() - v < 86400}
         except Exception:
             pass
-    if _IA_MODELOS["ok"] in modelos and time.time() - _IA_MODELOS["ok_ts"] < 6 * 3600:
-        modelos = [_IA_MODELOS["ok"]] + [m for m in modelos if m != _IA_MODELOS["ok"]]
+    lentos = _IA_MODELOS.setdefault("lentos", {})
+    bueno = (_IA_MODELOS["ok"] if _IA_MODELOS["ok"] in modelos and time.time() - _IA_MODELOS["ok_ts"] < 7 * 86400
+             and lentos.get(_IA_MODELOS["ok"], 0) < _IA_MODELOS["ok_ts"] else None)     # si despues se colgo, ya no
+    modelos = ([bueno] if bueno else []) + sorted([m for m in modelos if m != bueno],
+                                                   key=lambda m: time.time() - lentos.get(m, 0) < 86400)
+
+    def recordar():
+        try:
+            (CACHE / "ia_ok.json").write_text(json.dumps({"modelo": _IA_MODELOS["ok"], "ts": _IA_MODELOS["ok_ts"],
+                                                          "lentos": lentos}), encoding="utf-8")
+        except Exception:
+            pass
     inicio = time.time()
     ultimo = "No pude hablar con Gemini."
     cuerpo = json.dumps({"systemInstruction": {"parts": [{"text": sistema}]},
@@ -5146,25 +5158,23 @@ def _ia_pedir_gemini(cfg, texto, sistema, json_=False):
                          "generationConfig": dict({"temperature": 0.3},
                                                   **({"responseMimeType": "application/json"} if json_ else {}))}).encode("utf-8")
     for modelo in modelos[:6]:
-        if time.time() - inicio > 90:            # tope de tiempo: mejor pasar al respaldo que esperar minutos
-            log("IA: Gemini tardó más de 90 segundos; paso al respaldo si lo hay.")
+        if time.time() - inicio > 70:            # tope de tiempo: mejor pasar al respaldo que esperar minutos
+            log("IA: Gemini tardó más de 70 segundos; paso al respaldo si lo hay.")
             break
-        IA_PASO["txt"] = f"Probando {modelo}…"
+        IA_PASO["txt"] = "Escribiendo tu análisis…" if modelo == modelos[0] else "Tarda un poco más de lo normal…"
         for intento in range(1):                 # si un modelo esta saturado se pasa al siguiente sin esperar
             t0 = time.time()
             req = urllib.request.Request(f"{IA_URL}/models/{modelo}:generateContent", data=cuerpo, method="POST",
                                          headers={"Content-Type": "application/json", "x-goog-api-key": cfg["clave"]})
             try:
-                with urllib.request.urlopen(req, timeout=45) as r:
+                with urllib.request.urlopen(req, timeout=45 if modelo == bueno else 25) as r:
                     d = json.loads(r.read().decode("utf-8"))
                 partes = (((d.get("candidates") or [{}])[0].get("content") or {}).get("parts")) or []
                 out = "".join(x.get("text", "") for x in partes if not x.get("thought")).strip()
                 if out:
                     _IA_MODELOS["ok"], _IA_MODELOS["ok_ts"] = modelo, time.time()
-                    try:
-                        (CACHE / "ia_ok.json").write_text(json.dumps({"modelo": modelo, "ts": time.time()}), encoding="utf-8")
-                    except Exception:
-                        pass
+                    lentos.pop(modelo, None)
+                    recordar()
                     log(f"IA: {modelo} respondió en {time.time() - t0:.0f} s.")
                     return out, modelo
                 ultimo = "Gemini respondió vacío."
@@ -5178,6 +5188,8 @@ def _ia_pedir_gemini(cfg, texto, sistema, json_=False):
                     raise RuntimeError("Gemini no acepta la clave. Revisa que la copiaste entera.")
                 if e.code in (500, 502, 503, 504):
                     ultimo = "Gemini está saturado ahora mismo. Prueba en unos minutos."
+                    lentos[modelo] = time.time()
+                    recordar()
                 elif e.code == 429:
                     ultimo = "Llegaste al límite gratis de Gemini por ahora. Prueba en unos minutos."
                 elif e.code == 404:
@@ -5189,6 +5201,9 @@ def _ia_pedir_gemini(cfg, texto, sistema, json_=False):
             except Exception as e:
                 ultimo = f"No pude conectar con Gemini ({type(e).__name__})."
                 log(f"IA: {modelo} -> sin respuesta tras {time.time() - t0:.0f} s ({type(e).__name__})")
+                if "timeout" in type(e).__name__.lower() or "timed out" in str(e).lower():
+                    lentos[modelo] = time.time()
+                    recordar()
                 break
     raise RuntimeError(ultimo)
 
@@ -9812,7 +9827,7 @@ def crear_handler(coach):
                     return self._send(200, {"ok": True, "msg": "Clave borrada. El coach sigue sin IA."})
                 try:
                     _, modelo = _ia_pedir_gemini(ia_config(), "Responde solo: listo", "Responde con una sola palabra.")
-                    return self._send(200, {"ok": True, "msg": f"Clave guardada. Funciona con {modelo}."})
+                    return self._send(200, {"ok": True, "msg": "Clave guardada y comprobada: la IA ya funciona."})
                 except RuntimeError as e:
                     ia_guardar(antes["clave"], antes["modelo"])      # una clave que no funciona no se guarda
                     return self._send(200, {"ok": False, "msg": str(e)})
@@ -9829,7 +9844,7 @@ def crear_handler(coach):
                 except RuntimeError as e:
                     return self._send(200, {"ok": False, "msg": str(e)})
                 ia_guardar(cfg["clave"], cfg["modelo"], {"prov": prov, "clave": clave})
-                return self._send(200, {"ok": True, "msg": f"Respaldo guardado. Funciona con {modelo}."})
+                return self._send(200, {"ok": True, "msg": "Respaldo guardado y comprobado."})
             if ruta == "/api/reto_auto":
                 with alm.lock:
                     ps = sorted([p for p in alm.d["partidas"].values() if p.get("datos_h")], key=lambda p: p.get("creacion") or 0)
@@ -9851,9 +9866,15 @@ def crear_handler(coach):
                     def trabajo():
                         try:
                             r, err = ia_analizar(alm, rec, gid, forzar)
-                            IA_TRABAJOS[gid] = {"estado": "ok" if r else "error", "msg": err or ""}
+                            if err:
+                                log(f"IA: {err}")
+                            # al usuario, una frase clara; el detalle tecnico se queda en el log
+                            msg = ("La IA no acepta tu clave. Revísala en la pantalla IA." if err and "clave" in err.lower()
+                                   else "La IA está muy ocupada ahora mismo. Prueba otra vez en un minuto." if err else "")
+                            IA_TRABAJOS[gid] = {"estado": "ok" if r else "error", "msg": msg}
                         except Exception as e:
-                            IA_TRABAJOS[gid] = {"estado": "error", "msg": f"Falló el análisis ({type(e).__name__})."}
+                            IA_TRABAJOS[gid] = {"estado": "error", "msg": "No se pudo escribir el análisis. Prueba otra vez en un minuto."}
+                            log(f"IA: falló el análisis de {gid} ({type(e).__name__}: {e}).")
                     threading.Thread(target=trabajo, daemon=True).start()
                 return self._send(200, {"ok": True, "en_curso": True})
             if ruta == "/api/ia_estado":
@@ -9900,7 +9921,8 @@ def crear_handler(coach):
                         pv["hud"] = hp
                         f.write_text(json.dumps(pv), encoding="utf-8")
                     except Exception as e:
-                        return self._send(200, {"ok": False, "msg": f"No pude guardarlo: {type(e).__name__}"})
+                        log(f"Ajustes de las tarjetas: no pude guardarlos ({type(e).__name__}: {e}).")
+                        return self._send(200, {"ok": False, "msg": "No pude guardar el cambio. Prueba otra vez."})
                 if body.get("accion") in ("probar", "mover"):
                     coach.ventana.orden("hud_probar", {"mover": body["accion"] == "mover"})
                 return self._send(200, {"ok": True})
