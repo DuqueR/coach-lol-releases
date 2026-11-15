@@ -1129,7 +1129,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "42";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "42.1";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -3185,13 +3185,13 @@ VISTAS.seleccion = () => {
       <div><h3 class="et c-rj">Rivales</h3>${(d.rivales || []).map(f => jug(f, false)).join("")}${banTira(d.bans_suyos || [])}</div></div></section>`;
   const cardMision = c.regla ? `<section class="card" aria-label="Tu misión"><div class="card-h"><h2>${ic("retos")}Tu misión en esta partida</h2></div>
       <p style="font-size:var(--fs-7);font-weight:700">${esc(c.regla)}</p>${(c.como || []).length ? `<p class="t2" style="margin-top:6px">${esc(c.como[0])}</p>` : ""}
-      ${c.plan ? `<p class="nota-p">${esc(c.plan)}</p>` : ""}${c.banda ? `<p class="chip ${c.banda.tono === "rojo" ? "rj" : "am"}" style="margin-top:10px;height:auto;white-space:normal;padding:6px 10px">${esc(c.banda.texto)}</p>` : ""}</section>` : "";
+      ${c.banda ? `<p class="chip ${c.banda.tono === "rojo" ? "rj" : "am"}" style="margin-top:10px;height:auto;white-space:normal;padding:6px 10px">${esc(c.banda.texto)}</p>` : ""}</section>` : "";
   const aplica = [["Runas", c.runas], ["Hechizos", c.hechizos_txt], ["Habilidades", c.hab_corta || c.hab_txt], ["Build", c.build_txt]].filter(x => x[1]);
   const cardAplica = aplica.length || c.dano_txt ? `<section class="card" aria-label="Lo que aplica el coach"><div class="card-h"><h2>${ic("builds")}Lo que pone el coach</h2><span class="ay">se aplica solo en el cliente</span></div>
       <ul class="lst">${aplica.map(([t, v]) => `<li>${ic("ok")}<span><b>${t}:</b> ${esc(v)}</span></li>`).join("")}</ul>
       ${c.dano_txt ? `<p class="t2" style="margin-top:10px"><b>Su daño:</b> ${esc(c.dano_txt)}</p>` : ""}${c.opciones_nota ? `<p class="nota-p">${esc(c.opciones_nota)}</p>` : ""}</section>` : "";
-  const cardRev = c.revision || c.nota_rol ? `<section class="card" aria-label="Recuerda"><div class="card-h"><h2>${ic("info")}Recuerda</h2></div>
-      ${c.revision ? `<p class="t2">${esc(c.revision)}</p>` : ""}${c.nota_rol ? `<p class="t2" style="margin-top:8px">${esc(c.nota_rol)}</p>` : ""}</section>` : "";
+  const cardRev = c.plan || c.revision || c.nota_rol ? `<section class="card" aria-label="Recuerda"><div class="card-h"><h2>${ic("info")}Además, recuerda</h2></div>
+      ${c.plan ? `<p class="t2"><b>Lo que más te cuesta:</b> ${esc(c.plan)}</p>` : ""}${c.revision ? `<p class="t2"${c.plan ? ' style="margin-top:8px"' : ""}>${esc(c.revision)}</p>` : ""}${c.nota_rol ? `<p class="t2" style="margin-top:8px">${esc(c.nota_rol)}</p>` : ""}</section>` : "";
   const pr = d.prob;
   const cardProb = pr ? `<section class="card dr-prob" aria-label="Probabilidad de victoria del draft">
       <div class="card-h"><h2>${ic("progreso")}Probabilidad de ganar con este draft</h2><span class="ay">estimación con Lolalytics Esmeralda+ y tus partidas${pr.faltan ? ` · cargando ${pr.faltan} campeón${pr.faltan > 1 ? "es" : ""}…` : ""}</span></div>

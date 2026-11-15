@@ -12,6 +12,12 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v42.1: misión sin mezclas
+- En la ventanita de la pantalla de carga, "Tu misión" va seguida de sus consejos (✓).
+  Tu error más repetido sale aparte, separado y con su título: "Además, lo que más te
+  cuesta" y la fase de la partida a la que se refiere.
+- Lo mismo en la pantalla Selección del panel.
+
 Lo nuevo en la v42: regla anti-racha más justa
 - "Para por hoy" ya no salta por perder 2 seguidas si en ellas jugaste bien (nota 7 o
   más): eso no es tilt. Te deja una más; si la siguiente también se pierde, avisa.

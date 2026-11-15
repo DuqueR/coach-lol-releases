@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "42"
+VERSION = "42.1"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -8423,11 +8423,13 @@ class Ventana:
                 self._seccion("Tu misión")
             self._lbl(s.get("regla", ""), 11, "bold")
             if not comp:
-                if s.get("plan"):
-                    self._seccion("Lo más importante en esta partida", pady=(8, 1))
-                    self._lbl(s["plan"], 9)
+                # primero como cumplir la mision; lo que mas te cuesta (otro tema) va aparte
                 for x in s.get("checklist", []):
                     self._lbl("✓  " + x, 9, color=C["gris"], pady=(3, 0))
+                if s.get("plan"):
+                    self.tk.Frame(self.marco, bg=C["linea"], height=1).pack(fill="x", pady=(10, 7))
+                    self._seccion("Además, lo que más te cuesta" + (f" · {s['plan_fase']}" if s.get("plan_fase") else ""))
+                    self._lbl(s["plan"], 9)
                 eq = s.get("equipos") or {}
                 if eq.get("rivales"):
                     self.tk.Frame(self.marco, bg=C["linea"], height=1).pack(fill="x", pady=(10, 7))
@@ -9789,6 +9791,7 @@ class Coach:
         pp = plan_partida(self.alm, plan, self.rol_partida)
         if pp.get("lo_mas_importante"):
             estado["plan"] = pp["lo_mas_importante"]["texto"]
+            estado["plan_fase"] = pp["lo_mas_importante"].get("fase") or ""
         if self.rol_partida == "support":
             estado["checklist"].append("Objeto de support antes de salir de base.")
         if (mision or {}).get("como"):

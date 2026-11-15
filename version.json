@@ -1,6 +1,6 @@
 {
-  "version": "42",
-  "notas": "la regla anti-racha ya no te manda parar si pierdes jugando bien; se puede ajustar o apagar en Ajustes",
+  "version": "42.1",
+  "notas": "en la pantalla de carga, la misión va junto a sus consejos y lo que más te cuesta va aparte",
   "archivos": [
     "coach.py",
     "dashboard.html",
