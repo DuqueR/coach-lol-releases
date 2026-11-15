@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "40"
+VERSION = "41"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -10051,7 +10051,7 @@ def crear_handler(coach):
                     "avance": avance(alm), "cabecera": cab, "tema": tema, "hud": hud_pref, "version": VERSION,
                     "ir": ir,
                     "actualizacion": {"novedades": novedades_actualizacion(), "pendiente": _ACTU["nueva"],
-                                      "error": _ACTU["error"]},
+                                      "notas": _ACTU["notas"], "aplicando": _ACTU["aplicando"], "error": _ACTU["error"]},
                     "notas": {"bien": NOTA_BIEN, "regular": NOTA_REGULAR},
                     "ia": {"activa": bool(ia_config()["clave"] or ia_config()["respaldo"]["clave"]),
                            "gemini": bool(ia_config()["clave"]),
@@ -10168,6 +10168,11 @@ def crear_handler(coach):
                 log("Coach cerrado desde la ventana.")
                 threading.Timer(0.4, lambda: os._exit(0)).start()
                 return
+            if ruta == "/api/actualizar":
+                if coach.fase in EN_JUEGO + ("ChampSelect",):
+                    return self._send(200, {"ok": False, "msg": "Actualiza cuando termine la partida."})
+                ok, msg = actualizar_ahora()
+                return self._send(200, {"ok": ok, "msg": msg})
             if ruta == "/api/abrir-feedback":
                 webbrowser.open(REPO_WEB + "/issues/new")
                 return self._send(200, {"ok": True})
@@ -10408,7 +10413,7 @@ _HUELLA = _huella_codigo()
 # la carpeta datos), comprueba que coach.py compila, guarda copia de los actuales y se reinicia con lo nuevo.
 REPO_RAW = "https://raw.githubusercontent.com/DuqueR/coach-lol-releases/main"
 REPO_WEB = "https://github.com/DuqueR/coach-lol-releases"
-_ACTU = {"nueva": None, "notas": "", "error": ""}       # estado que ve el dashboard
+_ACTU = {"nueva": None, "notas": "", "error": "", "info": None, "local": False, "aplicando": False}   # lo ve el dashboard
 
 
 def _version_num(v):
@@ -10481,6 +10486,66 @@ def _reiniciar():
     args = [sys.executable] if CONGELADO else [sys.executable, str(DIR / "coach.py")]
     subprocess.Popen(args, cwd=str(DIR), env=env, close_fds=True)
     os._exit(0)
+
+
+def version_en_disco():
+    """Copia de desarrollo: si el coach.py de la carpeta es mas nuevo que el que corre, basta reiniciar."""
+    try:
+        m = re.search(r'^VERSION = "([^"]+)"', (DIR / "coach.py").read_text(encoding="utf-8"), re.M)
+        if m and _version_num(m.group(1)) > _version_num(VERSION):
+            notas = ""
+            try:
+                notas = json.loads((DIR / "version.json").read_text(encoding="utf-8")).get("notas", "")
+            except Exception:
+                pass
+            return {"version": m.group(1), "notas": notas}
+    except Exception:
+        pass
+    return None
+
+
+def vigilar_actualizaciones(espera=60, cada=1200):
+    """Con el coach abierto, mira cada 20 minutos si hay version nueva (en GitHub o, en la copia de desarrollo,
+    en la carpeta). No la aplica sola: el dashboard enseña el boton Actualizar."""
+    def bucle():
+        time.sleep(espera)
+        while True:
+            try:
+                dev = os.environ.get("COACH_SIN_ACTUALIZAR") or (DIR / ".git").exists()
+                info = version_en_disco() if dev else buscar_actualizacion()
+                if info and not _ACTU["aplicando"]:
+                    if _ACTU["nueva"] != str(info.get("version")):
+                        log(f"Actualizaciones: hay una versión nueva (v{info.get('version')}).")
+                    _ACTU.update(nueva=str(info.get("version")), notas=info.get("notas", ""), info=info,
+                                 local=bool(dev), error="")
+            except Exception as e:
+                log(f"Actualizaciones: no pude revisar ({type(e).__name__}).")
+            time.sleep(cada)
+    threading.Thread(target=bucle, daemon=True).start()
+
+
+def actualizar_ahora():
+    """Boton Actualizar: baja y aplica la version nueva (o solo reinicia en la copia de desarrollo).
+    Devuelve (ok, mensaje); si ok, el coach se reinicia en un momento."""
+    if _ACTU["aplicando"]:
+        return True, "Ya se está actualizando."
+    if not _ACTU["nueva"]:
+        return False, "No hay ninguna versión nueva."
+    _ACTU["aplicando"] = True
+    if not _ACTU["local"]:
+        info = _ACTU["info"] or buscar_actualizacion()
+        if not info or not aplicar_actualizacion(info):
+            _ACTU["aplicando"] = False
+            return False, _ACTU["error"] or "No pude descargar la versión nueva. Inténtalo en un rato."
+    else:
+        try:
+            (DATOS / "actualizado.json").write_text(json.dumps({"de": VERSION, "a": _ACTU["nueva"], "notas": _ACTU["notas"],
+                                                                "ts": time.time()}, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+    log(f"Actualizando a v{_ACTU['nueva']} desde el dashboard: reinicio.")
+    threading.Timer(0.8, _reiniciar).start()
+    return True, f"Actualizando a la versión {_ACTU['nueva']}…"
 
 
 def novedades_actualizacion():
@@ -10674,6 +10739,7 @@ def main():
     coach.url = url
     srv = ThreadingHTTPServer(("127.0.0.1", puerto), crear_handler(coach))
     threading.Thread(target=coach.bucle, daemon=True).start()
+    vigilar_actualizaciones()
     log(f"Dashboard en {url}")
     relevo = _RELEVO["hubo"] and _cerrar_ventanas_del_panel()
     if relevo:

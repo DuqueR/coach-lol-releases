@@ -1074,6 +1074,18 @@ html[data-tema="claro"] #cmd{background:rgba(20,28,44,.35)}
 .cmd-l .vac{padding:16px 12px;color:var(--t3);font-size:var(--fs-4)}
 .cmd-pie{display:flex;gap:14px;padding:8px 14px;border-top:1px solid var(--linea);font-size:var(--fs-2);color:var(--t3)}
 kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);border:1px solid var(--linea2);background:var(--s2);color:var(--t2)}
+.actu{display:flex;align-items:center;gap:10px;height:40px;padding:0 4px 0 12px;border-radius:var(--r-m);max-width:440px;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--az) 16%,var(--s1)),var(--s1));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--az) 40%,transparent);
+  animation:actu-in .3s var(--ease-out)}
+@keyframes actu-in{from{opacity:0;transform:translateY(-4px)}}
+.actu-p{width:8px;height:8px;border-radius:50%;background:var(--az);box-shadow:0 0 0 3px var(--azs);flex:none}
+.actu-t{display:grid;min-width:0;line-height:1.2}
+.actu-t b{font-size:var(--fs-3);white-space:nowrap}
+.actu-t small{font-size:var(--fs-2);color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actu .btn{height:32px;flex:none}
+.actu .btn .gira{width:13px;height:13px;border-color:color-mix(in srgb,var(--en-p) 35%,transparent);border-top-color:var(--en-p)}
+@media (prefers-reduced-motion:reduce){.actu{animation:none}}
+@media (max-width:1100px){.actu-t small{display:none}}
 .bus-b{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 11px;border-radius:var(--r2);border:1px solid var(--linea);background:var(--s1);color:var(--t3);font-size:var(--fs-3)}
 @media (hover:hover){.bus-b:hover{border-color:var(--linea2);color:var(--t1)}}
 #confeti{position:fixed;inset:0;z-index:150;pointer-events:none}
@@ -1112,7 +1124,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "40";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "41";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1442,7 +1454,11 @@ function htmlTope(){
       <div class="rg">${r ? esc(r.texto) + (r.tier && r.tier !== "NONE" ? ` · ${r.lp} LP` : "") : ""}${j.nivel ? ` · nivel ${j.nivel}` : ""}</div></div></div>` : "";
   const estado = S.caido ? `<span class="chip rj">${ic("alerta")}Coach cerrado</span>`
     : `<span class="est-c ${e.conectado ? "on" : ""}"><i></i>${esc(e.conectado ? e.fase_texto : "Cliente de LoL cerrado")}</span>`;
-  return `<h1>${TITULO[S.vista] || ""}</h1>${miga}<div class="der"><button class="bus-b" data-a="cmd" aria-label="Buscar (Ctrl+K)">${ic("lupa", "s")}Buscar <kbd>Ctrl K</kbd></button>${estado}${perfil}</div>`;
+  const ac = e.actualizacion || {}, enJuego = ["ChampSelect", "GameStart", "InProgress", "Reconnect"].includes(e.fase);
+  const nueva = ac.pendiente && !S.caido ? `<div class="actu" role="status"><span class="actu-p" aria-hidden="true"></span>
+      <span class="actu-t"><b>Versión ${esc(ac.pendiente)} disponible</b>${ac.notas ? `<small>${esc(ac.notas)}</small>` : ""}</span>
+      <button class="btn p pq" data-a="actualizar" ${S.actualizando || ac.aplicando || enJuego ? "disabled" : ""} ${enJuego ? 'data-tip="Actualiza cuando termine la partida"' : ""}>${S.actualizando || ac.aplicando ? `<span class="gira"></span>Actualizando…` : `${ic("sube", "s")}Actualizar`}</button></div>` : "";
+  return `<h1>${TITULO[S.vista] || ""}</h1>${miga}<div class="der">${nueva}<button class="bus-b" data-a="cmd" aria-label="Buscar (Ctrl+K)">${ic("lupa", "s")}Buscar <kbd>Ctrl K</kbd></button>${estado}${perfil}</div>`;
 }
 function pintar(forzar){
   if(!S.estado) return;
@@ -2986,6 +3002,14 @@ async function guardarClave(ruta, cuerpo, btn, malo, campo){
   }catch(e){ toast(malo); }
   if(btn){ btn.disabled = false; btn.innerHTML = txt; }
 }
+A["actualizar"] = async () => {
+  S.actualizando = true; pintar();
+  let r;
+  try{ r = await api("/api/actualizar", {}, 120000); }catch(_){ r = {ok: false, msg: "No pude hablar con el coach."}; }
+  toast(r.msg || (r.ok ? "Actualizando…" : "No se pudo actualizar."));
+  if(!r.ok){ S.actualizando = false; pintar(); }
+  /* si va bien, el coach se reinicia: la página se reconecta y se recarga sola con la versión nueva */
+};
 A["ia-guardar"] = el => { const c = $("#ia-clave"), v = c.value.trim(); if(!v){ toast("Pega primero tu clave."); c.focus(); return; } return guardarClave("/api/ia_clave", {clave: v}, el, "No pude guardar la clave.", c); };
 A["ia-quitar"] = el => guardarClave("/api/ia_clave", {clave: ""}, el, "No pude quitar la clave.");
 A["ia-rguardar"] = el => { const c = $("#ia-rclave"), v = c.value.trim(); if(!v){ toast("Pega primero la clave."); c.focus(); return; } return guardarClave("/api/ia_respaldo", {prov: $("#ia-prov").value, clave: v}, el, "No pude guardar el respaldo.", c); };
@@ -3036,8 +3060,8 @@ VISTAS.ajustes = () => {
           <li><span>Builds y medias por rango</span><b>Lolalytics, en vivo</b></li>
           <li><span>Imágenes</span><b>Cliente de LoL y CommunityDragon</b></li>
           <li><span>Actualizaciones</span><b>${e.actualizacion && e.actualizacion.error ? esc(e.actualizacion.error)
-            : e.actualizacion && e.actualizacion.pendiente ? `Hay una versión ${esc(e.actualizacion.pendiente)}: cierra y abre el coach`
-            : "Automáticas al abrir el coach"}</b></li></ul>
+            : e.actualizacion && e.actualizacion.pendiente ? `Hay una versión ${esc(e.actualizacion.pendiente)}: pulsa Actualizar arriba`
+            : "Automáticas: al abrir el coach y cada 20 minutos"}</b></li></ul>
         <p class="nota-p">¿Algo falla o tienes una idea? Copia el diagnóstico (no lleva tus claves) y pégalo en tu comentario.</p>
         <div class="pie izq"><button class="btn" data-a="diagnostico">${ic("info", "s")}Copiar diagnóstico</button>
           <button class="btn" data-a="feedback">Enviar comentario</button>

@@ -1,6 +1,6 @@
 {
-  "version": "40",
-  "notas": "probabilidad de ganar con tu draft en la pantalla Selección y cuánto sube o baja con cada pick",
+  "version": "41",
+  "notas": "aviso de versión nueva arriba con botón Actualizar, sin cerrar el coach",
   "archivos": [
     "coach.py",
     "dashboard.html",
