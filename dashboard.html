@@ -1066,7 +1066,7 @@ kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px sol
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "37.1";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "37.2";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1700,19 +1700,24 @@ function cardRendimiento(){
     `<button class="chip ${S.rendRol === r ? "az" : "ln"}" data-a="rend-rol" data-r="${r}">${ROL[r] || r}</button>`).join("")}</div>` : "";
   const tiles = MET_REND.map(m => {
     const serie = ps.slice(0, 20).map(m.f).reverse();
-    const ult = media(ps.slice(0, 10).map(m.f).filter(x => x != null)), ant = media(ps.slice(10, 30).map(m.f).filter(x => x != null));
+    const ult = media(ps.slice(0, 10).map(m.f).filter(x => x != null));
     if(ult == null) return "";
-    const paso = Math.pow(10, -m.d), dif = ant != null && ps.length >= 13 ? Math.round((ult - ant) / paso) * paso : null;
+    /* con 13 o más: tus 10 últimas contra las anteriores; con 5 a 12: tus 3 últimas contra las de antes */
+    const corto = ps.length < 13, nU = corto ? 3 : 10;
+    const recien = corto ? media(ps.slice(0, 3).map(m.f).filter(x => x != null)) : ult;
+    const ant = ps.length >= 5 ? media(ps.slice(nU, 30).map(m.f).filter(x => x != null)) : null;
+    const paso = Math.pow(10, -m.d), dif = ant != null && recien != null ? Math.round((recien - ant) / paso) * paso : null;
+    const tipD = corto ? `Tus 3 últimas frente a las ${ps.length - 3} de antes` : `Tus 10 últimas frente a las ${Math.min(20, ps.length - 10)} anteriores`;
     const tono = dif == null || dif === 0 ? "" : dif > 0 ? "vd" : "rj";
     const val = (m.signo && ult > 0 ? "+" : "") + dec(ult, m.d);
     const dl = dif == null ? `<span class="rt-d no">${ps.length === 1 ? "1 partida" : `media de ${Math.min(10, ps.length)}`}</span>`
       : dif === 0 ? `<span class="rt-d no">igual que antes</span>`
-      : `<span class="rt-d c-${tono}" data-tip="Tus 10 últimas frente a las ${Math.min(20, ps.length - 10)} anteriores">${ic(dif > 0 ? "sube" : "baja")}${dif > 0 ? "+" : "−"}${dec(Math.abs(dif), m.d)}</span>`;
+      : `<span class="rt-d c-${tono}" data-tip="${tipD}">${ic(dif > 0 ? "sube" : "baja")}${dif > 0 ? "+" : "−"}${dec(Math.abs(dif), m.d)}</span>`;
     return `<div class="rt"><span class="rt-e" title="${esc(m.et)}">${esc(m.et)}</span><b class="rt-v nm">${val}${m.u ? `<small>${m.u}</small>` : ""}</b>
       ${curva(serie, tono || "t2", m.k)}${dl}</div>`;
   }).join("");
   return `<section class="card rend" aria-label="Tu rendimiento">
-    <div class="card-h"><h2>${ic("sube")}Tu rendimiento</h2><span class="ay">${ps.length === 1 ? "Tu única partida" : `Media de tus ${Math.min(10, ps.length)} últimas`}${S.rendRol ? " de " + esc(ROL[S.rendRol] || S.rendRol) : ""}${ps.length >= 3 ? " · la curva son las 20 últimas" : " · la curva sale desde 3 partidas"}</span>${filtros}</div>
+    <div class="card-h"><h2>${ic("sube")}Tu rendimiento</h2><span class="ay">${ps.length === 1 ? "Tu única partida" : `Media de tus ${Math.min(10, ps.length)} últimas`}${S.rendRol ? " de " + esc(ROL[S.rendRol] || S.rendRol) : ""}${ps.length >= 3 ? ` · la curva son las ${Math.min(20, ps.length)} últimas` : " · la curva sale desde 3 partidas"}</span>${filtros}</div>
     <div class="rend-g">${tiles}</div></section>`;
 }
 /* nota de la partida en un anillo, con el puesto (o MVP / ACE) dentro */

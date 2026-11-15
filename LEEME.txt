@@ -12,6 +12,11 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v37.2
+--------------------
+- En "Tu rendimiento", las curvas de un rol con pocas partidas (por ejemplo, Mid con 7) salían en gris porque no
+  había partidas anteriores con que comparar. Ahora, con 5 a 12 partidas, compara tus 3 últimas con las de antes.
+
 Lo nuevo en la v37.1
 --------------------
 - Arreglado: "Tu rendimiento" desaparecía al elegir un rol con menos de 3 partidas (por ejemplo, Top con 1). Ahora

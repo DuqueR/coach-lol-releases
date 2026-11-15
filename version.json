@@ -1,6 +1,6 @@
 {
-  "version": "37.1",
-  "notas": "arreglado: 'Tu rendimiento' ya no desaparece al elegir un rol con pocas partidas",
+  "version": "37.2",
+  "notas": "las curvas de 'Tu rendimiento' tienen color también en roles con pocas partidas",
   "archivos": [
     "coach.py",
     "dashboard.html",
