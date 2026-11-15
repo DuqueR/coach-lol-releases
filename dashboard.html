@@ -522,7 +522,44 @@ button.chip .i{width:13px;height:13px}
 /* ============================ partidas ============================ */
 .pg{display:grid;grid-template-columns:348px minmax(0,1fr);gap:20px;align-items:start}
 .lista{position:sticky;top:76px;max-height:calc(100vh - 96px);overflow-y:auto;padding-right:6px;margin-right:-6px}
+.cl-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+@media (max-width:1560px){.cop-r span{display:none}.cop-r{padding:0 9px}}
+.cl{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 12px 12px 14px;border-radius:var(--r);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--tono) 9%,var(--s2)),var(--s2) 60%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tono) 22%,var(--linea));
+  animation:cl-in .32s calc(var(--i) * 40ms) var(--ease-out) both}
+@keyframes cl-in{from{opacity:0;transform:translateY(6px)}}
+.cl.top{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tono) 55%,transparent),0 8px 28px -12px color-mix(in srgb,var(--tono) 60%,transparent)}
+.cl-ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--tono);background:color-mix(in srgb,var(--tono) 14%,transparent)}
+.cl-ic .i{width:20px;height:20px}
+.cl-c{display:grid;gap:1px;min-width:0}
+.cl-m{display:flex;align-items:center;gap:6px;font-size:var(--fs-2);color:var(--t3);font-weight:650}
+.cl-m em{font-style:normal;color:var(--tono);font-weight:750;text-transform:uppercase;letter-spacing:.05em;font-size:var(--fs-1)}
+.cl-c b{font-size:var(--fs-5);font-weight:720;line-height:1.3;text-wrap:balance}
+.cl-c small{font-size:var(--fs-3);color:var(--t2);line-height:1.35}
+@media (prefers-reduced-motion:reduce){.cl{animation:none}}
 .filas{display:grid;gap:6px}
+.lst-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.lst-cola select{height:32px;max-width:190px;padding:0 28px 0 10px;border-radius:var(--r2);border:1px solid var(--linea2);background:var(--s1);color:var(--t1);font:inherit;font-size:var(--fs-3)}
+.seg{display:inline-flex;padding:3px;border-radius:var(--r2);background:var(--s2);box-shadow:inset 0 0 0 1px var(--linea)}
+.seg button{height:26px;padding:0 10px;border:0;border-radius:var(--r3);background:none;color:var(--t2);font-size:var(--fs-3);font-weight:650;transition:background .15s,color .15s}
+.seg button.on{background:var(--s3);color:var(--t1);box-shadow:0 1px 2px rgba(0,0,0,.25)}
+@media (hover:hover){.seg button:not(.on):hover{color:var(--t1)}}
+.filas.agr{gap:14px}
+.gr{display:grid;gap:6px}
+.gr-h{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 10px;padding:8px 10px;margin:0 -2px;
+  border-radius:var(--r2);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);box-shadow:inset 0 -1px 0 var(--linea)}
+.gr-t{display:flex;align-items:baseline;gap:8px;min-width:0}
+.gr-t b{font-size:var(--fs-4);font-weight:720;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gr-t small{color:var(--t3);font-size:var(--fs-2);white-space:nowrap}
+.gr-s{display:flex;align-items:center;gap:10px;font-size:var(--fs-3);flex:none;margin-left:auto}
+.gr-s small{margin-left:3px;font-size:var(--fs-1);font-weight:600;color:var(--t3)}
+.gr-n{font-weight:750}
+.gr-k{color:var(--t2)}
+.gr-b{display:inline-flex;gap:2px}
+.gr-b s{width:4px;height:14px;border-radius:2px;background:var(--rj);opacity:.85}
+.gr-b s.v{background:var(--az)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){.gr{display:contents}.gr-h{position:static;flex:none;width:220px;flex-direction:column;align-items:flex-start;justify-content:center}}
 .fp{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;
   padding:10px 12px 10px 16px;border-radius:var(--r-m);border:1px solid var(--linea);background:var(--s1);color:var(--t1);transition:background .12s,border-color .12s}
 .fp::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--rj)}
@@ -1192,7 +1229,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "43";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "44";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -2036,14 +2073,65 @@ A.partida = el => ir("partidas", {id: el.dataset.id});
 A.tab = el => { S.tab = el.dataset.t; pintar(); };
 A["filtro-cola"] = el => { S.filtroCola = el.dataset.q || ""; pintar(true); };
 A["filtro-rol"] = el => { S.filtroRol = el.dataset.r || ""; pintar(); };
+A["filtro-lcola"] = el => { S.filtroLCola = el.dataset.q || ""; pintar(); };
+document.addEventListener("change", ev => { if(ev.target.matches && ev.target.matches('[data-i="lcola"]')){ S.filtroLCola = ev.target.value; pintar(); } });
+A["agrupar"] = el => { S.agrupar = el.dataset.g; try{ localStorage.setItem("coach-agrupar", S.agrupar); }catch(_){} pintar(); };
+try{ S.agrupar = localStorage.getItem("coach-agrupar") || "dia"; }catch(_){ S.agrupar = "dia"; }
+
+const SESION_HUECO = 2 * 3600e3;          /* más de 2 h sin jugar entre dos partidas = otra sesión */
+const fechaD = f => new Date(String(f || "").replace(" ", "T"));
+const durMs = d => { const m = String(d || "").match(/^(\d+):(\d{2})$/); return m ? (+m[1] * 60 + +m[2]) * 1000 : 0; };
+function diaTxt(f){
+  const d = fechaD(f), hoy = new Date(), ayer = new Date(Date.now() - 864e5);
+  if(d.toDateString() === hoy.toDateString()) return "Hoy";
+  if(d.toDateString() === ayer.toDateString()) return "Ayer";
+  const t = d.toLocaleDateString("es", {weekday: "long", day: "numeric", month: "short"});
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function grupos(ps, modo){
+  const out = [];
+  let g = null;
+  for(const p of ps){                      /* ps viene de la más nueva a la más vieja */
+    const nuevo = !g || (modo === "sesion" ? fechaD(g.ultima.fecha) - (+fechaD(p.fecha) + durMs(p.duracion)) > SESION_HUECO
+                                          : String(p.fecha).slice(0, 10) !== String(g.ps[0].fecha).slice(0, 10));
+    if(nuevo){ g = {ps: [], ultima: p}; out.push(g); }
+    g.ps.push(p); g.ultima = p;
+  }
+  return out;
+}
+function cabGrupo(g, modo){
+  const n = g.ps.length, v = g.ps.filter(p => p.victoria).length, d = n - v;
+  const notas = g.ps.map(p => p.nota).filter(x => x != null), nota = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : null;
+  const k = g.ps.reduce((a, p) => a + (p.k || 0) + (p.a || 0), 0), m = g.ps.reduce((a, p) => a + (p.d || 0), 0);
+  const ini = g.ps[n - 1].fecha, fin = g.ps[0].fecha;
+  const tit = modo === "sesion" ? `${diaTxt(ini)} · ${String(ini).slice(11, 16)}${n > 1 ? "–" + String(fin).slice(11, 16) : ""}` : diaTxt(ini);
+  const lp = v - d;
+  return `<div class="gr-h" role="group" aria-label="${esc(tit)}: ${v} victorias y ${d} derrotas">
+    <span class="gr-t"><b>${esc(tit)}</b><small class="tn">${plural(n, "partida", "partidas")}</small></span>
+    <span class="gr-s"><span class="gr-wl tn"><b class="c-az">${v}V</b> <b class="c-rj">${d}D</b></span>
+      ${nota != null ? `<span class="gr-n tn c-${tonoNota(nota)}" data-tip="Nota media del coach">${dec(nota)}<small>nota</small></span>` : ""}
+      <span class="gr-k tn" data-tip="KDA del grupo">${dec(k / Math.max(m, 1))}<small>KDA</small></span>
+      <i class="gr-b ${lp > 0 ? "az" : lp < 0 ? "rj" : ""}" aria-hidden="true">${g.ps.slice().reverse().map(p => `<s class="${p.victoria ? "v" : "d"}"></s>`).join("")}</i></span></div>`;
+}
 
 function htmlLista(){
   const todas = E().partidas;
-  const roles = [...new Set(todas.map(p => p.rol).filter(Boolean))];
-  const ps = S.filtroRol ? todas.filter(p => p.rol === S.filtroRol) : todas;
-  const filtros = roles.length > 1 ? `<div class="filtros">${IND_FIL}<button class="chip ${S.filtroRol ? "ln" : "az"}" data-a="filtro-rol" data-r="">Todas <b>${todas.length}</b></button>${roles.map(r =>
-    `<button class="chip ${S.filtroRol === r ? "az" : "ln"}" data-a="filtro-rol" data-r="${r}">${ROL[r] || r} <b>${todas.filter(p => p.rol === r).length}</b></button>`).join("")}</div>` : "";
-  return filtros + `<div class="filas">` + ps.map(p => {
+  const colas = [...new Set(todas.map(p => p.cola).filter(Boolean))];
+  if(S.filtroLCola && !colas.includes(S.filtroLCola)) S.filtroLCola = "";
+  const deCola = S.filtroLCola ? todas.filter(p => p.cola === S.filtroLCola) : todas;
+  const roles = [...new Set(deCola.map(p => p.rol).filter(Boolean))];
+  if(S.filtroRol && !roles.includes(S.filtroRol)) S.filtroRol = "";
+  const ps = S.filtroRol ? deCola.filter(p => p.rol === S.filtroRol) : deCola;
+  const wrDe = l => l.length ? Math.round(100 * l.filter(p => p.victoria).length / l.length) : 0;
+  const filtros = roles.length > 1 ? `<div class="filtros">${IND_FIL}<button class="chip ${S.filtroRol ? "ln" : "az"}" data-a="filtro-rol" data-r="">Todas <b>${deCola.length}</b></button>${roles.map(r => { const l = deCola.filter(p => p.rol === r);
+    return `<button class="chip ${S.filtroRol === r ? "az" : "ln"}" data-a="filtro-rol" data-r="${r}" data-tip="${l.length} partidas de ${ROL[r] || r} · ${wrDe(l)}% de victorias">${ROL[r] || r} <b>${l.length}</b></button>`; }).join("")}</div>` : "";
+  const modo = S.agrupar === "sesion" ? "sesion" : S.agrupar === "nada" ? "nada" : "dia";
+  const barra = `<div class="lst-bar">
+    ${colas.length > 1 ? `<label class="lst-cola"><span class="sr">Cola</span><select data-i="lcola" aria-label="Cola">
+      <option value="">Todas las colas</option>${colas.map(q => `<option value="${esc(q)}" ${S.filtroLCola === q ? "selected" : ""}>${esc(q)} (${todas.filter(p => p.cola === q).length})</option>`).join("")}</select></label>` : `<span></span>`}
+    <div class="seg" role="group" aria-label="Agrupar partidas">${[["dia", "Día"], ["sesion", "Sesión"], ["nada", "Todas"]].map(([k, t]) =>
+      `<button data-a="agrupar" data-g="${k}" aria-pressed="${modo === k}" class="${modo === k ? "on" : ""}">${t}</button>`).join("")}</div></div>`;
+  const fila = p => {
     const sel = String(p.id) === String(S.selId), tn = tonoNota(p.nota), mvp = (p.premios || []).includes("MVP");
     const premio = (p.premios || []).find(x => x !== "MVP" && x.startsWith("Más"));
     return `<button class="fp ${p.victoria ? "gano" : "perdio"} ${sel ? "sel" : ""} ${S.llega === String(p.id) ? "llega" : ""}" data-a="partida" data-id="${p.id}" data-k="p${p.id}" aria-pressed="${sel}">
@@ -2056,7 +2144,11 @@ function htmlLista(){
         <span class="l3">${premio ? `<span class="chip" data-tip="${esc(premio)} de la partida">${esc(premio.replace("Más ", "+"))}</span>` : ""}
           ${p.mision_ok === null ? "" : `<span class="mi ${p.mision_ok ? "ok" : "no"}" data-tip="${p.mision_ok ? "Misión cumplida" : "Misión fallada"}">${ic(p.mision_ok ? "ok" : "no")}</span>`}
           ${p.rival_id ? cp(p.rival_id, "contra " + p.rival, 20, "rd") : ""}</span></span>
-    </button>`; }).join("") + `</div>`;
+    </button>`; };
+  if(!ps.length) return barra + filtros + `<p class="vacio">No hay partidas con este filtro.</p>`;
+  const cuerpo = modo === "nada" ? ps.map(fila).join("")
+    : grupos(ps, modo).map(g => `<section class="gr" data-k="g${g.ps[0].id}">${cabGrupo(g, modo)}${g.ps.map(fila).join("")}</section>`).join("");
+  return barra + filtros + `<div class="filas ${modo !== "nada" ? "agr" : ""}">${cuerpo}</div>`;
 }
 
 function htmlRevision(){
@@ -2064,11 +2156,11 @@ function htmlRevision(){
   if(!p || String(p.id) !== String(S.selId)) return `<div class="sk" style="height:210px;margin-bottom:16px"></div><div class="sk" style="height:42px;margin-bottom:16px"></div><div class="g"><div class="c7 sk" style="height:420px"></div><div class="c5 sk" style="height:420px"></div></div>`;
   const nRev = p.muertes.filter(d => d.clave_rev && !d.causa).length;
   const tabs = [["resumen", "Resumen", ""], ["muertes", "Muertes", p.muertes.length ? `<span class="n ${nRev ? "av" : ""}" ${nRev ? `data-tip="${plural(nRev, "muerte clave", "muertes clave")} por revisar"` : ""}>${p.muertes.length}</span>` : ""],
-    ["linea", p.rival ? "Tú contra " + esc(p.rival.campeon) : "Línea", ""], ["tiempo", "Minuto a minuto", ""], ["equipo", "Los 10 jugadores", p.puesto ? `<span class="n">${p.puesto}.º</span>` : ""], ["build", "Runas y build", ""]];
+    ["linea", p.rival ? "Tú contra " + esc(p.rival.campeon) : "Línea", ""], ["tiempo", "Minuto a minuto", ""], ["clips", "Jugadas", p.tiempo && p.tiempo.clips && p.tiempo.clips.length ? `<span class="n">${p.tiempo.clips.length}</span>` : ""], ["equipo", "Los 10 jugadores", p.puesto ? `<span class="n">${p.puesto}.º</span>` : ""], ["build", "Runas y build", ""]];
   if(!tabs.some(t => t[0] === S.tab)) S.tab = "resumen";
-  const cuerpo = {resumen: tabResumen, muertes: tabMuertes, linea: tabLinea, tiempo: tabTiempo, equipo: tabEquipo, build: tabBuild}[S.tab];
+  const cuerpo = {resumen: tabResumen, muertes: tabMuertes, linea: tabLinea, tiempo: tabTiempo, clips: tabClips, equipo: tabEquipo, build: tabBuild}[S.tab];
   return B(banda, p) + `<div class="tabs" role="tablist">${IND_TAB}${tabs.map(([k, t, n]) => `<button role="tab" data-a="tab" data-t="${k}" class="${S.tab === k ? "on" : ""}" aria-selected="${S.tab === k}">${t}${n}</button>`).join("")}
-      <span style="margin-left:auto;align-self:center"><button class="btn pq" data-a="copiar" data-tip="Copia un resumen en texto para pegarlo en un chat con Claude">${ic("copiar", "s")}<span>Copiar resumen</span></button></span></div>
+      <span style="margin-left:auto;align-self:center"><button class="btn pq cop-r" data-a="copiar" aria-label="Copiar resumen" data-tip="Copia un resumen en texto para pegarlo en un chat con Claude">${ic("copiar", "s")}<span>Copiar resumen</span></button></span></div>
     <div data-k="tab-${S.tab}">${B(cuerpo, p)}</div>`;
 }
 function banda(p){
@@ -2101,6 +2193,20 @@ const SERIES_T = {
 A["serie-t"] = el => { S.serieT = el.dataset.k; pintar(); };
 const firmado = v => (v > 0 ? "+" : v < 0 ? "−" : "") + mil(Math.abs(Math.round(v)));
 const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, "0")}`;
+const CLIP_IC = {multi: "fuego", primera: "estrella", solo: "rayo", pelea: "equipo", ace: "corona", objetivo: "torre"};
+function tabClips(p){
+  const cl = (p.tiempo && p.tiempo.clips) || [];
+  if(!p.tiempo) return `<section class="card vac-g">${ic("play", "l")}<h2 class="dz">Sin jugadas</h2><p>El cliente no guardó la línea de tiempo de esta partida.</p></section>`;
+  if(!cl.length) return `<section class="card vac-g">${ic("play", "l")}<h2 class="dz">Sin jugadas destacadas</h2><p>En esta partida no hubo multikills, kills en solitario, peleas ganadas ni objetivos grandes contigo. Las encontrarás aquí cuando las haya.</p></section>`;
+  const top = cl.reduce((a, c) => c.peso > a.peso ? c : a, cl[0]);
+  return `<section class="card" aria-label="Tus jugadas">
+    <div class="card-h"><h2>${ic("play")}Tus jugadas</h2><span class="ay">Ábrelas en la repetición: empieza 15 s antes</span></div>
+    <div class="cl-g">${cl.map((c, i) => `<article class="cl ${c === top ? "top" : ""}" style="--tono:var(--${c.tono});--i:${i}">
+      <span class="cl-ic">${ic(CLIP_IC[c.tipo] || "estrella")}</span>
+      <div class="cl-c"><span class="cl-m tn">${mmss(c.seg / 60)}${c === top ? `<em>La mejor</em>` : ""}</span><b>${esc(c.titulo)}</b><small>${esc(c.sub)}</small></div>
+      <button class="btn pq" data-a="ver" data-s="${c.seg}" aria-label="Ver ${esc(c.titulo)} en la repetición, minuto ${mmss(c.seg / 60)}">${ic("play", "s")}Ver</button></article>`).join("")}</div>
+    <p class="nota-p">La repetición se abre en el cliente de LoL y salta sola al momento. Solo se puede con partidas del parche actual.</p></section>`;
+}
 function tabTiempo(p){
   const t = p.tiempo;
   if(!t) return `<section class="card vac-g">${ic("partidas", "l")}<h2 class="dz">Sin minuto a minuto</h2><p>El cliente no guardó la línea de tiempo de esta partida.</p></section>`;
@@ -3116,6 +3222,10 @@ VISTAS.ajustes = () => {
           <div class="pant" role="group" aria-label="Posición de las tarjetas">${LUGARES.map(([k, n]) => `<button class="${h.lugar === k ? "on" : ""}" data-a="hud-lugar" data-l="${k}" data-tip="${n}" aria-label="${n}" aria-pressed="${h.lugar === k}"><i></i></button>`).join("")}</div></div>
         <div class="aj-f"><div><b>Temporizadores de objetivos</b><small>Dragón, larvas o Heraldo y Barón, siempre a la vista. En dorado cuando falta poco.</small></div>
           <button class="sw ${h.timers !== false ? "on" : ""}" role="switch" aria-checked="${h.timers !== false}" data-a="hud-timers" aria-label="Temporizadores de objetivos"><i></i></button></div>
+        <div class="aj-f"><div><b>Probabilidad de ganar</b><small>Barra azul (tu equipo) y roja, con la ventaja de oro en objetos, kills y torres. Solo usa lo que se ve en el Tab.</small></div>
+          <button class="sw ${h.equipo !== false ? "on" : ""}" role="switch" aria-checked="${h.equipo !== false}" data-a="hud-equipo" aria-label="Probabilidad de ganar"><i></i></button></div>
+        <div class="aj-f"><div><b>Recordar la baratija</b><small>Un aviso para cambiar el Tótem por la Lente del Oráculo cuando a tu rol le toca.</small></div>
+          <button class="sw ${h.baratija !== false ? "on" : ""}" role="switch" aria-checked="${h.baratija !== false}" data-a="hud-baratija" aria-label="Recordar la baratija"><i></i></button></div>
         <div class="aj-f"><div><b>Avisos de objetivos</b><small>Te dice qué hacer según tu línea antes de que salgan, y cuando alguien coge el Barón o el Anciano.</small></div>
           <div class="chips" role="group" aria-label="Avisos de objetivos">${OBJS_AV.map(([k, n]) => `<button class="chip ${av[k] !== false ? "az" : "ln"}" data-a="hud-av" data-k="${k}" aria-pressed="${av[k] !== false}">${n}</button>`).join("")}</div></div>
         <div class="aj-f"><div><b>Antelación del aviso</b><small>Cuánto antes de que salga el objetivo.</small></div>
@@ -3159,6 +3269,8 @@ A["anti-n"] = el => anti({derrotas: +el.dataset.n});
 A["hud-mini"] = () => hud({mini: !(E().hud || {}).mini});
 A["hud-lugar"] = el => hud({lugar: el.dataset.l});
 A["hud-timers"] = () => hud({timers: (E().hud || {}).timers === false});
+A["hud-equipo"] = () => hud({equipo: (E().hud || {}).equipo === false});
+A["hud-baratija"] = () => hud({baratija: (E().hud || {}).baratija === false});
 A["hud-sonido"] = () => hud({sonido: (E().hud || {}).sonido === false});
 A["hud-av"] = el => { const av = Object.assign({}, (E().hud || {}).avisos || {}); av[el.dataset.k] = av[el.dataset.k] === false; hud({avisos: av}); };
 A["hud-ant"] = el => hud({antelacion: +el.dataset.s});

@@ -1,6 +1,6 @@
 {
-  "version": "43",
-  "notas": "al actualizarse, el coach te enseña las novedades en una ventana",
+  "version": "44",
+  "notas": "probabilidad de ganar en partida, tus jugadas, historial por día y sesión, guía contra tu rival",
   "archivos": [
     "coach.py",
     "dashboard.html",

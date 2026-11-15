@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "43"
+VERSION = "44"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -1710,6 +1710,82 @@ def _nombre_monstruo(e):
 _SIGLA_OBJ = {"DRAGON": "D", "ELDER_DRAGON": "A", "BARON_NASHOR": "B", "RIFTHERALD": "H", "HORDE": "L", "ATAKHAN": "K"}
 
 
+MULTI_NOMBRE = {2: "Doble kill", 3: "Triple kill", 4: "Cuádruple kill", 5: "Pentakill"}
+
+
+def clips_partida(frames, parts, yo_id, rol, camp):
+    """Tus jugadas clave de la partida (como los clips de DPM, sin grabar video): multikills, kills en solitario,
+    primera sangre, peleas ganadas, aces y objetivos grandes en los que estuviste. Cada una con el segundo para
+    abrirla en la repeticion. Ordenadas por tiempo; como mucho 12 (las de mas peso)."""
+    if yo_id not in parts:
+        return []
+    equipo = parts[yo_id].get("teamId")
+    kills = []                                  # (ts, killer, victima, asistentes)
+    objetivos = []
+    for t, e in _eventos(frames):
+        if t == "CHAMPION_KILL":
+            kills.append((e.get("timestamp") or 0, e.get("killerId"), e.get("victimId"), e.get("assistingParticipantIds") or []))
+        elif t == "ELITE_MONSTER_KILL":
+            objetivos.append(e)
+    kills.sort(key=lambda x: x[0])
+    enemigo = lambda pid: pid in parts and parts[pid].get("teamId") != equipo
+    clips, usados = [], set()
+
+    def clip(ts, tipo, titulo, sub, peso, tono="az"):
+        clips.append({"seg": max(0, int(ts / 1000)), "tipo": tipo, "titulo": titulo, "sub": sub, "peso": peso, "tono": tono})
+
+    # multikills: tus kills seguidas con menos de 10 s entre una y otra (30 s para la penta tras la cuadruple)
+    mias = [k for k in kills if k[1] == yo_id and enemigo(k[2])]
+    i = 0
+    while i < len(mias):
+        j = i
+        while j + 1 < len(mias) and mias[j + 1][0] - mias[j][0] <= (30000 if j - i + 1 == 4 else 10000):
+            j += 1
+        n = min(j - i + 1, 5)
+        if n >= 2:
+            clip(mias[i][0], "multi", MULTI_NOMBRE[n], _lista_y([camp(x[2]) for x in mias[i:j + 1]]),
+                 {2: 40, 3: 70, 4: 90, 5: 100}[n], "or" if n >= 4 else "az")
+            usados |= {x[0] for x in mias[i:j + 1]}
+        i = j + 1
+    if kills and kills[0][1] == yo_id and enemigo(kills[0][2]):
+        clip(kills[0][0], "primera", "Primera sangre", f"A {camp(kills[0][2])}", 45)
+        usados.add(kills[0][0])
+    for ts, kid, vid, asis in mias:
+        if not asis and ts not in usados:
+            clip(ts, "solo", "Kill en solitario", f"A {camp(vid)}, sin ayuda", 35)
+    # peleas: kills en ventanas de 15 s en las que participaste; ganada si caen 3 o mas de ellos y menos de los tuyos
+    i = 0
+    while i < len(kills):
+        j = i
+        while j + 1 < len(kills) and kills[j + 1][0] - kills[j][0] <= 15000:
+            j += 1
+        grupo = kills[i:j + 1]
+        suyos = {k[2] for k in grupo if enemigo(k[2])}
+        nuestros = {k[2] for k in grupo if k[2] in parts and not enemigo(k[2])}
+        estuve = any(yo_id in (k[1], k[2], *k[3]) for k in grupo)
+        solo_mias = any(k[0] in usados for k in grupo)          # ya contada como multikill o primera sangre
+        if estuve and not solo_mias and len(suyos) >= 3 and len(suyos) > len(nuestros):
+            ace = len(suyos) >= 5
+            clip(grupo[0][0], "ace" if ace else "pelea", "Ace" if ace else f"Pelea ganada {len(suyos)} por {len(nuestros)}",
+                 ("Cayeron los 5" if ace else f"Cayeron {len(suyos)} de ellos") + (f" y {len(nuestros)} de los tuyos" if nuestros else " y ninguno de los tuyos"),
+                 80 if ace else 50 + 5 * len(suyos), "or" if ace else "vd")
+        i = j + 1
+    # objetivos grandes con tu participacion (y el remate, si no eres la jungla)
+    for e in objetivos:
+        mt = (e.get("monsterType") or "").upper()
+        kid, asis = e.get("killerId"), e.get("assistingParticipantIds") or []
+        if kid not in parts or parts[kid].get("teamId") != equipo or yo_id not in (kid, *asis):
+            continue
+        nombre = _nombre_monstruo(e)
+        if mt in ("BARON_NASHOR", "ELDER_DRAGON"):
+            clip(e.get("timestamp") or 0, "objetivo", "Barón para tu equipo" if mt == "BARON_NASHOR" else "Anciano para tu equipo",
+                 "El remate fue tuyo" if kid == yo_id else "Estuviste en la jugada", 60, "vi")
+        elif kid == yo_id and rol != "jungla" and nombre and mt != "HORDE":
+            clip(e.get("timestamp") or 0, "objetivo", f"Remataste {nombre}", "Último golpe sin ser la jungla", 55, "vi")
+    mejores = sorted(clips, key=lambda c: -c["peso"])[:12]
+    return sorted(mejores, key=lambda c: c["seg"])
+
+
 def minuto_a_minuto(juego, tl, puuid, rec):
     """La partida minuto a minuto (como dpm.lol o itero): tu oro, XP y CS contra tu rival de linea, la ventaja de oro
     de tu equipo con su probabilidad de ganar estimada, lo que paso y los momentos que decidieron la partida."""
@@ -1822,8 +1898,12 @@ def minuto_a_minuto(juego, tl, puuid, rec):
             resumen["historia"] = f"Remontada: tu equipo llegó a ir {_miles(-mn[0])} de oro por detrás (min {int(mn[1])})."
         elif not gano and mx[0] >= 2500:
             resumen["historia"] = f"Ventaja perdida: tu equipo llegó a ir {_miles(mx[0])} de oro por delante (min {int(mx[1])})."
+    try:
+        clips = clips_partida(frames, parts, yo_id, roles.get(yo_id), camp)
+    except Exception:
+        clips = []
     return {"serie": serie, "eventos": [x for x in eventos if x["tipo"] != "kill_eq" or True], "momentos": momentos,
-            "resumen": resumen, "rival": camp(rival_id) if rival_id else ""}
+            "resumen": resumen, "rival": camp(rival_id) if rival_id else "", "clips": clips}
 
 
 def _lista_y(items):
@@ -4120,6 +4200,26 @@ def historial_contra(partidas, cid):
     return {"n": len(ps), "v": sum(1 for p in ps if p["victoria"]), "d": sum(1 for p in ps if not p["victoria"]),
             "solo": sum(p["datos_h"].get("solo_rival", 0) for p in ps),
             "cs10": round(sum(difs) / len(difs)) if difs else None}
+
+
+def guia_enfrentamiento(rival, consejos, wr=None, hist=None, maximo=3):
+    """Guia fija contra tu rival de linea para la tarjeta del Tab: lo mismo toda la partida (no reacciona a lo que
+    pasa en ella). Tu % contra el en Esmeralda+, tu historial, el nivel 6 (su definitiva) y los consejos oficiales
+    de Riot para jugar contra el."""
+    if not rival:
+        return None
+    datos = []
+    if wr and wr[1] and wr[1] >= 50:
+        datos.append(f"Tu campeón gana {_dec(wr[0], 1)} % contra él en Esmeralda+")
+    if hist:
+        datos.append(f"tú {hist['v']}V {hist['d']}D")
+    tips = ["Desde su nivel 6 tiene la definitiva: respeta más sus entradas."]
+    for t in (consejos or {}).get("contra") or []:
+        t = re.sub(r"\s+", " ", str(t)).strip()
+        if t and len(tips) < maximo:
+            tips.append(t if len(t) <= 150 else t[:147].rsplit(" ", 1)[0] + "…")
+    return {"rival": rival, "dato": " · ".join(datos), "tips": tips,
+            "tono": "mal" if wr and wr[1] and wr[1] >= 50 and wr[0] < 48.5 else "bien" if wr and wr[1] and wr[1] >= 50 and wr[0] > 51.5 else ""}
 
 
 def texto_historial(h, nombre):
@@ -6685,6 +6785,23 @@ OBJ_HERALDO, OBJ_HERALDO_FIN = 900, 1185       # una vez; se va a los 19:45 para
 OBJ_BARON_1, OBJ_BARON_RE = 1200, 360
 OBJ_ANCIANO_RE = 360                           # 6:00 despues del alma (y de cada Anciano)
 BUFO_BARON, BUFO_ANCIANO = 180, 150
+MODOS_NO_GRIETA = {"ARAM", "KIWI", "CHERRY", "URF", "ARURF", "ONEFORALL", "ULTBOOK", "NEXUSBLITZ", "TUTORIAL",
+                   "PRACTICETOOL", "STRAWBERRY", "DOOMBOTSTEEMO", "FIRSTBLOOD", "ODYSSEY", "STARGUARDIAN", "SNOWURF"}
+
+
+def es_grieta(cola):
+    """Si la cola es de la Grieta del Invocador (normal, clasificatoria, Swiftplay...). ARAM, ARAM: Caos, Arena y
+    demas modos no: alli no hay lineas, jungla, dragones ni Barones, y la mision, las runas y el draft no aplican.
+    Sin datos de la cola se asume Grieta (como antes)."""
+    if not cola:
+        return True
+    modo = str(cola.get("modo") or "").upper()
+    mapa = cola.get("mapa")
+    if mapa not in (None, 0, 11):
+        return False
+    return modo not in MODOS_NO_GRIETA
+
+
 COLAS_SIN_OBJETIVOS = {480}                     # Swiftplay: otros tiempos (Baron al 12, sin larvas ni Heraldo)
 DRAGON_ICONO = {"Fire": "dragon_infernal", "Water": "dragon_ocean", "Earth": "dragon_mountain", "Air": "dragon_cloud",
                 "Hextech": "dragon_hextech", "Chemtech": "dragon_chemtech", "Elder": "dragon_elder"}
@@ -6719,6 +6836,74 @@ AVISO_BUFO = {("baron", True): ("Barón vuestro", "Agrupaos y empujad juntos con
               ("baron", False): ("Barón suyo", "Defiende bajo tus torres y limpia oleadas. No pelees fuera ni vayas solo."),
               ("anciano", True): ("Anciano vuestro", "Buscad pelea ya: con poca vida sus campeones mueren de golpe."),
               ("anciano", False): ("Anciano suyo", "No peleéis hasta que se acabe: retroceded y defended.")}
+
+
+BARATIJA_TOTEM, BARATIJA_LENTE, BARATIJA_LEJANA = 3340, 3364, 3363
+
+
+def prob_vivo(dif_oro, minuto, drag_dif=0, torres_dif=0, bufo=0.0):
+    """Probabilidad de ganar en partida (azul = tu equipo), con lo que se ve en el Tab y lo que anuncia el juego:
+    ventaja de oro en objetos (pesa menos cuanto mas tarde), dragones, torres y bufos de Baron/Anciano activos
+    (bufo: +1 Baron vuestro, -1 suyo; el Anciano cuenta 1,6). Curva propia, aproximada."""
+    if minuto < 2:
+        return 50
+    k = 0.00045 * math.sqrt(15 / max(minuto, 8))
+    z = k * dif_oro + 0.10 * drag_dif + 0.06 * torres_dif + 0.55 * bufo
+    return max(3, min(97, round(100 / (1 + math.exp(-z)))))
+
+
+def marcador_vivo(data, mi_team, precio, ob=None):
+    """Marcador de equipo con lo que todos ven: oro en objetos (los del Tab: el oro sin gastar no se ve, ni del
+    tuyo ni del suyo), kills, torres derribadas y la probabilidad de ganar. None si no se sabe tu equipo."""
+    if mi_team not in ("ORDER", "CHAOS"):
+        return None
+    t = float((data.get("gameData") or {}).get("gameTime") or 0)
+    oro, kills = {True: 0, False: 0}, {True: 0, False: 0}
+    for pl in data.get("allPlayers") or []:
+        mio = pl.get("team") == mi_team
+        kills[mio] += int((pl.get("scores") or {}).get("kills") or 0)
+        for i in pl.get("items") or []:
+            oro[mio] += (precio(i.get("itemID")) or int(i.get("price") or 0)) * int(i.get("count") or 1)
+    torres, vistos = {True: 0, False: 0}, set()
+    for e in ((data.get("events") or {}).get("Events")) or []:
+        if e.get("EventName") != "TurretKilled":
+            continue
+        idx = e.get("EventID") if e.get("EventID") is not None else e.get("TurretKilled")
+        if idx in vistos:
+            continue
+        vistos.add(idx)
+        m = re.match(r"Turret_T([12])_", e.get("TurretKilled") or "")
+        if m:                                   # Turret_T1 es de ORDER: si cae, la suma CHAOS
+            torres[("CHAOS" if m.group(1) == "1" else "ORDER") == mi_team] += 1
+    drag, bufo = (0, 0), 0.0
+    if ob:
+        drag = tuple(ob.get("dragones") or (0, 0))
+        for f in ob.get("fichas") or []:
+            b = f.get("bufo")
+            if b and t < b["hasta"]:
+                bufo += (1 if b["mio"] else -1) * (1.6 if f["clave"] == "anciano" else 1.0)
+    dif = oro[True] - oro[False]
+    return {"prob": prob_vivo(dif, t / 60, drag[0] - drag[1], torres[True] - torres[False], bufo),
+            "oro": [oro[True], oro[False]], "dif": dif, "kills": [kills[True], kills[False]],
+            "torres": [torres[True], torres[False]]}
+
+
+def baratija_aviso(rol, minuto, items):
+    """Recordatorio (una vez por partida) de cambiar el Totem por la Lente del Oraculo cuando a tu rol le toca.
+    None si ya la cambiaste o aun no toca."""
+    ids = {i.get("itemID") for i in items or []}
+    if BARATIJA_TOTEM not in ids or ids & {BARATIJA_LENTE, BARATIJA_LEJANA}:
+        return None
+    if rol == "support" and minuto >= 6:
+        return ("Baratija · Lente del Oráculo",
+                "Cuando vuelvas a base, cambia el Tótem por la Lente: de support tu trabajo es quitarles la visión.")
+    if rol == "jungla" and minuto >= 4:
+        return ("Baratija · Lente del Oráculo",
+                "En tu próxima vuelta a base, cambia el Tótem por la Lente: limpia sus guardianes antes de cada objetivo.")
+    if rol in ("top", "mid", "bot") and minuto >= 15:
+        return ("Baratija · Lente del Oráculo",
+                "Acabó la fase de líneas: en base cambia el Tótem por la Lente para limpiar visión antes de dragón y Barón.")
+    return None
 
 
 def _seg_txt(seg):
@@ -6830,7 +7015,8 @@ def avisos_objetivos_cfg(pref=None):
     except (TypeError, ValueError):
         ant = 60
     return {"avisos": {k: bool(av.get(k, True)) for k in ("dragon", "larvas", "heraldo", "baron")},
-            "antelacion": ant, "sonido": bool(p.get("sonido", True)), "timers": bool(p.get("timers", True))}
+            "antelacion": ant, "sonido": bool(p.get("sonido", True)), "timers": bool(p.get("timers", True)),
+            "equipo": bool(p.get("equipo", True)), "baratija": bool(p.get("baratija", True))}
 
 
 _ICO_OBJ = {"fallo": {}, "bajando": set()}
@@ -6983,14 +7169,18 @@ class Hud:
                "objeto": "Siguiente: Sombrero de Rabadon · te faltan 420 de oro",
                "obj": [{"clave": "dragon", "corto": "Dragón", "ico": "dragon_infernal", "sale": 1150, "sub": "2–1", "sub_tono": ""},
                        {"clave": "heraldo", "corto": "Heraldo", "ico": "riftherald", "sale": 900, "fin": 1185, "sub": "", "sub_tono": ""},
-                       {"clave": "baron", "corto": "Barón", "ico": "baron", "sale": 1200, "sub": "", "sub_tono": ""}]}
+                       {"clave": "baron", "corto": "Barón", "ico": "baron", "sale": 1200, "sub": "", "sub_tono": ""}],
+               "eq": {"prob": 61, "dif": 1840, "kills": [14, 9], "torres": [3, 1]},
+               "guia": {"rival": "Ahri", "dato": "Tu campeón gana 47,8 % contra él en Esmeralda+ · tú 1V 2D", "tono": "mal",
+                        "tips": ["Desde su nivel 6 tiene la definitiva: respeta más sus entradas.",
+                                 "Ahri es mucho más vulnerable sin su definitiva, Impulso espiritual."]}}
     MUESTRA_T = 1140                      # minuto 19:00 en la prueba
 
     def __init__(self, ventana):
         self.v, self.tk, self.root, self.L = ventana, ventana.tk, ventana.root, ventana.L
         self.pref = self._leer_pref()
         self.esc = float(self.pref.get("escala") or 1.0)
-        self.W, self.H = self.e(250), self.e(800)
+        self.W, self.H = self.e(250), self.e(920)
         self.win = self.tk.Toplevel(self.root)
         self.win.withdraw()
         self.win.overrideredirect(True)
@@ -7089,7 +7279,7 @@ class Hud:
     def configurar(self, cambios):
         """Cambios hechos desde la app: opacidad, tamaño, mini siempre visible, lugar."""
         reconstruir = False
-        for k in ("opacidad", "mini", "escala", "lugar", "timers", "avisos", "antelacion", "sonido"):
+        for k in ("opacidad", "mini", "escala", "lugar", "timers", "avisos", "antelacion", "sonido", "equipo", "baratija"):
             if k in cambios:
                 if k == "escala" and float(cambios[k]) != self.esc:
                     reconstruir = True
@@ -7103,7 +7293,7 @@ class Hud:
             pass
         if reconstruir:
             self.esc = float(self.pref.get("escala") or 1.0)
-            self.W, self.H = self.e(250), self.e(800)
+            self.W, self.H = self.e(250), self.e(920)
             self.cv.delete("all")
             self.cv.config(width=self.W, height=self.H)
             self._vis, self.datos, self._img_ruta, self._cache = {}, {}, None, {}
@@ -7428,6 +7618,16 @@ class Hud:
             self.it[f"ob_b{i}"] = cv.create_rectangle(0, 0, 0, 0, fill=C["fondo"], outline="", tags=("obj",), state="hidden")
             if i:
                 self.it[f"ob_d{i}"] = cv.create_line(0, 0, 0, 0, fill=C["linea"], tags=("obj",), state="hidden")
+        # --- equipo: probabilidad de ganar, oro en objetos, kills y torres
+        caja("eq")
+        texto("e_et", "eq", "eti", 9.5, C["gris"])
+        texto("e_pct", "eq", "num", 17, C["tinta"], "ne")
+        self.it["e_b0"] = cv.create_rectangle(0, 0, 0, 0, fill=C["mal"], outline="", tags=("eq",), state="hidden")
+        self.it["e_b1"] = cv.create_rectangle(0, 0, 0, 0, fill=C["azul"], outline="", tags=("eq",), state="hidden")
+        self.it["e_m"] = cv.create_line(0, 0, 0, 0, fill=C["fondo"], width=2, tags=("eq",), state="hidden")
+        texto("e_oro", "eq", "eti", 10, C["gris"])
+        texto("e_k", "eq", "eti", 10, C["gris"], "n")
+        texto("e_t", "eq", "eti", 10, C["gris"], "ne")
         # --- aviso
         caja("aviso")
         self.it["a_barra"] = cv.create_rectangle(0, 0, 0, 0, fill=C["azul"], outline="", tags=("aviso",), state="hidden")
@@ -7456,6 +7656,11 @@ class Hud:
         self.it["o_pb1"] = cv.create_rectangle(0, 0, 0, 0, fill=C["azul"], outline="", tags=("objeto",), state="hidden")
         texto("o_txt", "objeto", "neg", 12.5, C["tinta"])
         texto("o_base", "objeto", "neg", 12, C["bien"])
+        # --- guia contra tu rival de linea
+        caja("guia")
+        texto("g_et", "guia", "eti", 9.5, C["mal"])
+        texto("g_dato", "guia", "txt", 12, C["gris"])
+        texto("g_tips", "guia", "neg", 12, C["tinta"])
         # --- ayuda al colocar
         caja("ayuda")
         texto("y_txt", "ayuda", "neg", 12, C["azul"])
@@ -7477,7 +7682,8 @@ class Hud:
         if demo:
             obj = [dict(f, ico_ruta=str(CACHE / f"obj_{f['ico']}.png") if (CACHE / f"obj_{f['ico']}.png").exists() else None)
                    for f in obj]
-        firma = json.dumps([h, aviso, demo, self.mover, self.pref.get("timers", True)], sort_keys=True, ensure_ascii=False)
+        firma = json.dumps([h, aviso, demo, self.mover, self.pref.get("timers", True), self.pref.get("equipo", True)],
+                           sort_keys=True, ensure_ascii=False)
         if firma == self.datos.get("firma") and not forzar:
             return
         cv, C, e, P, W, L = self.cv, self.C, self.e, self.P, self.W, self.L
@@ -7501,6 +7707,9 @@ class Hud:
         hay["obj"] = bool(obj)
         alto["obj"] = e(54) if obj else 0
         obj_fotos = [self._foto_obj(f["ico_ruta"], e(30)) if f.get("ico_ruta") else None for f in obj]
+        eq = h.get("eq") if self.pref.get("equipo", True) else None
+        hay["eq"] = bool(eq)
+        alto["eq"] = e(64) if eq else 0
         # aviso: icono a la izquierda (si lo hay), titulo de color, texto y barra de tiempo
         a_foto = self._foto_obj(aviso[3], e(34)) if aviso and len(aviso) > 3 and aviso[3] else None
         a_izq = (e(34) + e(10)) if a_foto else 0
@@ -7551,6 +7760,14 @@ class Hud:
         barra = e(10) if h.get("oro_pct") is not None else 0
         cuerpo = len(otxt) * self._lin("neg", 12.5) + (e(2) + len(obase) * self._lin("neg", 12) if obase else 0) + barra
         alto["objeto"] = (P + tira_h + max(cuerpo, self._img.height() if (self._img and not fotos) else 0) + P - e(2)) if otxt else 0
+        gu = h.get("guia") or {}
+        g_dato = _envolver(L.f("txt", e(12)), gu.get("dato"), ancho, 2) if gu else []
+        g_tips = []
+        for tip in (gu.get("tips") or [])[:3]:
+            g_tips += _envolver(L.f("neg", e(12)), "• " + tip, ancho, 2)
+        hay["guia"] = bool(g_tips)
+        alto["guia"] = (P + self._lin("eti", 9.5) + e(3) + (len(g_dato) * self._lin("txt", 12) + e(4) if g_dato else 0)
+                        + len(g_tips) * self._lin("neg", 12) + P - e(2)) if g_tips else 0
         ayuda = _envolver(L.f("neg", e(12)), "Arrástralas adonde quieras. Se guarda solo.", ancho, 2) if (demo and self.mover) else []
         hay["ayuda"] = bool(ayuda)
         alto["ayuda"] = P + len(ayuda) * self._lin("neg", 12) + P - e(2) if ayuda else 0
@@ -7598,14 +7815,15 @@ class Hud:
                 cfg(it["m_mis"], text="")
                 cfg(it["m_st"], text="")
         self._y = {}
-        orden = ["mini", "obj", "aviso", "mision", "reto", "objeto", "ayuda"]
+        orden = ["mini", "obj", "eq", "aviso", "mision", "guia", "objeto", "reto", "ayuda"]
         for n in orden:
             self._y[n] = None
         self.datos = {"firma": firma, "hay": hay, "alto": alto, "demo": demo,
                       "aviso": aviso, "regla": regla, "est": est, "rnom": rnom, "rmeta": rmeta,
                       "otxt": otxt, "obase": obase, "img_w": img_w, "txt_aviso": txt_aviso, "ayuda": ayuda,
                       "tit_aviso": tit_aviso, "a_foto": a_foto, "a_izq": a_izq, "obj": obj, "obj_fotos": obj_fotos,
-                      "fotos": fotos, "tira_h": tira_h, "lado": lado, "oro_pct": h.get("oro_pct")}
+                      "fotos": fotos, "tira_h": tira_h, "lado": lado, "oro_pct": h.get("oro_pct"), "eq": eq,
+                      "guia": gu, "g_dato": g_dato, "g_tips": g_tips}
         self._vis = {}                                     # obliga a recolocar con la visibilidad actual
         self._visibilidad()
 
@@ -7620,11 +7838,29 @@ class Hud:
         en_partida = demo or self.estado is not None
         ver = {"mini": en_partida and delante and d["hay"]["mini"] and (demo or tab or self.pref.get("mini", True)),
                "obj": en_partida and delante and d["hay"].get("obj", False),
+               "eq": en_partida and delante and d["hay"].get("eq", False),
                "aviso": en_partida and delante and bool(self.aviso or demo) and d["hay"]["aviso"],
                "mision": en_partida and delante and tab and d["hay"]["mision"],
                "reto": en_partida and delante and tab and d["hay"]["reto"],
                "objeto": en_partida and delante and tab and d["hay"]["objeto"],
+               "guia": en_partida and delante and tab and d["hay"].get("guia", False),
                "ayuda": demo and d["hay"]["ayuda"]}
+        # con Tab se apilan muchas: las que no caben (en el lienzo o hasta el borde de la pantalla) no se pintan
+        lim = self.H
+        try:
+            if self.mapeada:
+                vx, vy, vw, vh = self._pantalla()
+                lim = max(self.e(200), min(lim, vy + vh - self.win.winfo_y() - self.e(8)))
+        except Exception:
+            pass
+        tab_prio = ("mision", "objeto", "guia", "reto")          # si no caben todas, se quedan por este orden
+        alto_y = sum(d["alto"][n] + self.e(6) for n in ver if ver[n] and n not in tab_prio)
+        for n in tab_prio:
+            if ver.get(n):
+                if alto_y + d["alto"][n] > lim:
+                    ver[n] = False
+                else:
+                    alto_y += d["alto"][n] + self.e(6)
         if ver == self._vis:
             return
         entra_aviso = ver["aviso"] and self._aviso_n != self._aviso_visto and not demo
@@ -7637,7 +7873,7 @@ class Hud:
         cv, C, e, P, W, it = self.cv, self.C, self.e, self.P, self.W, self.it
         cfg, xy = self._cfg, self._xy
         y, hueco = 0, e(6)
-        for n in ("mini", "obj", "aviso", "mision", "reto", "objeto", "ayuda"):
+        for n in ("mini", "obj", "eq", "aviso", "mision", "guia", "objeto", "reto", "ayuda"):
             if not ver[n]:
                 if self._cache.get(("v", n)) is not False:
                     self._cache[("v", n)] = False
@@ -7678,6 +7914,30 @@ class Hud:
                         xy(it[f"ob_b{i}"], -500, -500, -500, -500)
                         if i:
                             xy(it[f"ob_d{i}"], -500, -500, -500, -500)
+            elif n == "eq":
+                q = d["eq"]
+                pct = int(q.get("prob") or 50)
+                xy(it["eq"], *self._rr(0, y, W - 1, y + a, e(9)))
+                xy(it["e_et"], P, y + P - e(1))
+                cfg(it["e_et"], text="PROBABILIDAD DE GANAR")
+                xy(it["e_pct"], W - P, y + P - e(6))
+                cfg(it["e_pct"], text=f"{pct} %", fill=C["azul"] if pct >= 55 else C["mal"] if pct <= 45 else C["tinta"])
+                by, bh = y + P + e(19), e(6)
+                corte = round(P + (W - 2 * P) * pct / 100)
+                xy(it["e_b0"], P, by, W - P, by + bh)
+                xy(it["e_b1"], P, by, corte, by + bh)
+                xy(it["e_m"], corte, by - e(1), corte, by + bh + e(1))
+                ty = by + bh + e(8)
+                dif = int(q.get("dif") or 0)
+                oro_txt = ("+" if dif > 0 else "−" if dif < 0 else "±") + _dec(abs(dif) / 1000) + "k"
+                xy(it["e_oro"], P, ty)
+                cfg(it["e_oro"], text="ORO " + oro_txt, fill=C["bien"] if dif >= 500 else C["mal"] if dif <= -500 else C["gris"])
+                k1, k2 = (q.get("kills") or [0, 0])[:2]
+                t1, t2 = (q.get("torres") or [0, 0])[:2]
+                xy(it["e_k"], W // 2, ty)
+                cfg(it["e_k"], text=f"KILLS {k1}–{k2}")
+                xy(it["e_t"], W - P, ty)
+                cfg(it["e_t"], text=f"TORRES {t1}–{t2}")
             elif n == "aviso":
                 tono = d["aviso"][1] if d["aviso"] else "azul"
                 col = {"rojo": C["mal"], "verde": C["bien"], "oro": C["oro"]}.get(tono, C["azul"])
@@ -7763,6 +8023,19 @@ class Hud:
                 else:
                     xy(it["o_pb0"], -500, -500, -500, -500)
                     xy(it["o_pb1"], -500, -500, -500, -500)
+            elif n == "guia":
+                xy(it["guia"], *self._rr(0, y, W - 1, y + a, e(9)))
+                yy = y + P - e(1)
+                xy(it["g_et"], P, yy)
+                cfg(it["g_et"], text=f"CONTRA {(d['guia'].get('rival') or '').upper()}")
+                yy += self._lin("eti", 9.5) + e(3)
+                xy(it["g_dato"], P, yy)
+                cfg(it["g_dato"], text="\n".join(d["g_dato"]),
+                    fill={"bien": C["bien"], "mal": C["mal"]}.get(d["guia"].get("tono"), C["gris"]))
+                if d["g_dato"]:
+                    yy += len(d["g_dato"]) * self._lin("txt", 12) + e(4)
+                xy(it["g_tips"], P, yy)
+                cfg(it["g_tips"], text="\n".join(d["g_tips"]))
             elif n == "ayuda":
                 xy(it["ayuda"], *self._rr(0, y, W - 1, y + a, e(9)))
                 cfg(it["ayuda"], outline=C["azul"])
@@ -8543,12 +8816,14 @@ class Coach:
         self._sel_clave = None
         self.carga = None
         self.draft = None             # panel de la seleccion para el dashboard
+        self._cola_sel = None         # cola de la seleccion actual ({id, modo, mapa, nombre})
+        self._t_aviso = 0.0           # ultimo aviso puesto en las tarjetas (para no pisarlo)
         self._sel_estado = None
         self.plan_jungla, self._aviso_jungla = None, False
         self._obj_avisados, self.cola_partida = set(), None
         self._ev_muestra, self._ev_raros, self._obj_cfg = False, set(), (0.0, None)
         self.rol_partida = ""
-        self._hud_reto, self._hud_base = None, None
+        self._hud_reto, self._hud_base, self._hud_guia = None, None, None
         self.repeticion = None
         self.summoner_id = None
         self._runas_clave = None
@@ -8761,8 +9036,33 @@ class Coach:
                      if p["yo"]["campeon_id"] == champ and p.get("rol")]
         return Counter(roles).most_common(1)[0][0] if roles else ""
 
+    def _leer_cola(self):
+        """La cola de la partida (gameflow): id, modo de juego, mapa y nombre."""
+        gd = (self.lcu.get("/lol-gameflow/v1/session", timeout=5) or {}).get("gameData") or {}
+        q = gd.get("queue") or {}
+        return {"id": q.get("id"), "modo": q.get("gameMode"), "mapa": q.get("mapId"),
+                "nombre": q.get("description") or q.get("shortName") or q.get("gameMode") or "otro modo"}
+
     def _seleccion(self):
         rol, champ, elegido, enemigos, ses = "", None, None, [], None
+        if self._cola_sel is None:
+            try:
+                c = self._leer_cola()
+                if c.get("modo") or c.get("mapa"):
+                    self._cola_sel = c          # si aun no trae la cola, se vuelve a leer en la siguiente vuelta
+            except Exception:
+                pass
+        if self._cola_sel is not None and not es_grieta(self._cola_sel):
+            # ARAM, ARAM: Caos, Arena...: sin lineas ni objetivos. Nada de mision, runas, build ni draft de la Grieta
+            clave = ("otro_modo", self._cola_sel.get("nombre"))
+            if self._sel_clave != clave:
+                self._sel_clave = clave
+                self.rol_partida, self.mision_partida, self.build_partida, self.draft = "", None, None, None
+                self._sel_estado = None
+                log(f"Selección en {self._cola_sel.get('nombre')}: el coach no pone misión, runas ni build "
+                    "(son para la Grieta) y esta partida no cuenta.")
+                self._ventana({"modo": "oculto"})
+            return
         try:
             ses = self.lcu.get("/lol-champ-select/v1/session", timeout=5)
             if self.pantalla == 0 and ((ses.get("timer") or {}).get("phase") or "").upper() == "GAME_STARTING":
@@ -9495,6 +9795,7 @@ class Coach:
                 _, clave, f, tit, txt, tono = min(pend, key=lambda x: x[0])
                 hechos.add(clave)
                 estado = dict(estado, aviso=txt, aviso_tit=tit, aviso_ico=f.get("ico_ruta"), tono=tono, aviso_seg=10)
+                self._t_aviso = time.time()
                 if cfg["sonido"]:
                     sonar_aviso()
             return estado
@@ -9502,6 +9803,30 @@ class Coach:
             if not getattr(self, "_obj_err", False):
                 self._obj_err = True
                 log(f"Objetivos en partida: {type(e).__name__}: {e}")
+            return estado
+
+    def _con_baratija(self, estado, data):
+        """Una vez por partida: cambia el Totem por la Lente del Oraculo cuando a tu rol le toca."""
+        try:
+            if (not estado or estado.get("modo") != "partida" or estado.get("aviso")
+                    or ("baratija",) in self._obj_avisados or not self._cfg_objetivos()["baratija"]
+                    or time.time() - self._t_aviso < 15):
+                return estado
+            yo = _yo_en_vivo(data, ((self.alm.d.get("jugador") or {}).get("nombre") or ""))
+            if not yo:
+                return estado
+            t = float((data.get("gameData") or {}).get("gameTime") or 0)
+            av = baratija_aviso(self.rol_partida, t / 60, yo.get("items"))
+            if not av:
+                return estado
+            self._obj_avisados.add(("baratija",))
+            self._t_aviso = time.time()
+            return dict(estado, aviso=av[1], aviso_tit=av[0], aviso_ico=self._ico("item", BARATIJA_LENTE),
+                        tono="azul", aviso_seg=12)
+        except Exception as e:
+            if not getattr(self, "_bar_err", False):
+                self._bar_err = True
+                log(f"Aviso de baratija: {type(e).__name__}: {e}")
             return estado
 
     def _con_dano(self, estado, enemigos, champ):
@@ -9564,6 +9889,16 @@ class Coach:
                    "mision": estado.get("regla", ""), "mision_estado": estado.get("estado", ""),
                    "mision_nombre": estado.get("mision_nombre", ""), "mision_st": estado.get("mision_st", "curso")}
             ob = estado.get("objetivos")
+            try:
+                gd = data.get("gameData") or {}
+                mv = marcador_vivo(data, yo.get("team"), lambda i: (self.rec.items.get(str(i)) or {}).get("precio") or 0, ob) \
+                    if es_grieta({"modo": gd.get("gameMode"), "mapa": gd.get("mapNumber")}) else None
+                if mv:
+                    hud["eq"] = mv
+            except Exception as ex:
+                if not getattr(self, "_hud_err3", False):
+                    self._hud_err3 = True
+                    log(f"Tarjetas de partida (equipo): {type(ex).__name__}: {ex}")
             if ob and ob.get("fichas"):
                 hud["obj"] = [{k: f.get(k) for k in ("clave", "corto", "ico_ruta", "sale", "fin", "sub", "sub_tono", "bufo")}
                               for f in ob["fichas"]]
@@ -9608,6 +9943,22 @@ class Coach:
                 sube = habilidad_a_subir(ap.get("abilities") or {}, ap.get("level") or yo.get("level"), orden_h)
                 if sube:
                     filas.append({"et": "Sube habilidad", "yo": sube, "ref": " › ".join(orden_h) if orden_h else "", "tono": "azul"})
+                # guia contra tu rival de linea (fija toda la partida: se calcula una vez)
+                if rv and self.rol_partida in LOLA_LINEA:
+                    rnom = (rv.get("championName") or "").lower()
+                    rcid = next((int(c) for c, v in self.rec.campeones.items() if v.lower() == rnom), None)
+                    gk = self._hud_guia or {}
+                    if rcid and (gk.get("_k") != (cid, rcid) or (not gk.get("_wr") and time.time() - gk.get("_t", 0) > 120)):
+                        tabla = self._tabla_rivales(cid, self.rol_partida) if cid else {}
+                        con = self._lola_pedir(("consejos", rcid), lambda: self.rec.consejos(rcid))   # sin frenar el bucle
+                        if tabla is not None and con is not None:    # None = aun se piden: siguiente vuelta
+                            with self.alm.lock:
+                                hist = historial_contra(list(self.alm.d["partidas"].values()), rcid)
+                            wr = (tabla or {}).get(rcid)
+                            g = guia_enfrentamiento(rv.get("championName"), con or None, wr, hist)
+                            self._hud_guia = dict(g or {}, _k=(cid, rcid), _wr=bool(wr), _t=time.time())
+                    if (self._hud_guia or {}).get("tips"):
+                        hud["guia"] = {k: v for k, v in self._hud_guia.items() if not k.startswith("_")}
             except Exception as e:
                 if not getattr(self, "_hud_err2", False):
                     self._hud_err2 = True
@@ -9759,9 +10110,12 @@ class Coach:
         try:
             ses = self.lcu.get("/lol-gameflow/v1/session", timeout=5)
             gd = ses.get("gameData") or {}
-            self.cola_partida = {"id": (gd.get("queue") or {}).get("id"), "modo": (gd.get("queue") or {}).get("gameMode")}
+            self.cola_partida = {"id": (gd.get("queue") or {}).get("id"), "modo": (gd.get("queue") or {}).get("gameMode"),
+                                 "mapa": (gd.get("queue") or {}).get("mapId")}
             if ((gd.get("queue") or {}).get("gameMode") or "").upper() == "PRACTICETOOL":
                 return
+            if not es_grieta(self.cola_partida):
+                return                 # ARAM y otros modos: sin plan de partida ni jungla rival
             t1, t2 = gd.get("teamOne") or [], gd.get("teamTwo") or []
             for eq, otro, lado_otro in ((t1, t2, 200), (t2, t1, 100)):
                 yo = next((x for x in eq if x.get("puuid") and x.get("puuid") == self.puuid), None)
@@ -9874,16 +10228,19 @@ class Coach:
                 self._ventana(estado)
             return
         if self.envivo is None:
-            if not self.mision_partida:
+            gd = data.get("gameData") or {}
+            if not es_grieta({"modo": gd.get("gameMode"), "mapa": gd.get("mapNumber")}):
+                self.mision_partida, self.rol_partida = None, ""      # ARAM y otros modos: sin mision
+            elif not self.mision_partida:
                 plan = plan_actual(self.alm)
                 self.mision_partida = mision_para_rol(plan, self.rol_partida)
             rv = self.rival_partida
-            self._hud_reto, self._hud_base = None, None
+            self._hud_reto, self._hud_base, self._hud_guia = None, None, None
             self.envivo = EnVivo(self.mision_partida, self.rol_partida,
                                  ((self.alm.d.get("jugador") or {}).get("nombre") or ""),
                                  [self.rec.campeon(rv), (getattr(self.rec, "alias", {}) or {}).get(str(rv))] if rv else None)
         estado = self._con_objeto(self.envivo.actualizar(data), data)
-        estado = self._con_hud(self._con_objetivos(self._con_jungla(estado, data), data), data)
+        estado = self._con_hud(self._con_baratija(self._con_objetivos(self._con_jungla(estado, data), data), data), data)
         t = float((data.get("gameData") or {}).get("gameTime") or 0)
         if self.carga and t < 75:
             return      # sigue mostrando el plan de partida durante el primer minuto
@@ -9941,6 +10298,7 @@ class Coach:
                 self.rival_partida = None
                 self.plan_jungla, self._aviso_jungla = None, False
                 self._obj_avisados, self.cola_partida, self._ev_muestra = set(), None, False
+                self._cola_sel = None
             if fase not in ("ChampSelect", "GameStart", "InProgress", "Reconnect"):
                 self._ventana({"modo": "oculto"})
                 self.envivo = None
@@ -10349,7 +10707,7 @@ def crear_handler(coach):
                     cambios["mini"] = bool(body["mini"])
                 if body.get("lugar") in ("izq-arriba", "izq-centro", "izq-abajo", "der-arriba", "der-centro", "der-abajo"):
                     cambios["lugar"] = body["lugar"]
-                for k in ("timers", "sonido"):
+                for k in ("timers", "sonido", "equipo", "baratija"):
                     if k in body:
                         cambios[k] = bool(body[k])
                 if isinstance(body.get("avisos"), dict):

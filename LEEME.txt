@@ -12,6 +12,25 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v44: probabilidad de ganar en partida, tus jugadas y más
+- En partida, una tarjeta nueva con la probabilidad de ganar (barra azul, tu
+  equipo, y roja), la ventaja de oro en objetos, las kills y las torres. Se
+  calcula con lo que cualquiera ve en el Tab (los objetos de cada jugador). Solo
+  en la Grieta. Se quita en Ajustes > Tarjetas en partida.
+- Recordatorio de la baratija: un aviso para cambiar el Tótem por la Lente del
+  Oráculo cuando a tu rol le toca (support, jungla y, pasada la fase de líneas,
+  el resto).
+- Con Tab, una tarjeta "Contra" tu rival de línea: tu % contra él en
+  Esmeralda+, tu historial y los consejos de Riot para jugar contra él.
+- Partidas: agrupadas por día o por sesión (más de 2 horas sin jugar empieza
+  otra), con victorias y derrotas, nota media y KDA de cada grupo, y filtro por
+  cola.
+- Pestaña "Jugadas" en cada partida: multikills, kills en solitario, primera
+  sangre, peleas ganadas, aces y Barones contigo, con un botón para verlas en
+  la repetición.
+- ARAM, ARAM: Caos y otros modos: el coach ya no enseña la misión, las runas ni
+  el draft de la Grieta (allí no hay dragones ni líneas).
+
 Lo nuevo en la v43: las novedades, en una ventana
 - Cuando el coach se actualiza, al abrirlo te enseña una ventana con lo que
   trae la versión nueva: cada cambio marcado como Nuevo, Mejora o Arreglo, y
