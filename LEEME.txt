@@ -12,6 +12,20 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v54: reiniciarse tras actualizar sin romperse
+- Arreglado: después de actualizarse, el coach podía salir con el aviso de
+  Windows "Failed to remove temporary directory" y quedarse sin ventanita en
+  la partida y diciendo "Cliente de LoL cerrado" aunque estuviera abierto.
+  Ahora el coach nuevo arranca siempre limpio, con todas sus piezas.
+- Si vienes de una versión anterior, ese aviso puede salir una última vez al
+  pasar a esta: pulsa Aceptar; el coach se recupera solo (si no se abre,
+  ábrelo tú una vez desde el menú Inicio).
+- Las carpetas temporales que quedaron a medias se borran solas.
+- Selección de campeón: si tu campeón de la línea está bloqueado o elegido
+  (o aún no tienes campeones en ella), el coach te propone alternativas que
+  puedes elegir: del mismo estilo (un mago si juegas Syndra), fuertes en esa
+  línea en Esmeralda+, que le ganen a tu rival y que ya hayas jugado.
+
 Lo nuevo en la v53: actualizar más seguro
 - Si una actualización no se puede completar, el coach deshace lo que había
   cambiado y sigue entera la versión que tenías (antes podía quedar a medias).

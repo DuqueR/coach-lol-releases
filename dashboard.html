@@ -136,6 +136,8 @@ main.entra>*{animation:funde .15s ease-out both}       /* se cambia de pantalla 
 .card-h .der{margin-left:auto;display:flex;gap:8px;align-items:center}
 .vacio{color:var(--t2);font-size:var(--fs-4);line-height:1.55}
 .nota-p{font-size:var(--fs-3);color:var(--t3);line-height:1.5;margin-top:12px}
+.dr-fuera{font-size:var(--fs-3);color:var(--t2);line-height:1.5;margin:0 0 12px}
+.dr-fuera b{color:var(--t1)}
 .caido{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin-bottom:16px;border-radius:var(--r2);
   background:var(--rjs);color:var(--t1);font-size:var(--fs-4);line-height:1.45;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rj) 35%,transparent)}
 .caido .i{color:var(--rj);margin-top:1px}
@@ -1355,7 +1357,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "53";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "54";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -3514,15 +3516,18 @@ VISTAS.seleccion = () => {
       <div><span class="et ${turno ? "c-or" : "c-az"}">${turno ? "Te toca" : "Selección de campeón"}</span><h2 class="dz">${esc(d.fase_txt)}</h2><p class="sub">${sub}</p></div>
       ${seg != null ? `<div class="dr-reloj ${seg <= 10 ? "poco" : ""}" role="timer" aria-label="Segundos restantes"><b class="nm tn" data-fin="${d.t_fin}">${seg}</b><span class="et">segundos</span></div>` : ""}
     </section>`;
-  const picks = (d.picks || []).length ? (d.picks || []).map(x => `<div class="dr-fila ${x.mejor ? "mejor" : ""}">${cp(x.cid, x.nombre, 40)}
+  const fuera = d.pool_fuera || [], hayAlt = (d.picks || []).some(x => x.alt), soloAlt = hayAlt && !(d.picks || []).some(x => !x.alt);
+  const listaY = a => a.length > 1 ? a.slice(0, -1).join(", ") + " y " + a[a.length - 1] : (a[0] || "");
+  const avisoFuera = fuera.length ? `<p class="dr-fuera"><b>${esc(listaY(fuera))}</b> ${fuera.length > 1 ? "están bloqueados o elegidos" : "está bloqueado o elegido"}${soloAlt ? ": estas son alternativas que puedes elegir." : "."}</p>` : "";
+  const picks = (d.picks || []).length ? (d.picks || []).map((x, i, a) => `${x.alt && (i === 0 || !a[i - 1].alt) ? `<h3 class="et" style="margin:${i ? "16px" : "4px"} 0 8px">${i ? "Si no, alternativas" : "Alternativas que puedes elegir"}</h3>` : ""}<div class="dr-fila ${x.mejor ? "mejor" : ""}">${cp(x.cid, x.nombre, 40)}
       <div><b>${esc(x.nombre)}</b>${x.mejor ? ` <span class="chip vd">${ic("ok")}Recomendado</span>` : ""}<small>${esc(x.motivo || "Sin partidas tuyas en esta línea")}${x.p != null ? ` · <b class="${x.p >= 50 ? "c-az" : "c-rj"}">con él, ${nat(x.p)} % de ganar</b>` : ""}</small></div>
-      <div class="pct nm tn ${x.vs == null ? "t3" : x.vs >= 51 ? "c-vd" : x.vs <= 49 ? "c-rj" : ""}">${x.vs != null ? nat(x.vs) + "%" : x.n ? x.wr + "%" : "—"}<small>${x.vs != null ? "vs su campeón" : x.n ? "tus victorias" : ""}</small></div></div>`).join("")
-    : `<p class="vacio">${d.rol ? "Aún no tienes campeones jugados en esta línea. Elige uno sencillo y quédate con él varias partidas." : "En cuanto se sepa tu línea, aquí salen tus mejores picks."}</p>`;
+      <div class="pct nm tn ${x.vs == null ? "t3" : x.vs >= 51 ? "c-vd" : x.vs <= 49 ? "c-rj" : ""}">${x.vs != null ? nat(x.vs) + "%" : x.n && !x.alt ? x.wr + "%" : x.lin != null ? nat(x.lin) + "%" : "—"}<small>${x.vs != null ? "vs su campeón" : x.n && !x.alt ? "tus victorias" : x.lin != null ? "en " + esc(POS_TXT[d.rol] || d.rol_txt) : ""}</small></div></div>`).join("")
+    : `<p class="vacio">${yo.cid ? "Ya tienes campeón." : d.esperando_alt ? "Buscando alternativas para tu línea…" : fuera.length ? "No encontré alternativas: elige el campeón más sencillo que conozcas." : d.rol ? "Aún no tienes campeones jugados en esta línea. Elige uno sencillo y quédate con él varias partidas." : "En cuanto se sepa tu línea, aquí salen tus mejores picks."}</p>`;
   const cardPicks = `<section class="card" aria-label="Picks para tu línea"><div class="card-h"><h2>${ic("campeones")}Picks para tu línea</h2>
-      <span class="ay">${d.rival ? "Tus partidas + Lolalytics Esmeralda+ contra " + esc(d.rival.nombre) : "Tus partidas en esta línea"}${d.esperando_lola ? " · cargando datos…" : ""}</span></div>${picks}
+      <span class="ay">${d.rival ? "Tus partidas + Lolalytics Esmeralda+ contra " + esc(d.rival.nombre) : hayAlt ? "Tus partidas + Lolalytics Esmeralda+" : "Tus partidas en esta línea"}${d.esperando_lola ? " · cargando datos…" : ""}</span></div>${avisoFuera}${picks}
       ${(d.contras || []).length ? `<h3 class="et" style="margin:16px 0 8px">Fuera de tu pool, contra ${esc(d.rival.nombre)} rinden</h3>
         <div class="dr-contras">${d.contras.map(x => `<span class="dr-c">${cp(x.cid, x.nombre, 30)}<span><b>${esc(x.nombre)}</b><small class="nm tn c-vd">${nat(x.wr)} %</small></span></span>`).join("")}</div>` : ""}
-      ${c.pick ? `<p class="nota-p">${esc(c.pick)}</p>` : ""}</section>`;
+      ${c.pick && !soloAlt ? `<p class="nota-p">${esc(c.pick)}</p>` : ""}</section>`;
   const bans = (d.bans_sug || []).length ? (d.bans_sug || []).map(x => `<div class="dr-fila">${cp(x.cid, x.nombre, 36)}<div><b>${esc(x.nombre)}</b><small>${esc(x.motivo)}</small></div>
       ${x.wr != null ? `<div class="pct nm tn c-rj">${nat(x.wr)}%</div>` : `<span class="chip rj">Te gana</span>`}</div>`).join("")
     : `<p class="vacio">${d.esperando_lola ? "Buscando qué campeones le ganan a tu pool…" : "Sin un bloqueo claro: banea al que más te moleste."}</p>`;

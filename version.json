@@ -1,6 +1,6 @@
 {
-  "version": "53",
-  "notas": "actualizar es más seguro: si algo falla, se queda entera la versión que tenías",
+  "version": "54",
+  "notas": "el coach ya no se rompe al reiniciarse tras actualizar, y en la selección te propone alternativas si tu campeón está bloqueado",
   "archivos": [
     "coach.py",
     "dashboard.html",

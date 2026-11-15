@@ -41,7 +41,7 @@ from pathlib import Path
 
 # =============================================================== CONFIGURACION
 CONFIG = {
-    "puerto": 8765,
+    "puerto": int(os.environ.get("COACH_PUERTO") or 8765),   # COACH_PUERTO: solo para pruebas
     "abrir_navegador_al_iniciar": True,
     "abrir_aviso_al_buscar_partida": True,   # si toca parar y buscas partida, te abre el aviso
     "hud_partida": True,                     # en partida: tarjetas pequeñas y oscuras que salen al mantener Tab
@@ -108,7 +108,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "53"
+VERSION = "54"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -436,6 +436,84 @@ def lola_build(rec, cid, rol, tier="1trick"):
                 return b
         return None
     return _lola_cache(f"lola_{int(cid)}_{rol}_{tier}.json", pedir)
+
+
+def lola_linea(rol):
+    """Los campeones de una linea en Lolalytics (Esmeralda+): {"campeones": {cid: {"wr", "pr", "pct", "n"}}}.
+    pct: de las partidas de ese campeon, cuantas son en esta linea. Se guarda en disco unos dias."""
+    linea = LOLA_LINEA.get(rol)
+    if not linea:
+        return None
+
+    def pedir():
+        for parche in parches_actuales() or ["30"]:
+            d = _http_json(f"{LOLA_API}?ep=list&v=1&patch={parche}&lane={linea}&tier=emerald_plus"
+                           "&queue=ranked&region=all", timeout=12)
+            out = {}
+            for k, v in ((d or {}).get("cid") or {}).items():
+                try:
+                    out[str(int(k))] = {"wr": float(v["wr"]), "pr": float(v.get("pr") or 0),
+                                        "pct": float(v.get("pctLane") or 0), "n": int(v.get("games") or 0)}
+                except Exception:
+                    continue
+            if len(out) >= 20:
+                return {"campeones": out, "parche": parche}
+        return None
+    return _lola_cache(f"lola_linea_{rol}.json", pedir)
+
+
+ESTILO_TXT = {"Mage": "mago", "Assassin": "asesino", "Fighter": "luchador", "Tank": "tanque",
+              "Marksman": "tirador", "Support": "apoyo"}
+
+
+def picks_alternativos(linea, ocupados, pool, elegibles=None, tags_de=lambda c: None, tabla_rival=None,
+                       rival_nombre="", propios=None, nombre=str, maximo=3):
+    """Cuando tus campeones de la linea no estan disponibles (bloqueados, elegidos) o tienes pocos: otros que
+    puedes elegir, que se juegan de verdad en esa linea y rinden bien (Lolalytics Esmeralda+). Suben los del mismo
+    estilo que tu pool (un mago si juegas Syndra), los que le ganan al rival de tu linea y los que ya has jugado.
+    linea: {cid(str): {"wr", "pr", "pct", "n"}}. pool: [{"cid", "nombre"}] tus campeones de la linea.
+    elegibles: campeones que el cliente te deja elegir (None si no se sabe). tags_de(cid) -> ["Mage", ...] o None.
+    tabla_rival: {cid: (% del rival contra ese campeon, partidas)}. propios: {cid: {"n", "v"}} tus partidas.
+    Devuelve [{"cid", "nombre", "n", "v", "wr", "vs", "lin", "alt": True, "motivo", "puntos"}]."""
+    if not linea:
+        return []
+    propios = propios or {}
+    pool_ids = {x["cid"] for x in pool}
+    estilos = {}                                        # estilo principal de tu pool -> campeon de ejemplo
+    for x in pool:
+        t = (tags_de(x["cid"]) or [None])[0]
+        if t and t not in estilos:
+            estilos[t] = x.get("nombre") or nombre(x["cid"])
+    out = []
+    for k, v in linea.items():
+        cid = int(k)
+        if cid in ocupados or cid in pool_ids or (elegibles is not None and cid not in elegibles):
+            continue
+        if v["pct"] < 30 or v["n"] < 3000:              # que de verdad se juegue en esta linea
+            continue
+        puntos = (v["wr"] - 50) + min(v["pr"], 6) * 0.3
+        motivo = []
+        t = (tags_de(cid) or [None])[0]
+        if t and t in estilos:
+            puntos += 2.5
+            motivo.append(f"{ESTILO_TXT.get(t, t).capitalize()}, como {estilos[t]}")
+        vs = None
+        r = (tabla_rival or {}).get(cid)
+        if r and r[1] >= 100:
+            vs = round(100 - r[0], 1)
+            puntos += 1.5 * (vs - 50)
+            if vs >= 50.5:
+                motivo.append(f"le gana a {rival_nombre}: {_dec(vs)} %" if rival_nombre else f"{_dec(vs)} % contra el rival")
+        mio = propios.get(cid) or {}
+        if mio.get("n"):
+            puntos += min(mio["n"], 5) * 0.5 + (1 if mio["v"] * 2 >= mio["n"] else 0)
+            motivo.append(f"{mio['v']}V {mio['n'] - mio['v']}D tuyas")
+        motivo.append(f"gana el {_dec(round(v['wr'], 1))} % (Esmeralda+)")
+        out.append({"cid": cid, "nombre": nombre(cid), "n": mio.get("n", 0), "v": mio.get("v", 0), "wr": None,
+                    "vs": vs, "lin": round(v["wr"], 1), "alt": True, "puntos": round(puntos, 2),
+                    "motivo": " · ".join(motivo)[:1].upper() + " · ".join(motivo)[1:]})
+    out.sort(key=lambda x: -x["puntos"])
+    return out[:maximo]
 
 
 def lola_vs(rec, cid, rol, rival):
@@ -10397,6 +10475,7 @@ class Coach:
             rol = self._rol_habitual(champ)      # partidas sin posiciones: el rol en que sueles jugarlo
         self.rol_partida = rol
         plan = plan_actual(self.alm)
+        self._draft_alt = {}
         try:
             self._draft(ses, rol, champ, enemigos, plan)
         except Exception as e:
@@ -10413,6 +10492,7 @@ class Coach:
         build = (ops or {}).get("build")
         self.build_partida = build
         pick_txt = ""
+        alt_info = getattr(self, "_draft_alt", None) or {}
         try:
             pick_txt = self._mejor_pick(rol, [x["id"] for x in ((plan.get("roles") or {}).get("pools") or {}).get(rol) or []],
                                         enemigos)
@@ -10420,6 +10500,7 @@ class Coach:
             pass
         clave = (rol, champ, tuple(enemigos), (mision or {}).get("clave"), s["parada"], runas_txt,
                  tuple((build or {}).get("orden") or []), (build or {}).get("hab_txt"), pick_txt,
+                 json.dumps(alt_info, ensure_ascii=False, sort_keys=True),
                  json.dumps((ops or {}).get("opciones") or [], ensure_ascii=False))
         if clave == self._sel_clave:
             return
@@ -10457,15 +10538,34 @@ class Coach:
             if pool_ids and champ in pool_ids:
                 estado["pick"] = f"{nombre}: de tu pool de {rol_txt}{hist}."
                 estado["pick_ok"] = True
+            elif champ in (alt_info.get("alt_ids") or []):
+                estado["pick"] = (f"{nombre}: alternativa a {_lista_y(alt_info['fuera'])}, que no "
+                                  f"{'está disponible' if len(alt_info['fuera']) == 1 else 'están disponibles'}{hist}."
+                                  if alt_info.get("todo_fuera") else f"{nombre}: alternativa que te propone el coach{hist}.")
+                estado["pick_ok"] = True
+                estado["pick_corto"] = "alternativa"
             elif pool_ids:
                 estado["pick"] = f"{nombre} no es de tu pool de {rol_txt}{hist}. Tus campeones: {pool_txt}."
                 estado["pick_ok"] = False
             else:
                 estado["pick"] = f"{nombre}{' de ' + rol_txt if rol else ''}{hist or ': sin partidas guardadas'}."
                 estado["pick_ok"] = bool(mio and mio["v"] >= mio["d"])
+        elif pool_ids and alt_info.get("todo_fuera"):
+            fuera_txt = _lista_y(alt_info["fuera"])
+            prueba = list(dict.fromkeys((alt_info.get("libres") or []) + (alt_info.get("alt") or [])))[:3]
+            estado["pick"] = (f"{fuera_txt} no {'está disponible' if len(alt_info['fuera']) == 1 else 'están disponibles'}"
+                              + (f". Prueba: {_lista_y(prueba).replace(' y ', ' o ')}." if prueba else "."))
+            estado["pick_ok"] = False
+            estado["pick_corto"] = (f"prueba {prueba[0]}" if prueba else
+                                    f"{alt_info['fuera'][0]} no disponible")
         elif pool_ids:
             estado["pick"] = f"De {rol_txt}, tus campeones: {pool_txt}."
             estado["pick_ok"] = True
+        elif rol and alt_info.get("alt"):
+            estado["pick"] = (f"No tienes campeones fijos para {rol_txt}. Prueba: "
+                              f"{_lista_y(alt_info['alt']).replace(' y ', ' o ')}.")
+            estado["pick_ok"] = False
+            estado["pick_corto"] = f"prueba {alt_info['alt'][0]}"
         elif rol:
             estado["pick"] = f"No tienes campeones fijos para {rol_txt}: elige uno simple y quédate con él."
             estado["pick_ok"] = False
@@ -10529,7 +10629,7 @@ class Coach:
             estado["hechizos_txt"] = " + ".join(h for h in self.build_info["hechizos"] if h)
         if (ops or {}).get("hab_corta"):
             estado["hab_corta"] = ops["hab_corta"]
-        if estado.get("pick"):
+        if estado.get("pick") and not estado.get("pick_corto"):
             estado["pick_corto"] = "en tu pool" if estado.get("pick_ok", True) else "fuera de tu pool"
         if estado.get("dano_txt"):
             t = estado["dano_txt"].lower()
@@ -10592,6 +10692,51 @@ class Coach:
         with self.alm.lock:
             partidas = list(self.alm.d["partidas"].values())
         sug = draft_sugerencias(pool, tabla_de, rival, ocupados, mi_cid)
+        # tu pool de la linea no esta (bloqueado o ya elegido) o es corto: alternativas que puedes elegir
+        # fijado de verdad = su accion de elegir esta completada (en su turno, mirar uno ya rellena championId)
+        acciones = [a for fila in ses.get("actions") or [] for a in (fila or [])]
+        fijos = {a.get("actorCellId"): a.get("championId") for a in acciones
+                 if a.get("type") == "pick" and a.get("completed") and a.get("championId")}
+        fijo = (lambda f: fijos.get(f["celda"])) if acciones else (lambda f: f["cid"])
+        cerrados = set(d["bans_nuestros"] + d["bans_suyos"]) | {fijo(f) for f in d["aliados"] + d["rivales"]
+                                                                 if not f["yo"]} - {None}
+        fuera = [x["nombre"] for x in pool if x["cid"] in cerrados]
+        fuera_plan = [nombre(c) for c in pool_plan if c in cerrados]
+        todo_fuera = bool(pool_plan) and len(fuera_plan) == len(pool_plan)
+        libres = [x["nombre"] for x in sug["picks"]]
+        if getattr(self, "_alt_ses", (None,))[0] != rol:
+            self._alt_ses = (rol, {})          # alternativas de esta seleccion y linea: {cid: nombre} (se vacia al entrar)
+        alt, esperando_alt = [], False
+        fijado = bool(mio and fijo(mio))
+        if lola and len(sug["picks"]) < 2 and not fijado:
+            lin = self._lola_pedir(("linea", rol), lambda: lola_linea(rol))
+            esperando_alt = lin is None
+            cands = [int(k) for k, v in ((lin or {}).get("campeones") or {}).items()
+                     if v["pct"] >= 30 and v["n"] >= 3000 and int(k) not in ocupados]
+            tags = self._tags_campeones(pool_plan + [x["cid"] for x in pool] + cands) if lin else None
+            if lin and tags is None:
+                esperando_alt = True                            # se espera a saber el estilo (unos segundos)
+            elif lin:
+                tr_alt = tabla_de(rival) if rival else None
+                todos_propios = {}
+                for x in pool_campeones(self.alm):
+                    t = todos_propios.setdefault(x["cid"], {"n": 0, "v": 0})
+                    t["n"], t["v"] = t["n"] + x["n"], t["v"] + x["v"]
+                alt = picks_alternativos(lin.get("campeones") or {}, ocupados - {mi_cid}, pool, self._elegibles(),
+                                         tags.get, tr_alt or None, nombre(rival) if rival else "", todos_propios,
+                                         nombre, maximo=3 if not sug["picks"] else 2)
+                if alt and not sug["picks"]:
+                    alt[0]["mejor"] = True
+                sug["picks"] = sug["picks"] + alt
+                self._alt_ses[1].update({x["cid"]: x["nombre"] for x in alt})
+        elif fijado and mi_cid in self._alt_ses[1] and not any(x["cid"] == mi_cid for x in sug["picks"]):
+            # fijaste la alternativa: se queda en la lista (sin que otra pase a "Recomendado")
+            v = (((self._lola.get(("linea", rol)) or {}).get("campeones") or {}).get(str(mi_cid))) or {}
+            sug["picks"] = sug["picks"] + [{"cid": mi_cid, "nombre": nombre(mi_cid), "n": 0, "v": 0, "wr": None,
+                                            "vs": None, "lin": round(v["wr"], 1) if v.get("wr") else None,
+                                            "alt": True, "motivo": "La alternativa que elegiste"}]
+        self._draft_alt = {"fuera": fuera_plan, "todo_fuera": todo_fuera, "libres": libres,
+                           "alt": [x["nombre"] for x in alt], "alt_ids": list(self._alt_ses[1])}
         for b in sug["bans"]:
             b["nombre"] = nombre(b["cid"])
             b["motivo"] = f"{nombre(b['base'])} gana solo el {_dec(b['wr'])} % contra él (Esmeralda+)"
@@ -10640,6 +10785,7 @@ class Coach:
                 x["p"] = q["p"] if q else None
         d.update({"rol": rol, "rol_txt": ROL_TXT.get(rol, rol) if rol else "", "yo_cid": mi_cid,
                   "picks": sug["picks"], "bans_sug": sug["bans"], "rival": riv, "contras": contras,
+                  "pool_fuera": fuera, "esperando_alt": esperando_alt and not sug["picks"],
                   "nombres": {str(x): nombre(x) for x in d["bans_nuestros"] + d["bans_suyos"]},
                   "esperando_lola": lola and any(self._tabla_rivales(x["cid"], rol) is None for x in pool[:4])})
         e = getattr(self, "_sel_estado", None) or {}
@@ -10703,6 +10849,52 @@ class Coach:
                 self._lola[clave] = r or False
             threading.Thread(target=pedir, daemon=True).start()
         return None
+
+    def _tags_campeones(self, cids):
+        """{cid: ["Mage", ...]} de Data Dragon (guardado en disco). Las que falten se piden en un solo hilo.
+        None mientras falten, salvo que lleve mas de 8 s esperando: entonces lo que haya."""
+        cache = self.__dict__.setdefault("_tags_c", {})
+        falta = [c for c in dict.fromkeys(cids) if c and c not in cache]
+        if not falta:
+            self._tags_desde = None
+            return cache
+        if not getattr(self, "_tags_hilo", False):
+            self._tags_hilo = True
+
+            fallos = self.__dict__.setdefault("_tags_fallo", {})
+
+            def pedir(lista=[c for c in falta if time.time() - fallos.get(c, 0) > 120]):
+                try:
+                    for c in lista:
+                        x = self.rec.consejos(c)
+                        if x is None:
+                            fallos[c] = time.time()     # Data Dragon no contesto: otra vez sera
+                        else:
+                            cache[c] = x.get("tags") or []
+                finally:
+                    self._tags_hilo = False
+            threading.Thread(target=pedir, daemon=True).start()
+        desde = getattr(self, "_tags_desde", None) or time.time()
+        self._tags_desde = desde
+        return cache if time.time() - desde > 8 else None
+
+    def _elegibles(self):
+        """Campeones que el cliente te deja elegir ahora (tuyos y los gratis de la semana). None si no se sabe.
+        Se pregunta como mucho cada 10 s."""
+        c = getattr(self, "_eleg_cache", None)
+        if c and time.time() - c[0] < 10:
+            return c[1]
+        ids = None
+        try:
+            r = self.lcu.get("/lol-champ-select/v1/pickable-champion-ids", timeout=2)
+            if isinstance(r, list) and r:
+                ids = {int(x) for x in r if isinstance(x, int) and x > 0} or None
+        except Exception:
+            ids = None
+        if ids is None and c:
+            ids = c[1]                                  # el cliente fallo un momento: la ultima lista buena
+        self._eleg_cache = (time.time(), ids)
+        return ids
 
     def _tabla_rivales(self, champ, rol):
         """{rival: (% de victorias de tu campeon contra el, partidas)} en tu linea, de Lolalytics (Esmeralda o
@@ -11638,6 +11830,7 @@ class Coach:
                 self.oculta_partida, self.oculta_motivo = False, ""
             if fase == "ChampSelect":
                 self._sel_clave = None
+                self._alt_ses, self._tags_desde = (None, {}), None
                 self._opcion_clic = None
                 self._build_puesta = None
                 self._hechizos_puestos = None
@@ -12328,7 +12521,7 @@ _HUELLA = _huella_codigo()
 # =============================================================== ACTUALIZACIONES
 # Al abrir, el coach mira version.json en GitHub; si hay una version mayor baja los archivos de codigo (nunca toca
 # la carpeta datos), comprueba que coach.py compila, guarda copia de los actuales y se reinicia con lo nuevo.
-REPO_RAW = "https://raw.githubusercontent.com/DuqueR/coach-lol-releases/main"
+REPO_RAW = os.environ.get("COACH_REPO_RAW") or "https://raw.githubusercontent.com/DuqueR/coach-lol-releases/main"
 REPO_WEB = "https://github.com/DuqueR/coach-lol-releases"
 _ACTU = {"nueva": None, "notas": "", "error": "", "info": None, "local": False, "aplicando": False}   # lo ve el dashboard
 
@@ -12482,11 +12675,135 @@ def aplicar_pendientes():
         pass
 
 
-def _reiniciar():
-    env = {k: v for k, v in os.environ.items() if k != "COACH_DELEGADO"}
+def _entorno_limpio(**extra):
+    """El entorno para lanzar otro coach como programa nuevo. El .exe (PyInstaller de un solo archivo) se
+    descomprime en una carpeta temporal _MEI y deja en el entorno variables que la senalan: si el coach nuevo las
+    hereda, cree ser un hijo del viejo y usa esa misma carpeta, que el viejo borra al cerrarse (salia el aviso
+    "Failed to remove temporary directory" y el nuevo arrancaba sin la ventanita ni conexion a GitHub)."""
+    mei = str(getattr(sys, "_MEIPASS", "") or "")
+    mei_n = os.path.normcase(os.path.abspath(mei)) if mei else ""
+    env = {}
+    for k, v in os.environ.items():
+        if k in ("COACH_DELEGADO", "COACH_RELANZADO", "COACH_REINICIO", "_MEIPASS2") or k.upper().startswith("_PYI"):
+            continue
+        if mei_n and CONGELADO and os.path.normcase(str(v)).startswith(mei_n):
+            continue                                   # TCL_LIBRARY, SSL_CERT_FILE... de la carpeta del viejo
+        env[k] = v
+    if CONGELADO:
+        env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"     # PyInstaller 6.9+: el hijo es un programa nuevo
+    env.update({k: str(v) for k, v in extra.items()})
+    return env
+
+
+def _lanzar_nuevo(**extra):
     args = [sys.executable] if CONGELADO else [sys.executable, str(DIR / "coach.py")]
-    subprocess.Popen(args, cwd=str(DIR), env=env, close_fds=True)
-    os._exit(0)
+    subprocess.Popen(args, cwd=str(DIR), env=_entorno_limpio(**extra), close_fds=True)
+
+
+def _reiniciar():
+    _lanzar_nuevo(COACH_REINICIO="1")                  # el nuevo espera a que este suelte el candado
+    os._exit(0)                                        # en el acto: _mei_heredado cuenta con ello
+
+
+def _mei_temporal():
+    """La carpeta temporal _MEI del .exe de un solo archivo, o None (sin congelar, o .exe de carpeta: _internal)."""
+    mei = getattr(sys, "_MEIPASS", None) if CONGELADO else None
+    if not mei:
+        return None
+    try:
+        if Path(mei).resolve().is_relative_to(DIR.resolve()):
+            return None
+    except Exception:
+        return None
+    return str(mei)
+
+
+def _mei_heredado():
+    """True si este .exe arranco usando la carpeta temporal de otro coach: lo lanzo un coach viejo al reiniciarse
+    tras actualizar (con su entorno) y ese viejo ya se cerro. Pasa una vez al llegar a esta version desde una vieja.
+    Ante la duda, False: un falso positivo relanzaria el coach en cada arranque."""
+    if os.name != "nt" or not _mei_temporal():
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        k32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                                   ctypes.POINTER(wintypes.DWORD))
+        k32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+        k32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        h = k32.OpenProcess(0x1000, False, os.getppid())       # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return ctypes.get_last_error() == 87       # ERROR_INVALID_PARAMETER: el padre ya no existe
+        try:
+            codigo = wintypes.DWORD(0)
+            if not k32.GetExitCodeProcess(h, ctypes.byref(codigo)):
+                return False
+            if codigo.value != 259:                    # STILL_ACTIVE: el padre ya termino
+                return True
+            buf = ctypes.create_unicode_buffer(32768)
+            n = wintypes.DWORD(len(buf))
+            if not k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(n)):
+                return False                           # no se pudo saber: mejor no relanzar
+            # normal: el padre es el propio .exe (el que descomprimio la carpeta y la borrara al cerrar)
+            try:
+                return not os.path.samefile(buf.value, sys.executable)
+            except OSError:
+                return False
+        finally:
+            k32.CloseHandle(h)
+    except Exception:
+        return False
+
+
+def _guardar_mei(lista):
+    f = DATOS / "mei.json"
+    try:
+        tmp = f.with_name("mei.json.tmp")
+        tmp.write_text(json.dumps(lista), encoding="utf-8")
+        os.replace(tmp, f)
+    except Exception:
+        pass
+
+
+def _anotar_mei(ruta):
+    """Apunta en datos/mei.json una carpeta temporal _MEI del coach para borrarla en el proximo arranque."""
+    f = DATOS / "mei.json"
+    try:
+        lista = json.loads(f.read_text(encoding="utf-8"))
+        lista = [x for x in lista if isinstance(x, str)] if isinstance(lista, list) else []
+    except Exception:
+        lista = []
+    if ruta and ruta not in lista:
+        lista.append(ruta)
+    _guardar_mei(lista[-20:])
+    return lista[-20:]
+
+
+def _limpiar_mei_viejos():
+    """Borra las carpetas temporales de coaches anteriores que Windows no dejo borrar (las apuntadas en
+    datos/mei.json, nunca la propia ni las de otros programas) y apunta la propia para la proxima vez."""
+    mei = _mei_temporal()
+    if not mei:
+        return
+    propia = os.path.normcase(os.path.abspath(mei))
+    temp = os.path.normcase(os.path.abspath(os.path.dirname(os.path.abspath(mei))))
+    quedan = []
+    for d in _anotar_mei(None):
+        try:
+            p = Path(d)
+            if os.path.normcase(os.path.abspath(d)) == propia or not p.name.upper().startswith("_MEI") or \
+                    os.path.normcase(os.path.abspath(os.path.dirname(os.path.abspath(d)))) != temp:
+                continue                               # solo carpetas _MEI de la misma carpeta temporal
+            if p.is_dir():
+                shutil.rmtree(p, ignore_errors=True)
+            if p.exists():
+                quedan.append(d)                       # aun en uso: otra vez sera
+        except Exception:
+            pass
+    _guardar_mei(quedan[-19:] + [mei])
 
 
 def version_en_disco():
@@ -12731,7 +13048,7 @@ def _instancia_unica(espera=0.0):
             k32.CreateMutexW.restype = ctypes.c_void_p
             k32.CreateMutexW.argtypes = (ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p)
             k32.WaitForSingleObject.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
-            _MUTEX["h"] = k32.CreateMutexW(None, False, r"Local\CoachLoL_unico")
+            _MUTEX["h"] = k32.CreateMutexW(None, False, "Local\\CoachLoL_unico" + os.environ.get("COACH_INSTANCIA", ""))
         fin = time.time() + espera
         while True:
             r = k32.WaitForSingleObject(_MUTEX["h"], 300)
@@ -12784,7 +13101,22 @@ def main():
     print("=" * 56)
     print(f"  COACH LOL v{VERSION}  -  tu plan para salir de Hierro")
     print("=" * 56)
-    if not _instancia_unica(0):
+    if _mei_heredado() and not os.environ.get("COACH_RELANZADO"):
+        # lo lanzo un coach viejo al actualizarse y comparte su carpeta temporal (que se esta borrando):
+        # se arranca de nuevo como programa limpio, una sola vez
+        try:
+            log("Arrancado con la carpeta temporal del coach anterior: me relanzo limpio.")
+            _anotar_mei(_mei_temporal())               # la del coach viejo: la borra el nuevo
+            extra = {"COACH_REINICIO": "1"} if os.environ.get("COACH_REINICIO") else {}
+            _lanzar_nuevo(COACH_RELANZADO="1", **extra)
+            os._exit(0)
+        except Exception as e:
+            log(f"No pude relanzar el coach limpio ({type(e).__name__}).")
+    reinicio = bool(os.environ.pop("COACH_REINICIO", None))
+    if reinicio and not _instancia_unica(30):
+        log("El coach anterior no se cierra: no abro otro.")
+        return
+    if not reinicio and not _instancia_unica(0):
         # ya hay otro coach: si es esta misma version se trae su panel; si es otra, se le pide cerrarse y se espera
         puerto, ya_corre = _puerto_libre(CONFIG["puerto"])
         if ya_corre:
@@ -12793,7 +13125,9 @@ def main():
         if not _instancia_unica(20):
             log("Ya hay un coach abierto que no se cierra: no abro otro.")
             return
+    os.environ.pop("COACH_RELANZADO", None)
     aplicar_pendientes()
+    threading.Thread(target=_limpiar_mei_viejos, daemon=True).start()
     puerto, ya_corre = _puerto_libre(CONFIG["puerto"])
     url = f"http://127.0.0.1:{puerto}"
     if ya_corre:
