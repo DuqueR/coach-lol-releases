@@ -1,4 +1,4 @@
-﻿COACH LOL v25
+﻿COACH LOL v27
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,18 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v27: pulido de movimiento
+----------------------------------------
+- Los textos de ayuda ya no saltan al cruzar la pantalla con el ratón: esperan un instante y,
+  si vas de una casilla a otra, salen al momento.
+- Las ventanas (confirmar, revisar una muerte) aparecen con un fundido suave y se van rápido.
+- Cambiar de pantalla es un fundido corto; con el buscador (Ctrl+K) es instantáneo.
+- Los números de arriba solo cuentan cuando cambian, no cada vez que vuelves a Inicio.
+- Cerrar el coach: mantén pulsado el botón (se llena en rojo); si sueltas antes, no pasa nada.
+  Con el teclado sigue pidiendo confirmación.
+- Al terminar una partida, su tarjeta entra en la lista con un brillo azul.
+- El aviso con Deshacer no caduca mientras la ventana está escondida.
 
 Lo nuevo en la v26: más claro y más rápido de usar
 --------------------------------------------------

@@ -54,7 +54,7 @@ b,strong{font-weight:680}
 :focus-visible{outline:2px solid var(--az);outline-offset:2px;border-radius:4px}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:var(--s3);border-radius:6px;border:2px solid var(--bg)}
-::-webkit-scrollbar-thumb:hover{background:var(--t4)}
+@media (hover:hover){::-webkit-scrollbar-thumb:hover{background:var(--t4)}}
 ::-webkit-scrollbar-track{background:transparent}
 
 /* ---------- voces de letra ---------- */
@@ -78,7 +78,7 @@ b,strong{font-weight:680}
 .nav{display:flex;flex-direction:column;gap:2px}
 .nav button{position:relative;display:flex;align-items:center;gap:11px;height:40px;padding:0 12px;border:0;border-radius:9px;
   background:none;color:var(--t2);font-weight:600;font-size:14px;text-align:left;transition:background .12s,color .12s}
-.nav button:hover{background:var(--s2);color:var(--t1)}
+@media (hover:hover){.nav button:hover{background:var(--s2);color:var(--t1)}}
 .nav button.on{background:var(--azs);color:var(--t1)}
 .nav button.on .i{color:var(--az)}
 .nav button.on::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--az)}
@@ -97,8 +97,8 @@ b,strong{font-weight:680}
 .conx.on .pt{background:var(--vd);box-shadow:0 0 0 3px var(--vds)}
 .lat-btns{display:flex;gap:6px;padding:0 2px}
 .lat-btns button{flex:1;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--linea);background:none;color:var(--t3)}
-.lat-btns button:hover{color:var(--t1);border-color:var(--linea2);background:var(--s2)}
-.lat-btns button.pel:hover{color:var(--rj);border-color:color-mix(in srgb,var(--rj) 50%,transparent)}
+@media (hover:hover){.lat-btns button:hover{color:var(--t1);border-color:var(--linea2);background:var(--s2)}}
+@media (hover:hover){.lat-btns button.pel:hover{color:var(--rj);border-color:color-mix(in srgb,var(--rj) 50%,transparent)}}
 .cuerpo{min-width:0;display:flex;flex-direction:column}
 .tope{position:sticky;top:0;z-index:20;height:58px;display:flex;align-items:center;gap:14px;padding:0 28px;
   border-bottom:1px solid var(--linea);background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(12px) saturate(1.2)}
@@ -111,9 +111,8 @@ b,strong{font-weight:680}
 .jug .nb span{color:var(--t3);font-weight:500}
 .jug .rg{font-size:12px;color:var(--t3);line-height:1.2}
 main{width:100%;max-width:1660px;margin:0 auto;padding:22px 28px 70px}
-main.entra>*{animation:entra .26s cubic-bezier(.2,.7,.2,1) both}
-main.entra>*:nth-child(2){animation-delay:.03s} main.entra>*:nth-child(3){animation-delay:.06s}
-main.entra>*:nth-child(4){animation-delay:.09s} main.entra>*:nth-child(n+5){animation-delay:.12s}
+main.entra>*{animation:funde .15s ease-out both}       /* se cambia de pantalla muchas veces: solo un fundido corto */
+@keyframes funde{from{opacity:0}}
 @keyframes entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){ main.entra>*{animation:none} .sk{animation:none!important} }
 
@@ -148,17 +147,17 @@ main.entra>*:nth-child(4){animation-delay:.09s} main.entra>*:nth-child(n+5){anim
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;
   border:1px solid var(--linea2);background:var(--s3);color:var(--t1);font-weight:650;font-size:13.5px;white-space:nowrap;
   transition:background .12s,border-color .12s,filter .12s,transform .06s}
-.btn:hover{border-color:var(--linea3)} .btn:active{transform:translateY(1px)}
-.btn.p{background:var(--azf);border-color:transparent;color:#fff} .btn.p:hover{filter:brightness(1.12)}
+@media (hover:hover){.btn:hover{border-color:var(--linea3)}} .btn:active{transform:translateY(1px)}
+.btn.p{background:var(--azf);border-color:transparent;color:#fff} @media (hover:hover){.btn.p:hover{filter:brightness(1.12)}}
 .btn.f{background:transparent;border-color:transparent;color:var(--az);padding:0 6px;height:30px}
-.btn.f:hover{background:var(--azs)}
+@media (hover:hover){.btn.f:hover{background:var(--azs)}}
 .btn.pq{height:30px;font-size:12.5px;padding:0 11px;border-radius:7px}
 .btn.gr{height:44px;font-size:15px;padding:0 20px;border-radius:10px}
-.btn.pe:hover{border-color:color-mix(in srgb,var(--rj) 55%,transparent);color:var(--rj)}
-.btn.rj{background:var(--rj);border-color:transparent;color:var(--en-rj)} .btn.rj:hover{filter:brightness(1.08)}
+@media (hover:hover){.btn.pe:hover{border-color:color-mix(in srgb,var(--rj) 55%,transparent);color:var(--rj)}}
+.btn.rj{background:var(--rj);border-color:transparent;color:var(--en-rj)} @media (hover:hover){.btn.rj:hover{filter:brightness(1.08)}}
 .btn:disabled{opacity:.5;cursor:default;transform:none}
 .enl{display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:0;color:var(--az);font-weight:650;font-size:13px}
-.enl:hover{text-decoration:underline}
+@media (hover:hover){.enl:hover{text-decoration:underline}}
 .enl .i{width:14px;height:14px}
 .seg{display:flex;gap:5px;align-items:center}
 .seg i{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;background:var(--pozo);
@@ -193,14 +192,14 @@ main.entra>*:nth-child(4){animation-delay:.09s} main.entra>*:nth-child(n+5){anim
   text-align:left;padding:0 10px 8px;white-space:nowrap}
 .tb td{padding:9px 10px;border-top:1px solid var(--linea);vertical-align:middle}
 .tb .r{text-align:right} .tb .c{text-align:center}
-.tb tbody tr:hover td{background:color-mix(in srgb,var(--s2) 70%,transparent)}
+@media (hover:hover){.tb tbody tr:hover td{background:color-mix(in srgb,var(--s2) 70%,transparent)}}
 .tb td.nm{font-size:15px}
 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--linea);margin:0 0 16px;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tabs button{white-space:nowrap;flex:none}
 .tabs button{position:relative;height:42px;padding:0 15px;background:none;border:0;color:var(--t2);font-weight:650;font-size:13.5px;
   display:flex;align-items:center;gap:8px;border-radius:8px 8px 0 0}
-.tabs button:hover{color:var(--t1);background:var(--s2)}
+@media (hover:hover){.tabs button:hover{color:var(--t1);background:var(--s2)}}
 .tabs button.on{color:var(--t1)}
 .tabs button.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:2px;background:var(--az)}
 .tabs .n{min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--s3);font-size:11px;font-weight:700;display:grid;place-items:center;color:var(--t2)}
@@ -224,25 +223,33 @@ details.des[open]>summary .i{transform:rotate(90deg)}
 details.des .cu{padding:10px 14px;margin-top:8px;border-radius:8px;background:var(--pozo);color:var(--t2);font-size:13.5px;display:grid;gap:8px}
 
 /* ---------- ventanas y avisos ---------- */
-.modal{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:24px;background:rgba(3,5,9,.74);backdrop-filter:blur(5px)}
+.modal{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:24px;background:rgba(3,5,9,.74);backdrop-filter:blur(5px);
+  opacity:0;transition:opacity .15s ease-out,display .15s allow-discrete}
 html[data-tema="claro"] .modal{background:rgba(20,28,44,.45)}
-.modal.on{display:grid}
+.modal.on{display:grid;opacity:1;transition-duration:.2s}
+@starting-style{.modal.on{opacity:0}}
+.modal .modal-c{opacity:0;transform:scale(.96);transition:opacity .15s ease-out,transform .15s ease-out}
+.modal.on .modal-c{opacity:1;transform:none;transition:opacity .2s var(--ease-out),transform .2s var(--ease-out)}
+@starting-style{.modal.on .modal-c{opacity:0;transform:scale(.96)}}
 .modal-c{width:min(660px,100%);max-height:calc(100vh - 48px);overflow:auto;background:var(--s1);border:1px solid var(--linea2);
-  border-radius:16px;padding:26px 28px;box-shadow:var(--sombra);animation:entra .2s ease both}
+  border-radius:16px;padding:26px 28px;box-shadow:var(--sombra)}
 #toast{position:fixed;left:50%;bottom:26px;z-index:120;transform:translate(-50%,20px);opacity:0;pointer-events:none;
   padding:11px 16px;border-radius:10px;background:var(--t1);color:var(--bg);font-weight:650;font-size:13.5px;box-shadow:var(--sombra);
-  transition:opacity .18s,transform .18s;max-width:min(560px,90vw)}
-#toast.on{opacity:1;transform:translate(-50%,0)}
+  transition:opacity .15s ease-out,transform .15s ease-out;max-width:min(560px,90vw)}
+#toast.on{opacity:1;transform:translate(-50%,0);transition-duration:.2s;transition-timing-function:var(--ease-out)}
 #tip{position:fixed;z-index:130;pointer-events:none;display:none;max-width:300px;padding:6px 9px;border-radius:7px;
   background:#03060B;color:#EEF2F8;border:1px solid rgba(255,255,255,.14);font-size:12.5px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 #tip b{font-weight:700}
+#tip{transition:opacity .125s var(--ease-out),transform .125s var(--ease-out)}
+@starting-style{#tip{opacity:0;transform:scale(.97)}}
+#tip.instante{transition:none}
 
 /* ============================ comunes de las vistas ============================ */
 .chips{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}
 .pie{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
 button.chip{border:0;cursor:pointer;height:28px;padding:0 11px;font-size:12.5px;border-radius:8px;transition:background .12s,color .12s,border-color .12s}
 button.chip.ln{border:1px solid var(--linea2)}
-button.chip.ln:hover{border-color:var(--linea3);color:var(--t1)}
+@media (hover:hover){button.chip.ln:hover{border-color:var(--linea3);color:var(--t1)}}
 button.chip b{font-weight:700;opacity:.65;margin-left:1px}
 button.chip .i{width:13px;height:13px}
 .filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
@@ -380,7 +387,7 @@ button.chip .i{width:13px;height:13px}
 .pasos .tx b{font-size:13px;color:var(--t1);font-weight:650}
 .pasos .tx small{font-size:11.5px;color:var(--t3)}
 .pasos .sel button::after{content:"";position:absolute;left:18%;right:18%;bottom:0;height:2px;border-radius:2px;background:var(--az)}
-.pasos button:hover .n{border-color:var(--linea3)}
+@media (hover:hover){.pasos button:hover .n{border-color:var(--linea3)}}
 .et-det{padding:16px;border-radius:10px;background:var(--pozo)}
 .et-det .que{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14.5px;font-weight:600;margin-bottom:8px}
 .reqs>li{display:grid;grid-template-columns:104px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--linea)}
@@ -407,7 +414,7 @@ button.chip .i{width:13px;height:13px}
   padding:10px 12px 10px 16px;border-radius:10px;border:1px solid var(--linea);background:var(--s1);color:var(--t1);transition:background .12s,border-color .12s}
 .fp::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--rj)}
 .fp.gano::before{background:var(--az)}
-.fp:hover{background:var(--s2);border-color:var(--linea2)}
+@media (hover:hover){.fp:hover{background:var(--s2);border-color:var(--linea2)}}
 .fp.sel{background:var(--s2);border-color:color-mix(in srgb,var(--az) 60%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--az) 60%,transparent)}
 .fp .pa{display:grid;gap:5px;min-width:0}
 .fp .pb{display:grid;gap:5px;justify-items:end}
@@ -556,7 +563,7 @@ button.chip .i{width:13px;height:13px}
 .opc{display:grid;gap:2px;align-content:start;text-align:left;padding:10px 12px;border-radius:9px;border:1px solid var(--linea2);background:var(--pozo);color:var(--t1);line-height:1.35}
 .opc small{color:var(--t3);font-size:12px}
 .opc .chip{justify-self:start;margin-top:4px}
-.opc:hover{border-color:var(--linea3)}
+@media (hover:hover){.opc:hover{border-color:var(--linea3)}}
 .opc.on{border-color:var(--az);background:var(--azs);box-shadow:0 0 0 1px var(--az)}
 .rev-acc{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
 
@@ -733,7 +740,7 @@ input[type=range]:focus-visible{outline:2px solid var(--az);outline-offset:6px}
 .pant button{border:0;background:none;border-radius:4px;display:flex;padding:2px}
 .pant button:nth-child(even){justify-content:flex-end}
 .pant button i{width:24px;height:100%;border-radius:3px;background:var(--s3);transition:background .12s}
-.pant button:hover i{background:var(--t4)}
+@media (hover:hover){.pant button:hover i{background:var(--t4)}}
 .pant button.on i{background:var(--az)}
 .temas{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .temas button{display:grid;gap:8px;padding:10px;border-radius:10px;border:1px solid var(--linea2);background:none;color:var(--t1);text-align:left}
@@ -784,7 +791,7 @@ input[type=range]:focus-visible{outline:2px solid var(--az);outline-offset:6px}
 .cat-h h3 .i{color:var(--t3)}
 .cat li{padding-top:14px;padding-bottom:14px;border-top:1px solid var(--linea)}
 .cat li:first-child{border-top:0}
-.cat li:hover{background:color-mix(in srgb,var(--s2) 55%,transparent)}
+@media (hover:hover){.cat li:hover{background:color-mix(in srgb,var(--s2) 55%,transparent)}}
 .cat .rt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:2px}
 .cat .rt b{font-size:15px}
 .cat .cn p{font-size:13px}
@@ -907,7 +914,7 @@ main>.card,main>.kpis{margin-bottom:16px}
 /* mini gráfica: pasa el ratón por encima para ver cada partida */
 .ch-p rect{fill:transparent}
 .ch-p .ch-d{opacity:0;transition:opacity .1s}
-.ch-p:hover .ch-d{opacity:1}
+@media (hover:hover){.ch-p:hover .ch-d{opacity:1}}
 /* cuándo juegas mejor */
 .franjas{display:grid;grid-template-columns:24px repeat(6,minmax(0,1fr));gap:5px;max-width:560px}
 .franjas span{display:grid;place-items:center;font-size:11px;color:var(--t3)}
@@ -923,10 +930,10 @@ main>.card,main>.kpis{margin-bottom:16px}
 /* aviso con "Deshacer" */
 #toast.acc{pointer-events:auto;display:flex;align-items:center;gap:14px;padding-right:10px;overflow:hidden}
 .tst-b{border:0;background:color-mix(in srgb,var(--bg) 14%,transparent);color:inherit;font-weight:750;height:28px;padding:0 11px;border-radius:7px;transition:transform .16s var(--ease-out)}
-.tst-b:hover{background:color-mix(in srgb,var(--bg) 24%,transparent)}
+@media (hover:hover){.tst-b:hover{background:color-mix(in srgb,var(--bg) 24%,transparent)}}
 .tst-b:active{transform:scale(.96)}
 .tst-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--az);transform-origin:0 0;animation:tst-bar linear forwards}
-#toast:hover .tst-bar{animation-play-state:paused}
+#toast:hover .tst-bar,#toast.pausa .tst-bar{animation-play-state:paused}
 @keyframes tst-bar{to{transform:scaleX(0)}}
 /* buscador rápido (Ctrl+K): sin animación, se usa mucho */
 #cmd{position:fixed;inset:0;z-index:140;display:none;align-items:flex-start;justify-content:center;padding-top:12vh;background:rgba(3,6,11,.55)}
@@ -943,10 +950,23 @@ html[data-tema="claro"] #cmd{background:rgba(20,28,44,.35)}
 .cmd-pie{display:flex;gap:14px;padding:8px 14px;border-top:1px solid var(--linea);font-size:11.5px;color:var(--t3)}
 kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid var(--linea2);background:var(--s2);color:var(--t2)}
 .bus-b{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 11px;border-radius:8px;border:1px solid var(--linea);background:var(--s1);color:var(--t3);font-size:12.5px}
-.bus-b:hover{border-color:var(--linea2);color:var(--t1)}
+@media (hover:hover){.bus-b:hover{border-color:var(--linea2);color:var(--t1)}}
 #confeti{position:fixed;inset:0;z-index:150;pointer-events:none}
+/* partida nueva: baja a su sitio y brilla un momento */
+.llega{animation:llega .24s var(--ease-out) both,brilla 1.2s ease-out}
+@keyframes llega{from{opacity:0;transform:translateY(-8px)}}
+@keyframes brilla{from{box-shadow:0 0 0 2px var(--az),0 0 28px color-mix(in srgb,var(--az) 45%,transparent)}to{box-shadow:0 0 0 0 transparent}}
+/* mantener pulsado: se llena despacio mientras decides; al soltar vuelve rapido */
+.mantener{position:relative;overflow:hidden}
+.mantener>*:not(.hold){position:relative}
+.mantener .hold{position:absolute;inset:0;background:color-mix(in srgb,var(--rj) 32%,transparent);clip-path:inset(0 100% 0 0);
+  transition:clip-path .2s var(--ease-out);pointer-events:none}
+.mantener.pulsando .hold{clip-path:inset(0 0 0 0);transition:clip-path 1.2s linear}
+.mantener.pulsando{color:var(--rj)}
 @media (prefers-reduced-motion:reduce){
   .tabs-ind.anima,.fil-ind.anima{transition:none} .btn-est{animation:none} .btn:active:not(:disabled),button.chip:active{transform:none}
+  .modal .modal-c,.modal.on .modal-c{transform:none} #tip{transform:none!important}
+  .llega{animation:brilla 1.2s ease-out} .mantener.pulsando .hold{transition:clip-path .6s linear}
 }
 </style>
 </head>
@@ -967,7 +987,7 @@ kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:4px;border:1px sol
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "26";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "27";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -1166,15 +1186,23 @@ function toast(t, deshacer){
   el.innerHTML = esc(t) + (deshacer ? `<button class="tst-b" type="button">Deshacer</button><i class="tst-bar" style="animation-duration:${ms}ms"></i>` : "");
   el.classList.toggle("acc", !!deshacer); el.classList.add("on");
   let resta = ms, desde = Date.now();
-  const cerrar = () => { el.classList.remove("on", "acc"); el.onmouseenter = el.onmouseleave = null; const b = el.querySelector(".tst-b"); if(b) b.onclick = null; };
-  const programar = () => { clearTimeout(toast._t); desde = Date.now(); toast._t = setTimeout(cerrar, resta); };
+  const pausas = new Set();                     /* "raton" y/o "oculta": el tiempo solo corre si no hay ninguna */
+  el.classList.remove("pausa");
+  const cerrar = () => { clearTimeout(toast._t); el.classList.remove("on", "acc", "pausa"); el.onmouseenter = el.onmouseleave = null; toast._vis = null;
+    const b = el.querySelector(".tst-b"); if(b) b.onclick = null; };
+  const programar = () => { clearTimeout(toast._t); desde = Date.now(); toast._t = setTimeout(cerrar, Math.max(resta, 0)); };
+  const pausar = motivo => { if(!pausas.size){ clearTimeout(toast._t); resta -= Date.now() - desde; el.classList.add("pausa"); } pausas.add(motivo); };
+  const seguir = motivo => { pausas.delete(motivo); if(!pausas.size){ el.classList.remove("pausa"); programar(); } };
   programar();
+  toast._vis = () => document.hidden ? pausar("oculta") : seguir("oculta");
+  if(document.hidden) pausar("oculta");        /* si sale con la ventana escondida (en partida), espera a que la veas */
   if(deshacer){
-    el.onmouseenter = () => { clearTimeout(toast._t); resta -= Date.now() - desde; };
-    el.onmouseleave = () => programar();
+    el.onmouseenter = () => pausar("raton");
+    el.onmouseleave = () => seguir("raton");
     el.querySelector(".tst-b").onclick = () => { clearTimeout(toast._t); cerrar(); deshacer(); };
   } else el.onmouseenter = el.onmouseleave = null;
 }
+document.addEventListener("visibilitychange", () => { if(toast._vis) toast._vis(); });
 async function deshacerCon(token, luego){
   try{ const r = await api("/api/deshacer", {token}); toast(r.msg, r.reintentar ? () => deshacerCon(token, luego) : null); }catch(_){ toast("No se pudo deshacer."); }
   if(luego) await luego();
@@ -1182,18 +1210,30 @@ async function deshacerCon(token, luego){
 }
 (function(){
   const tip = () => $("#tip");
-  let actual = null;
-  const ocultar = () => { actual = null; tip().style.display = "none"; };
+  /* La primera vez espera 350 ms (asi no salen al cruzar la pantalla con el raton); si ya habia uno abierto
+     o se cerro hace nada, el siguiente sale al instante y sin animacion: recorrer una fila de casillas es fluido. */
+  let actual = null, visible = false, cerradoEn = 0, espera = 0;
+  const ocultar = () => { clearTimeout(espera); if(visible) cerradoEn = Date.now(); actual = null; visible = false; tip().style.display = "none"; };
+  const mostrar = (el, instante) => {
+    const t = tip(); t.textContent = el.dataset.tip || el.dataset.tipc;
+    t.classList.toggle("instante", instante); t.style.display = "block";
+    const r = el.getBoundingClientRect(), w = t.offsetWidth, h = t.offsetHeight;
+    let x = r.left + r.width / 2 - w / 2, y = r.top - h - 8, abajo = false;
+    if(y < 6){ y = r.bottom + 8; abajo = true; }
+    const xx = Math.max(6, Math.min(x, innerWidth - w - 6));
+    t.style.left = xx + "px"; t.style.top = y + "px";
+    t.style.transformOrigin = `${Math.round(r.left + r.width / 2 - xx)}px ${abajo ? "0" : "100%"}`;   /* crece desde el elemento */
+    visible = true;
+  };
   document.addEventListener("mouseover", e => {
     let el = e.target.closest && e.target.closest("[data-tip],[data-tipc]");
     if(el && !el.dataset.tip && !(el.dataset.tipc && COMPACTA.matches)) el = null;      /* data-tipc: solo con el menú plegado */
     if(!el){ if(actual) ocultar(); return; }
     if(el === actual) return;
-    actual = el; const t = tip(); t.textContent = el.dataset.tip || el.dataset.tipc; t.style.display = "block";
-    const r = el.getBoundingClientRect(), w = t.offsetWidth, h = t.offsetHeight;
-    let x = r.left + r.width / 2 - w / 2, y = r.top - h - 8;
-    if(y < 6) y = r.bottom + 8;
-    t.style.left = Math.max(6, Math.min(x, innerWidth - w - 6)) + "px"; t.style.top = y + "px";
+    const seguido = visible || Date.now() - cerradoEn < 400;
+    clearTimeout(espera); actual = el;
+    if(seguido){ if(visible) cerradoEn = Date.now(); mostrar(el, true); }
+    else { tip().style.display = "none"; espera = setTimeout(() => { if(actual === el && el.isConnected && (el.dataset.tip || (el.dataset.tipc && COMPACTA.matches))) mostrar(el, false); }, 350); }
   });
   document.addEventListener("scroll", ocultar, true);
   document.addEventListener("mousedown", ocultar, true);
@@ -1260,7 +1300,7 @@ function htmlLat(){
       <div class="conx ${e.conectado && !S.caido ? "on" : ""}" data-tipc="${esc(estado)}"><span class="pt"></span><span>${esc(estado)}</span></div>
       <div class="lat-btns">
         <button data-a="tema" data-tip="${temaActual() === "oscuro" ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}" aria-label="Cambiar el tema">${ic(temaActual() === "oscuro" ? "sol" : "luna")}</button>
-        <button class="pel" data-a="salir" data-tip="Cerrar el coach del todo (también las tarjetas del juego)" aria-label="Cerrar el coach">${ic("salir")}</button>
+        <button class="pel mantener" data-a="salir" data-tip="Mantén pulsado para cerrar el coach (también las tarjetas del juego)" aria-label="Cerrar el coach (mantén pulsado)"><i class="hold" aria-hidden="true"></i>${ic("salir")}</button>
       </div>
     </div>`;
 }
@@ -1290,13 +1330,14 @@ function pintar(forzar){
 
 /* ---------- detalles de movimiento tras cada repintado ---------- */
 const MENOS_MOV = matchMedia("(prefers-reduced-motion: reduce)");
-const _contados = new WeakSet();
+const _contados = new WeakSet(), _cuentaVista = new Map();     /* clave -> ultimo valor contado en esta sesion */
 function efectos(){
   /* números que suben hasta su valor la primera vez que aparecen (EasyUI "Stat Card") */
   for(const n of $$("[data-cu]")){
     if(_contados.has(n)) continue;
     _contados.add(n);
-    const fin = +n.dataset.cu, d = +(n.dataset.dec || 0);
+    const fin = +n.dataset.cu, d = +(n.dataset.dec || 0), k = n.dataset.cuk;
+    if(k){ const ya = _cuentaVista.get(k); _cuentaVista.set(k, fin); if(ya === fin) continue; }
     if(MENOS_MOV.matches || !isFinite(fin) || fin === 0) continue;
     const t0 = performance.now(), dur = 650;
     const paso = ahora => {
@@ -1332,7 +1373,7 @@ async function ir(v, o = {}){
     if(String(id) !== String(S.selId) || !S.partida){ S.selId = id; S.partida = null; S.verErrores = false; S.cargando = !!id; }
     history.replaceState(null, "", "#partidas" + (id ? "/" + id : ""));
   } else history.replaceState(null, "", "#" + v);
-  if(cambia){ animar(); window.scrollTo(0, 0); }
+  if(cambia){ if(!o.teclado) animar(); window.scrollTo(0, 0); }      /* desde el teclado (Ctrl+K), sin animación */
   pintar();
   if(v === "partidas" && S.selId && !S.partida){
     const id = S.selId;
@@ -1349,12 +1390,28 @@ A.tema = async () => {
   ponerTema(temaActual() === "oscuro" ? "claro" : "oscuro"); pintar(true);
   try{ await api("/api/tema", {tema: temaActual()}); if(S.estado) S.estado.tema = temaActual(); S.estadoTxt = ""; }catch(_){}
 };
-A.salir = async () => {
-  if(!await confirmar("¿Cerrar el coach del todo?", "Se cierran también la ventanita y las tarjetas del juego. Para volver a abrirlo, usa INICIAR_COACH.bat.", "Cerrar el coach", true)) return;
+/* Cerrar el coach: con el raton se mantiene pulsado 1,2 s (soltar antes lo cancela); con el teclado, se confirma. */
+async function cerrarCoach(){
   try{ await api("/api/salir", {}); }catch(_){}
   document.body.innerHTML = `<p style="padding:48px;font-size:18px;color:var(--t2)">Coach cerrado. Ya puedes cerrar esta ventana.</p>`;
   setTimeout(() => window.close(), 600);
+}
+A.salir = async (el, ev) => {
+  if(ev && ev.detail > 0){ if(!A.salir._hecho) toast("Mantén pulsado para cerrar el coach"); A.salir._hecho = false; return; }
+  if(await confirmar("¿Cerrar el coach del todo?", "Se cierran también la ventanita y las tarjetas del juego. Para volver a abrirlo, usa INICIAR_COACH.bat.", "Cerrar el coach", true)) cerrarCoach();
 };
+(function(){
+  let b = null, t = 0;
+  const soltar = () => { clearTimeout(t); if(b){ b.classList.remove("pulsando"); b.removeAttribute("data-fijo"); b = null; } };
+  document.addEventListener("pointerdown", ev => {
+    const el = ev.button === 0 && ev.target.closest && ev.target.closest(".mantener"); if(!el || b) return;
+    b = el; el.setAttribute("data-fijo", ""); el.classList.add("pulsando");           /* data-fijo: el repintado no lo corta */
+    t = setTimeout(() => { A.salir._hecho = true; soltar(); cerrarCoach(); }, MENOS_MOV.matches ? 600 : 1200);
+  });
+  for(const n of ["pointerup", "pointercancel"]) addEventListener(n, soltar, true);
+  addEventListener("blur", ev => { if(ev.target === window) soltar(); });     /* la ventana pierde el foco; no el de otro botón */
+  document.addEventListener("pointerout", ev => { if(b && ev.target.closest && ev.target.closest(".mantener") === b && !b.contains(ev.relatedTarget)) soltar(); });
+})();
 A["conf-si"] = () => cerrarConf(true);
 A["conf-no"] = () => cerrarConf(false);
 document.addEventListener("mousedown", ev => {          /* clic fuera de la ventana: se cierra (el aviso de parar, no) */
@@ -1403,11 +1460,11 @@ const norm = t => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLow
 function cmdItems(){
   const e = E() || {partidas: []}, L = [];
   const ICV = {inicio: "inicio", partidas: "partidas", retos: "retos", builds: "builds", progreso: "progreso", ia: "ia", ajustes: "ajustes"};
-  for(const [v, t] of Object.entries(TITULO)) L.push({ic: ICV[v], t, k: "Pantalla", ir: () => ir(v)});
+  for(const [v, t] of Object.entries(TITULO)) L.push({ic: ICV[v], t, k: "Pantalla", ir: () => ir(v, {teclado: true})});
   L.push({ic: temaActual() === "oscuro" ? "sol" : "luna", t: temaActual() === "oscuro" ? "Cambiar a tema claro" : "Cambiar a tema oscuro", k: "Acción", ir: () => A.tema()});
   L.push({ic: "copiar", t: "Copiar diagnóstico", k: "Acción", ir: () => A.diagnostico()});
   for(const p of e.partidas || []) L.push({ic: "partidas", t: `${p.campeon}${p.rival ? " contra " + p.rival : ""} · ${p.victoria ? "Victoria" : "Derrota"}`,
-    k: fechaCorta(p.fecha), extra: `${p.cola || ""} ${p.rol || ""} ${p.fecha || ""}`, ir: () => ir("partidas", {id: p.id})});
+    k: fechaCorta(p.fecha), extra: `${p.cola || ""} ${p.rol || ""} ${p.fecha || ""}`, ir: () => ir("partidas", {id: p.id, teclado: true})});
   return L;
 }
 function cmdPintar(){
@@ -1524,7 +1581,7 @@ function chispa(vals, tono = "az", W = 132, H = 34, tips = null){
     <circle cx="${X(v.length - 1).toFixed(1)}" cy="${Y(v[v.length - 1]).toFixed(1)}" r="4" fill="var(--${tono})" stroke="var(--s1)" stroke-width="2"/>${zonas}</svg>`;
 }
 /* número que sube hasta su valor la primera vez que se ve (lo anima efectos()) */
-const cu = (x, d = 1) => x == null || isNaN(x) ? dec(x, d) : `<span data-cu="${x}" data-dec="${d}">${dec(x, d)}</span>`;
+const cu = (x, d = 1, k = "") => x == null || isNaN(x) ? dec(x, d) : `<span data-cu="${x}" data-dec="${d}"${k ? ` data-cuk="${k}"` : ""}>${dec(x, d)}</span>`;
 function filaKpi(){
   const e = E(), c = e.cabecera, av = e.avance, ps = e.partidas;
   if(!c) return "";
@@ -1547,13 +1604,13 @@ function filaKpi(){
     <div class="kv"><b class="nm ${tono ? "c-" + tono : ""}">${valor}</b>${extra}</div><div class="kp">${pie}</div></div>`;
   return `<section class="kpis" aria-label="Tus números: victorias de todo el historial, el resto de las últimas ${c.n} partidas">
     ${c.wr_total != null
-      ? t("Victorias", `${cu(wrF, 0)}<small>%</small>`, wrF >= 50 ? "az" : "rj",
+      ? t("Victorias", `${cu(wrF, 0, "wr" + (S.filtroCola || ""))}<small>%</small>`, wrF >= 50 ? "az" : "rj",
           `<span class="tn">${vF}V ${nF - vF}D · ${nF} partidas${S.filtroCola ? " · " + esc(S.filtroCola) : ""}</span> ${forma}${filtroCola}`)
       : t("Victorias", `${c.wr}<small>%</small>`, c.wr >= 50 ? "az" : "rj", forma)}
-    ${t("KDA", cu(c.kda), "", `<span class="tn">${dec(m("k"))} / <span class="c-rj">${dec(m("d"))}</span> / ${dec(m("a"))}</span> de media`)}
-    ${t("Nota media", cu(c.nota), tonoNota(c.nota), `sobre 10, últimas ${c.n} partidas${dNota ? ` <span class="chip ${dNota > 0 ? "vd" : "rj"}" data-tip="Tus 10 últimas partidas frente a las 10 anteriores">${ic(dNota > 0 ? "sube" : "baja")}${dec(Math.abs(dNota))}</span>` : ""}`, chispa(notas, tonoNota(c.nota) || "az", 132, 34, tipsNota))}
-    ${c.puesto != null ? t("Puesto medio", `${cu(c.puesto)}<small>.º</small>`, c.puesto <= 4 ? "vd" : c.puesto > 6.5 ? "rj" : "", "de 10 jugadores por rendimiento") : ""}
-    ${av && av.media != null ? t("Errores caros", cu(av.media), av.media <= 1 ? "vd" : av.media >= 2 ? "rj" : "am",
+    ${t("KDA", cu(c.kda, 1, "kda"), "", `<span class="tn">${dec(m("k"))} / <span class="c-rj">${dec(m("d"))}</span> / ${dec(m("a"))}</span> de media`)}
+    ${t("Nota media", cu(c.nota, 1, "nota"), tonoNota(c.nota), `sobre 10, últimas ${c.n} partidas${dNota ? ` <span class="chip ${dNota > 0 ? "vd" : "rj"}" data-tip="Tus 10 últimas partidas frente a las 10 anteriores">${ic(dNota > 0 ? "sube" : "baja")}${dec(Math.abs(dNota))}</span>` : ""}`, chispa(notas, tonoNota(c.nota) || "az", 132, 34, tipsNota))}
+    ${c.puesto != null ? t("Puesto medio", `${cu(c.puesto, 1, "puesto")}<small>.º</small>`, c.puesto <= 4 ? "vd" : c.puesto > 6.5 ? "rj" : "", "de 10 jugadores por rendimiento") : ""}
+    ${av && av.media != null ? t("Errores caros", cu(av.media, 1, "err"), av.media <= 1 ? "vd" : av.media >= 2 ? "rj" : "am",
         "por partida, últimas 10", dAv ? `<span class="chip ${dAv < 0 ? "vd" : "rj"}">${ic(dAv < 0 ? "baja" : "sube")}${dec(Math.abs(dAv))}</span>` : "") : ""}
   </section>`;
 }
@@ -1611,7 +1668,7 @@ function cardProxima(){
 function cardUltima(){
   const u = E().partidas[0]; if(!u) return "";
   const tn = tonoNota(u.nota);
-  return `<section class="card pl ult ${u.victoria ? "gano" : "perdio"}" aria-label="Tu última partida">
+  return `<section class="card pl ult ${u.victoria ? "gano" : "perdio"} ${S.llega === String(u.id) ? "llega" : ""}" aria-label="Tu última partida">
     <div class="ult-a"><img class="arte" src="/img/splash/${u.campeon_id}" alt=""><div class="velo"></div>
       <div class="ult-t"><span class="et">Tu última partida</span>
         <div class="res dz">${u.victoria ? "Victoria" : "Derrota"}</div>
@@ -1702,7 +1759,7 @@ function htmlLista(){
   return filtros + `<div class="filas">` + ps.map(p => {
     const sel = String(p.id) === String(S.selId), tn = tonoNota(p.nota), mvp = (p.premios || []).includes("MVP");
     const premio = (p.premios || []).find(x => x !== "MVP" && x.startsWith("Más"));
-    return `<button class="fp ${p.victoria ? "gano" : "perdio"} ${sel ? "sel" : ""}" data-a="partida" data-id="${p.id}" data-k="p${p.id}" aria-pressed="${sel}">
+    return `<button class="fp ${p.victoria ? "gano" : "perdio"} ${sel ? "sel" : ""} ${S.llega === String(p.id) ? "llega" : ""}" data-a="partida" data-id="${p.id}" data-k="p${p.id}" aria-pressed="${sel}">
       ${cp(p.campeon_id, p.campeon, 44)}
       <span class="pa"><span class="l1"><b class="res">${p.victoria ? "Victoria" : "Derrota"}</b><span class="dim">${esc(ROL[p.rol] || "")}${p.rol ? " · " : ""}${esc(p.duracion)}</span></span>
         <span class="l2"><span class="kda nm">${p.k ?? "?"}<s>/</s><i>${p.d ?? "?"}</i><s>/</s>${p.a ?? "?"}</span><span class="dim tn">${p.cs != null ? p.cs + " CS" : ""}</span></span>
@@ -2601,7 +2658,7 @@ VISTAS.ajustes = () => {
         <p class="nota-p">¿Algo falla o tienes una idea? Copia el diagnóstico (no lleva tus claves) y pégalo en tu comentario.</p>
         <div class="pie izq"><button class="btn" data-a="diagnostico">${ic("info", "s")}Copiar diagnóstico</button>
           <button class="btn" data-a="feedback">Enviar comentario</button>
-          <button class="btn pe" data-a="salir">${ic("salir", "s")}Cerrar el coach</button></div></section>
+          <button class="btn pe mantener" data-a="salir" data-tip="Mantén pulsado para cerrar"><i class="hold" aria-hidden="true"></i>${ic("salir", "s")}<span>Cerrar el coach</span></button></div></section>
     </div></div>`;
 };
 async function hud(cambios, aviso){
@@ -2685,6 +2742,7 @@ async function refrescar(){
   }
   if(e.ultima_nueva && e.ultima_nueva !== S.vistaNueva){
     S.vistaNueva = e.ultima_nueva; S.prog = null;
+    S.llega = String(e.ultima_nueva); clearTimeout(S._llegaT); S._llegaT = setTimeout(() => { S.llega = null; pintar(true); }, 1600);
     toast("Partida nueva analizada");
     if(!escribiendo() && !$("#rev").classList.contains("on") && ids.includes(String(e.ultima_nueva))){ await ir("partidas", {id: e.ultima_nueva}); revisarAviso(); return; }
   }
