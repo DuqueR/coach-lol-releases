@@ -1,4 +1,4 @@
-﻿COACH LOL v32
+﻿COACH LOL v33
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,13 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v33: tarjetas de partida más completas
+----------------------------------------------------
+- Tus números ahora te comparan con tu rival de línea: CS de diferencia y nivel (de support, solo nivel).
+- Cuando tienes un punto de habilidad sin gastar te dice cuál subir, según el orden de tu build (la R en cuanto se puede).
+- Con Tab, la tarjeta del siguiente objeto enseña tu build con iconos: verde lo que ya tienes, azul lo siguiente,
+  y una barra con el oro que llevas para comprarlo.
 
 Lo nuevo en la v32: la partida minuto a minuto
 ----------------------------------------------

@@ -106,7 +106,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "32"
+VERSION = "33"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -738,6 +738,30 @@ def siguiente_objeto(rec, orden, tengo, oro):
                     piezas(c, prof + 1)
         piezas(iid)
         return {"id": iid, "nombre": rec.item(iid), "falta": max(0, int(precio - credito - oro))}
+    return None
+
+
+def habilidad_a_subir(abilities, nivel, orden):
+    """Que habilidad subir ahora con tus puntos libres: la R en cuanto se puede (6, 11, 16); si no, la primera del
+    orden de la build (p. ej. "E > Q > W") que aun no esta al tope de tu nivel. None si no te quedan puntos."""
+    try:
+        lv = {k: int((abilities.get(k) or {}).get("abilityLevel") or 0) for k in ("Q", "W", "E", "R")}
+    except Exception:
+        return None
+    nivel = int(nivel or 0)
+    if not nivel or sum(lv.values()) >= nivel:
+        return None
+    if lv["R"] < sum(1 for x in (6, 11, 16) if nivel >= x):
+        return "R"
+    pri = [x for x in (orden or []) if x in ("Q", "W", "E")] + [x for x in ("Q", "W", "E") if x not in (orden or [])]
+    if nivel <= 3:                       # primeros niveles: una de cada, empezando por la que mas se sube
+        for k in pri:
+            if lv[k] == 0:
+                return k
+    tope = min(5, (nivel + 1) // 2)
+    for k in pri:
+        if lv[k] < tope:
+            return k
     return None
 
 
@@ -6025,18 +6049,22 @@ class Hud:
          "tenue": "#65728B", "bien": "#3DDC97", "mal": "#FF6B7D", "azul": "#5AA9FF", "oro": "#E6C36A"}
     MUESTRA = {"filas": [{"et": "CS/min", "yo": "6,4", "ref": "5,8", "tono": "bien"},
                          {"et": "Oro/min", "yo": "382", "ref": "404", "tono": "mal"},
-                         {"et": "KP %", "yo": "58"}, {"et": "KDA", "yo": "3,5", "ref": "2,1", "tono": "bien"}],
+                         {"et": "KP %", "yo": "58"}, {"et": "KDA", "yo": "3,5", "ref": "2,1", "tono": "bien"},
+                         {"et": "CS vs Ahri", "yo": "+12", "ref": "niv 9/8", "tono": "bien"},
+                         {"et": "Sube habilidad", "yo": "Q", "ref": "Q › E › W", "tono": "azul"}],
+               "tira_ids": [(3020, "ok"), (6655, "ok"), (3089, "sig"), (3157, "pend"), (3135, "pend"), (3165, "pend")],
+               "oro_pct": 0.62,
                "ref": "Bronce", "mision_nombre": "No morir solo", "mision_st": "curso",
                "mision": "Desde el minuto 14, 0 muertes sin tu equipo en la pelea",
                "mision_estado": "Muertes sin tu equipo desde el 14: 0",
                "reto": "Participación en kills", "reto_meta": "% de las kills de tu equipo: ≥ 53 %",
-               "objeto": "Siguiente: Eco de Luden · te faltan 420 de oro"}
+               "objeto": "Siguiente: Sombrero de Rabadon · te faltan 420 de oro"}
 
     def __init__(self, ventana):
         self.v, self.tk, self.root, self.L = ventana, ventana.tk, ventana.root, ventana.L
         self.pref = self._leer_pref()
         self.esc = float(self.pref.get("escala") or 1.0)
-        self.W, self.H = self.e(250), self.e(600)
+        self.W, self.H = self.e(250), self.e(720)
         self.win = self.tk.Toplevel(self.root)
         self.win.withdraw()
         self.win.overrideredirect(True)
@@ -6057,6 +6085,7 @@ class Hud:
         self.mapeada = False
         self._vis = {}                     # tarjeta -> visible
         self._img, self._img_ruta = None, None
+        self._tira_img = {}                # icono -> imagen reducida para la tira de la build
         self._cache = {}                   # lo ultimo puesto en cada elemento del lienzo
         self._drag = None
         self._ctrl = False                 # Ctrl pulsado con el raton encima: se pueden arrastrar en partida
@@ -6143,7 +6172,7 @@ class Hud:
             pass
         if reconstruir:
             self.esc = float(self.pref.get("escala") or 1.0)
-            self.W, self.H = self.e(250), self.e(600)
+            self.W, self.H = self.e(250), self.e(720)
             self.cv.delete("all")
             self.cv.config(width=self.W, height=self.H)
             self._vis, self.datos, self._img_ruta, self._cache = {}, {}, None, {}
@@ -6365,7 +6394,7 @@ class Hud:
         caja("mini")
         texto("m_marca", "mini", "eti", 9.5, C["azul"])
         texto("m_ref", "mini", "txt", 10.5, C["tenue"], "ne")
-        for i in range(4):
+        for i in range(6):
             texto(f"m_et{i}", "mini", "eti", 10.5, C["gris"])
             texto(f"m_yo{i}", "mini", "num", 17, C["tinta"], "ne")
             texto(f"m_rf{i}", "mini", "txt", 12, C["tenue"])
@@ -6390,6 +6419,11 @@ class Hud:
         # --- objeto
         caja("objeto")
         self.it["o_img"] = cv.create_image(0, 0, anchor="nw", tags=("objeto",), state="hidden")
+        for k in range(6):                                # tu build: comprado (verde), siguiente (azul), despues
+            self.it[f"o_r{k}"] = cv.create_rectangle(0, 0, 0, 0, outline=C["borde"], width=2, tags=("objeto",), state="hidden")
+            self.it[f"o_i{k}"] = cv.create_image(0, 0, anchor="nw", tags=("objeto",), state="hidden")
+        self.it["o_pb0"] = cv.create_rectangle(0, 0, 0, 0, fill=C["linea"], outline="", tags=("objeto",), state="hidden")
+        self.it["o_pb1"] = cv.create_rectangle(0, 0, 0, 0, fill=C["azul"], outline="", tags=("objeto",), state="hidden")
         texto("o_txt", "objeto", "neg", 12.5, C["tinta"])
         texto("o_base", "objeto", "neg", 12, C["bien"])
         # --- ayuda al colocar
@@ -6418,7 +6452,7 @@ class Hud:
             cfg(it[nombre], outline=borde or C["borde"])
 
         # ---- alturas y textos (las posiciones se ponen despues, de arriba abajo)
-        filas = (h.get("filas") or [])[:4]
+        filas = (h.get("filas") or [])[:6]
         fila_h, cab_h = e(25), e(24)
         hay["mini"] = bool(filas)
         tiene_mis = bool(h.get("mision_nombre"))
@@ -6447,12 +6481,31 @@ class Hud:
                 except Exception:
                     self._img = None
             cfg(it["o_img"], image=self._img or "")
-        img_w = (self._img.width() + e(9)) if self._img else 0
+        tira = h.get("tira")
+        if demo and not tira:
+            tira = [{"ico": str(DATOS / "cache" / f"item_{i}.png"), "estado": st} for i, st in h.get("tira_ids") or []
+                    if (DATOS / "cache" / f"item_{i}.png").exists()]
+        lado = e(32)
+        fotos = []
+        for x in (tira or [])[:6]:
+            k = (x["ico"], lado)
+            if k not in self._tira_img:
+                try:
+                    im = self.tk.PhotoImage(file=x["ico"])
+                    f = max(1, round(im.width() / lado))
+                    self._tira_img[k] = im.subsample(f) if f > 1 else im
+                except Exception:
+                    self._tira_img[k] = None
+            if self._tira_img[k] is not None:
+                fotos.append((self._tira_img[k], x.get("estado")))
+        tira_h = (lado + e(10)) if fotos else 0
+        img_w = (self._img.width() + e(9)) if (self._img and not fotos) else 0
         otxt = _envolver(L.f("neg", e(12.5)), h.get("objeto"), ancho - img_w, 3)
         obase = _envolver(L.f("neg", e(12)), h.get("base"), ancho - img_w, 2)
         hay["objeto"] = bool(otxt)
-        cuerpo = len(otxt) * self._lin("neg", 12.5) + (e(2) + len(obase) * self._lin("neg", 12) if obase else 0)
-        alto["objeto"] = (P + max(cuerpo, self._img.height() if self._img else 0) + P - e(2)) if otxt else 0
+        barra = e(10) if h.get("oro_pct") is not None else 0
+        cuerpo = len(otxt) * self._lin("neg", 12.5) + (e(2) + len(obase) * self._lin("neg", 12) if obase else 0) + barra
+        alto["objeto"] = (P + tira_h + max(cuerpo, self._img.height() if (self._img and not fotos) else 0) + P - e(2)) if otxt else 0
         ayuda = _envolver(L.f("neg", e(12)), "Arrástralas adonde quieras. Se guarda solo.", ancho, 2) if (demo and self.mover) else []
         hay["ayuda"] = bool(ayuda)
         alto["ayuda"] = P + len(ayuda) * self._lin("neg", 12) + P - e(2) if ayuda else 0
@@ -6466,7 +6519,7 @@ class Hud:
             xy(it["m_ref"], W - P, y + P - e(3))
             cfg(it["m_ref"], text=("tú / " + h["ref"]) if h.get("ref") else "")
             col_ref = W - P - e(46)
-            for i in range(4):
+            for i in range(6):
                 f = filas[i] if i < len(filas) else None
                 fy = y + P + cab_h + i * fila_h
                 xy(it[f"m_et{i}"], P, fy + e(5))
@@ -6474,7 +6527,7 @@ class Hud:
                 xy(it[f"m_rf{i}"], col_ref, fy + e(4))
                 cfg(it[f"m_et{i}"], text=f["et"].upper() if f else "")
                 cfg(it[f"m_yo{i}"], text=f["yo"] if f else "",
-                    fill={"bien": C["bien"], "mal": C["mal"]}.get((f or {}).get("tono"), C["tinta"]))
+                    fill={"bien": C["bien"], "mal": C["mal"], "azul": C["azul"]}.get((f or {}).get("tono"), C["tinta"]))
                 cfg(it[f"m_rf{i}"], text=("/ " + f["ref"]) if f and f.get("ref") else "")
             if tiene_mis:
                 ry = y + P + cab_h + len(filas) * fila_h + e(3)
@@ -6503,7 +6556,8 @@ class Hud:
             self._y[n] = None
         self.datos = {"firma": firma, "hay": hay, "alto": alto, "demo": demo,
                       "aviso": aviso, "regla": regla, "est": est, "rnom": rnom, "rmeta": rmeta,
-                      "otxt": otxt, "obase": obase, "img_w": img_w, "txt_aviso": txt_aviso, "ayuda": ayuda}
+                      "otxt": otxt, "obase": obase, "img_w": img_w, "txt_aviso": txt_aviso, "ayuda": ayuda,
+                      "fotos": fotos, "tira_h": tira_h, "lado": lado, "oro_pct": h.get("oro_pct")}
         self._vis = {}                                     # obliga a recolocar con la visibilidad actual
         self._visibilidad()
 
@@ -6570,11 +6624,39 @@ class Hud:
                 base = bool(d["obase"])
                 xy(it["objeto"], *self._rr(0, y, W - 1, y + a, e(9)))
                 cfg(it["objeto"], outline=C["bien"] if base else C["borde"])
-                xy(it["o_img"], P, y + P - e(1))
-                xy(it["o_txt"], P + d["img_w"], y + P - e(2))
+                fotos, lado = d.get("fotos") or [], d.get("lado") or e(30)
+                for k in range(6):
+                    if k < len(fotos):
+                        im, st = fotos[k]
+                        x0, y0, li = P + k * (lado + e(6)), y + P, im.width()
+                        xy(it[f"o_i{k}"], x0, y0)
+                        cfg(it[f"o_i{k}"], image=im)
+                        xy(it[f"o_r{k}"], x0 - e(2), y0 - e(2), x0 + li + e(1), y0 + li + e(1))
+                        cfg(it[f"o_r{k}"], outline={"ok": C["bien"], "sig": C["azul"]}.get(st, C["linea"]),
+                            width=3 if st == "sig" else 2)
+                    else:
+                        xy(it[f"o_i{k}"], -500, -500)
+                        xy(it[f"o_r{k}"], -500, -500, -500, -500)
+                ty = y + P + d.get("tira_h", 0) - e(2)
+                if fotos:
+                    xy(it["o_img"], -500, -500)
+                else:
+                    xy(it["o_img"], P, y + P - e(1))
+                xy(it["o_txt"], P + d["img_w"], ty)
                 cfg(it["o_txt"], text="\n".join(d["otxt"]))
-                xy(it["o_base"], P + d["img_w"], y + P - e(2) + len(d["otxt"]) * self._lin("neg", 12.5) + e(2))
+                yb = ty + len(d["otxt"]) * self._lin("neg", 12.5) + e(2)
+                xy(it["o_base"], P + d["img_w"], yb)
                 cfg(it["o_base"], text="\n".join(d["obase"]))
+                if d.get("oro_pct") is not None:
+                    yb += (len(d["obase"]) * self._lin("neg", 12) + e(2)) if d["obase"] else 0
+                    yb += e(3)
+                    x1 = W - P
+                    xy(it["o_pb0"], P + d["img_w"], yb, x1, yb + e(5))
+                    xy(it["o_pb1"], P + d["img_w"], yb, P + d["img_w"] + (x1 - P - d["img_w"]) * d["oro_pct"], yb + e(5))
+                    cfg(it["o_pb1"], fill=C["bien"] if d["oro_pct"] >= 1 else C["azul"])
+                else:
+                    xy(it["o_pb0"], -500, -500, -500, -500)
+                    xy(it["o_pb1"], -500, -500, -500, -500)
             elif n == "ayuda":
                 xy(it["ayuda"], *self._rr(0, y, W - 1, y + a, e(9)))
                 cfg(it["ayuda"], outline=C["azul"])
@@ -8044,6 +8126,36 @@ class Coach:
                     hud["reto_meta"] = f"{r['medida']}: {'≤' if r.get('menor') else '≥'} {_dec(r['meta'])} {r.get('unidad') or ''}".strip()
             if estado.get("objeto"):
                 hud["objeto"], hud["objeto_ico"] = estado["objeto"], estado.get("objeto_ico")
+            if estado.get("tira"):
+                hud["tira"] = [x for x in estado["tira"] if x.get("ico")][:6]
+            if estado.get("objeto_id") and estado.get("objeto_falta") is not None:
+                precio = ((self.rec.items.get(str(estado["objeto_id"])) or {}).get("precio") or 0)
+                if precio:
+                    hud["oro_pct"] = round(max(0.0, min(1.0, 1 - estado["objeto_falta"] / precio)), 2)
+            # tu rival de linea, con lo que tambien ves en la tabla del Tab: CS y nivel
+            rv = None
+            pos = (yo.get("position") or "").upper()
+            enem = [x for x in data.get("allPlayers") or [] if x.get("team") != yo.get("team")]
+            if pos and pos != "NONE":
+                rv = next((x for x in enem if (x.get("position") or "").upper() == pos), None)
+            if not rv and self.rival_partida:
+                nr = (self.rec.campeon(self.rival_partida) or "").lower()
+                rv = next((x for x in enem if (x.get("championName") or "").lower() == nr), None)
+            if rv:
+                rsc = rv.get("scores") or {}
+                niv, rniv = int(yo.get("level") or 0), int(rv.get("level") or 0)
+                if self.rol_partida == "support":
+                    filas.append({"et": "Nivel vs " + (rv.get("championName") or "rival")[:9], "yo": f"{niv - rniv:+d}",
+                                  "ref": f"{niv}/{rniv}", "tono": "bien" if niv >= rniv else "mal"})
+                else:
+                    rcs = int(rsc.get("creepScore") or 0)
+                    filas.append({"et": "CS vs " + (rv.get("championName") or "rival")[:9], "yo": f"{cs - rcs:+d}",
+                                  "ref": f"niv {niv}/{rniv}", "tono": "bien" if cs >= rcs else "mal"})
+            # habilidad que toca subir (orden de la build en uso)
+            orden_h = [x.strip() for x in ((self.build_partida or {}).get("hab_corta") or "").replace("›", ">").split(">") if x.strip()]
+            sube = habilidad_a_subir(ap.get("abilities") or {}, ap.get("level") or yo.get("level"), orden_h)
+            if sube:
+                filas.append({"et": "Sube habilidad", "yo": sube, "ref": " › ".join(orden_h) if orden_h else "", "tono": "azul"})
             cb = None
             if self.build_partida:
                 cb = compra_base(self.rec, self.build_partida["orden"], [i.get("itemID") for i in its], oro)
@@ -8093,7 +8205,7 @@ class Coach:
             if not so:
                 estado["objeto"] = "Build completa."
             if so:
-                estado = dict(estado, objeto_id=so["id"], objeto_ico=self._ico("item", so["id"]),
+                estado = dict(estado, objeto_id=so["id"], objeto_ico=self._ico("item", so["id"]), objeto_falta=so["falta"],
                               objeto=(f"Siguiente: {so['nombre']}" if so["falta"] is None else
                                       f"Ya puedes comprar {so['nombre']}" if so["falta"] == 0 else
                                       f"Siguiente: {so['nombre']} · te faltan {_miles(so['falta'])} de oro"))

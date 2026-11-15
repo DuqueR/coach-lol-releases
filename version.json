@@ -1,6 +1,6 @@
 {
-  "version": "32",
-  "notas": "partida minuto a minuto con los momentos que la decidieron; arreglo: la ventanita de selección salía fuera de pantalla",
+  "version": "33",
+  "notas": "tarjetas de partida nuevas: CS contra tu rival de línea, qué habilidad subir y la build con iconos y barra de oro",
   "archivos": [
     "coach.py",
     "dashboard.html",
