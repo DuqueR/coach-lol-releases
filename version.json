@@ -1,6 +1,6 @@
 {
-  "version": "46",
-  "notas": "graba tus jugadas en vídeo en tu PC y las ves en el panel, sin abrir el cliente",
+  "version": "47",
+  "notas": "tu peso en la victoria o en la derrota de cada partida",
   "archivos": [
     "coach.py",
     "dashboard.html",

@@ -530,6 +530,34 @@ button.chip .i{width:13px;height:13px}
 .rec{width:8px;height:8px;border-radius:50%;background:var(--rj);animation:rec 1.2s ease-in-out infinite}
 @keyframes rec{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.rec{animation:none}}
+.imp-top{display:flex;align-items:center;gap:16px;margin:2px 0 10px}
+.imp-pct{font-size:52px;line-height:.9;font-weight:760;letter-spacing:-.02em;color:var(--t1)}
+.imp-pct small{font-size:24px;margin-left:2px;color:var(--t2)}
+.imp-top>div{display:grid;gap:3px;font-size:var(--fs-4)}
+.imp-yo{font-weight:640} .imp-yo small{font-weight:500}
+.imp-f{font-size:var(--fs-4);color:var(--t1);line-height:1.45;margin:0 0 12px}
+.imp-cat{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:14px}
+.imp-cat>span{display:grid;justify-items:start;gap:2px;padding:8px 10px;border-radius:var(--r2);background:var(--s2);font-size:var(--fs-2);color:var(--t3)}
+.imp-cat b{font-size:17px;color:var(--t1)}
+.imp-cat .vd b{color:var(--vd)} .imp-cat .rj b{color:var(--rj)}
+.imp-h{font-size:var(--fs-2);font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin:0 0 6px}
+.imp-eq,.imp-m{list-style:none;margin:0 0 14px;padding:0}
+.imp-eq>li{display:grid;grid-template-columns:26px 92px minmax(0,1fr) 52px;gap:10px;align-items:center;padding:5px 0}
+.imp-eq>li.yo .imp-n{color:var(--t1);font-weight:700}
+.imp-n{font-size:var(--fs-4);color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-b{position:relative;height:8px;border-radius:4px;background:var(--s2)}
+.imp-b::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--linea)}
+.imp-b i{position:absolute;top:0;bottom:0;width:var(--w);border-radius:4px}
+.imp-b i.pos{left:50%;background:var(--vd)} .imp-b i.neg{right:50%;background:var(--rj)}
+.imp-eq>li:not(.yo) .imp-b i{opacity:.55}
+.imp-eq>li>b,.imp-m b:last-of-type{text-align:right;font-size:var(--fs-4)}
+.imp-m>li{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--linea);font-size:var(--fs-4)}
+.imp-m>li:first-child{border-top:0}
+.imp-m>li>b:first-child{color:var(--t3);font-size:var(--fs-3)}
+.imp-m .btn{width:32px;padding:0;justify-content:center;overflow:hidden}
+.imp .vd{color:var(--vd)} .imp .rj{color:var(--rj)}
+.imp .nota-p{display:flex;gap:6px;align-items:flex-start}
+@media (max-width:520px){.imp-cat{grid-template-columns:repeat(2,minmax(0,1fr))}.imp-eq>li{grid-template-columns:26px 70px minmax(0,1fr) 46px}}
 .cl-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
 @media (max-width:1560px){.cop-r span{display:none}.cop-r{padding:0 9px}}
 .cl{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 12px 12px 14px;border-radius:var(--r);
@@ -1238,7 +1266,7 @@ kbd{font:inherit;font-size:var(--fs-2);padding:1px 5px;border-radius:var(--r4);b
   <div class="cmd-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
 </div></div>
 <script>
-const UI_V = "46";      /* version del coach para la que se hizo esta pagina */
+const UI_V = "47";      /* version del coach para la que se hizo esta pagina */
 "use strict";
 /* =====================================================================================================
    Coach LoL · interfaz. Todo se dibuja con plantillas y se aplica con "morph": solo se toca en pantalla
@@ -2278,7 +2306,7 @@ document.addEventListener("pointermove", ev => {
 /* ---------- pestaña Resumen ---------- */
 function tabResumen(p){
   return `<div class="g"><div class="c7 pila">${B(cardAnimo, p)}${B(cardSesion, p)}${B(cardIA, p)}${B(cardErrores, p)}${B(cardPorQue, p)}</div>
-    <div class="c5 pila">${B(cardSemaforo, p)}${B(cardRetosPartida, p)}${B(cardJugadas, p)}</div></div>`;
+    <div class="c5 pila">${B(cardImpacto, p)}${B(cardSemaforo, p)}${B(cardRetosPartida, p)}${B(cardJugadas, p)}</div></div>`;
 }
 function cardAnimo(p){
   if(p.de_hoy && !p.animo) return `<section class="card animo"><div><b>¿Cómo terminaste esta partida?</b><span>Sé honesto: esto decide si sigues jugando hoy.</span></div>
@@ -2359,6 +2387,31 @@ function cardPorQue(p){
   const et = {externo: ["No dependía de ti", ""], propio: ["Tuyo", "rj"], bueno: ["Bien hecho", "vd"], neutral: ["Momento clave", "az"]};
   return `<section class="card"><div class="card-h"><h2>${ic("lupa")}${esc(pq.titulo)}</h2></div>
     <ul class="causas">${pq.causas.map(c => `<li><span class="chip ${et[c.tipo][1]}">${et[c.tipo][0]}</span>${c.cid ? cp(c.cid, "", 24) : `<span></span>`}<span>${esc(c.texto)}</span></li>`).join("")}</ul></section>`;
+}
+/* ---------- tu peso en el resultado ---------- */
+const IMP_CAT = [["kills", "Kills", "fuego"], ["muertes", "Muertes", "muerte"], ["objetivos", "Objetivos", "torre"], ["farmeo", "Farmeo", "oro"]];
+function cardImpacto(p){
+  const im = p.tiempo && p.tiempo.impacto; if(!im) return "";
+  const max = Math.max(1, ...im.equipo.map(x => Math.abs(x.pts)));
+  const tono = v => v > 0 ? "vd" : v < 0 ? "rj" : "";
+  const pts = v => `${sig(v)}<small> pts</small>`;
+  const fila = x => { const w = Math.abs(x.pts) / max * 50;
+    return `<li class="${x.yo ? "yo" : ""}">${cp(x.cid, x.camp, 26)}<span class="imp-n">${x.yo ? "Tú" : esc(x.camp)}</span>
+      <span class="imp-b" role="img" aria-label="${esc(x.camp)}: ${sig(x.pts)} puntos"><i class="${x.pts < 0 ? "neg" : "pos"}" style="--w:${w.toFixed(1)}%"></i></span>
+      <b class="nm ${tono(x.pts)}">${sig(x.pts)}</b></li>`; };
+  return `<section class="card imp ${im.gano ? "gano" : "perdio"}" aria-label="${im.gano ? "Tu peso en la victoria" : "Tu parte en la derrota"}">
+    <div class="card-h"><h2>${ic(im.gano ? "corona" : "equipo")}${im.gano ? "Tu peso en la victoria" : "Tu parte en la derrota"}</h2>
+      <span class="chip ${im.puesto === 1 ? "or" : "ln"}" data-tip="Por puntos de impacto entre los 5 de tu equipo">${im.puesto}.º de 5</span></div>
+    <div class="imp-top"><b class="imp-pct nm ${im.pct == null ? "" : im.gano ? (im.pct >= 15 ? "vd" : "") : (im.pct >= 30 ? "rj" : im.pct < 15 ? "vd" : "")}">${im.pct == null ? "–" : im.pct}<small>%</small></b>
+      <div><span class="t2">${im.gano ? "de lo que ganó la partida salió de ti" : "de lo que se perdió fue tuyo"}</span>
+        <span class="imp-yo ${tono(im.yo)}">${pts(im.yo)} de impacto</span></div></div>
+    <p class="imp-f">${esc(im.frase)}</p>
+    <div class="imp-cat">${IMP_CAT.map(([k, t]) => `<span class="${tono(im.partes[k])}">${t}<b class="nm">${sig(im.partes[k])}</b></span>`).join("")}</div>
+    <h3 class="imp-h">Tu equipo</h3>
+    <ul class="imp-eq">${im.equipo.map(fila).join("")}</ul>
+    ${im.momentos.length ? `<h3 class="imp-h">Lo que más pesó</h3><ul class="imp-m">${im.momentos.map(m => `<li><b class="nm">${mmss(m.seg / 60)}</b><span>${esc(m.txt)}</span>
+      <b class="nm ${tono(m.pts)}">${sig(m.pts)}</b><button class="btn pq" data-a="ver" data-s="${m.seg}" aria-label="Ver en la repetición: ${esc(m.txt)}">${ic("play", "s")}</button></li>`).join("")}</ul>` : ""}
+    <p class="nota-p">${ic("info", "s")}Puntos de impacto: cuánto movieron tus kills, muertes, objetivos y farmeo la probabilidad de ganar de tu equipo (estimada con el oro y el minuto). Un objetivo perdido cuenta para quien murió justo antes.</p></section>`;
 }
 function cardSemaforo(p){
   const etq = {verde: ["Bien", "vd"], amarillo: ["Justo", "am"], rojo: ["Mal", "rj"]};

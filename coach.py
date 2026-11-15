@@ -107,7 +107,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "46"
+VERSION = "47"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -1787,6 +1787,175 @@ def clips_partida(frames, parts, yo_id, rol, camp):
     return sorted(mejores, key=lambda c: c["seg"])
 
 
+# Cuanto vale cada cosa en oro de ventaja de equipo (para pasarlo a probabilidad de ganar)
+VALOR_OBJ = {"DRAGON": 700, "ELDER_DRAGON": 2500, "BARON_NASHOR": 2000, "RIFTHERALD": 700, "HORDE": 250, "ATAKHAN": 1200}
+VALOR_EDIF = {"TOWER_BUILDING": 650, "INHIBITOR_BUILDING": 1000}
+IMPACTO_CAT = {"kills": "kills y asistencias", "muertes": "tus muertes", "objetivos": "objetivos y torres",
+               "farmeo": "farmeo frente a tu rival"}
+
+
+def _wp(dif, ts):
+    """prob_victoria sin redondear (para sumar cambios pequenos)."""
+    k = 0.00045 * math.sqrt(15 / max(ts / 60000, 8))
+    return 100 / (1 + math.exp(-max(-30.0, min(30.0, k * dif))))
+
+
+def impacto_partida(frames, parts, roles, yo_id, camp):
+    """Tu peso en el resultado: cada kill, muerte, objetivo, torre y diferencia de farmeo con tu rival cambia la
+    probabilidad de ganar de tu equipo (la misma curva que el minuto a minuto). Ese cambio se reparte entre los
+    que participaron; un objetivo o torre que perdisteis se carga a los tuyos que murieron en los 40 s antes.
+    Resultado en puntos de probabilidad por jugador de tu equipo y tu parte de la victoria (o de la derrota)."""
+    if yo_id not in parts or len(frames) < 4:
+        return None
+    equipo = parts[yo_id].get("teamId")
+    nuestros = [pid for pid, q in parts.items() if q.get("teamId") == equipo]
+    suyos = [pid for pid in parts if pid not in nuestros]
+    curva = []
+    for f in frames:
+        oro = lambda pids: sum((_pf(f, x) or {}).get("totalGold") or 0 for x in pids)
+        curva.append((f.get("timestamp") or 0, oro(nuestros) - oro(suyos)))
+
+    def dif_en(ts):
+        a = curva[0]
+        for b in curva:
+            if b[0] >= ts:
+                return a[1] + (b[1] - a[1]) * ((ts - a[0]) / ((b[0] - a[0]) or 1))
+            a = b
+        return a[1]
+
+    def cambio(valor, ts, a_favor):
+        d = dif_en(ts)
+        return _wp(d + valor, ts) - _wp(d, ts) if a_favor else _wp(d - valor, ts) - _wp(d, ts)
+
+    pts = {pid: Counter() for pid in nuestros}
+    mios = []                                         # (ts, puntos, texto) tus momentos
+
+    def dar(pid, cat, x, ts, txt=None):
+        if pid in pts:
+            pts[pid][cat] += x
+            if pid == yo_id and txt:
+                mios.append((ts, x, txt))
+
+    muertes = []                                      # (ts, pid) de los tuyos
+    dragones = Counter()
+    racha = Counter()                                 # kills seguidas sin morir (para el valor del cierre de racha)
+    evs = sorted(_eventos(frames), key=lambda te: te[1].get("timestamp") or 0)
+    for t, e in evs:
+        ts = e.get("timestamp") or 0
+        kid, asis = e.get("killerId"), [a for a in e.get("assistingParticipantIds") or [] if a in pts]
+        if t == "CHAMPION_KILL":
+            vid = e.get("victimId")
+            # el timeline del cliente no trae la recompensa: 300 y, si cortas una racha de 3 o mas, el cierre
+            valor = 300 + (min(700, 150 * (racha[vid] - 1)) if racha[vid] >= 3 else 0)
+            racha[vid] = 0
+            if kid in parts:
+                racha[kid] += 1
+            if vid in pts:
+                dar(vid, "muertes", cambio(valor, ts, False), ts, f"Te mató {camp(kid) or 'una torre o súbditos'}")
+                muertes.append((ts, vid))
+            elif vid in parts:
+                d = cambio(valor, ts, True)
+                if kid in pts:
+                    dar(kid, "kills", d * (0.5 if asis else 1), ts, f"Mataste a {camp(vid)}")
+                for a in asis:
+                    dar(a, "kills", d * (0.5 if kid in pts else 1) / len(asis), ts, f"Asistencia: cayó {camp(vid)}")
+            continue
+        if t == "ELITE_MONSTER_KILL":
+            mt = (e.get("monsterType") or "").upper()
+            if (e.get("monsterSubType") or "").upper() == "ELDER_DRAGON":
+                mt = "ELDER_DRAGON"
+            if kid not in parts:                             # sin quien lo mato no se sabe de que equipo es
+                continue
+            nuestro = parts[kid].get("teamId") == equipo
+            valor = VALOR_OBJ.get(mt, 0)
+            if mt == "DRAGON":
+                lado = "n" if nuestro else "s"
+                dragones[lado] += 1
+                if dragones[lado] == 4:
+                    valor = 2000                              # el alma
+            nombre = _nombre_monstruo({"monsterType": mt}) or "el objetivo"
+        elif t == "BUILDING_KILL":
+            valor = VALOR_EDIF.get(e.get("buildingType"), 0)
+            nuestro = e.get("teamId") != equipo                # teamId: el equipo que pierde el edificio
+            nombre = _nombre_edificio(e) or "una torre"
+        else:
+            continue
+        if not valor:
+            continue
+        if nuestro:
+            d = cambio(valor, ts, True)
+            impl = [x for x in (kid, *asis) if x in pts]
+            for x in impl:
+                dar(x, "objetivos", d / len(impl), ts, (nombre[0].upper() + nombre[1:]) + " para tu equipo")
+        else:
+            d = cambio(valor, ts, False)
+            culpables = sorted({pid for t0, pid in muertes if ts - 40000 <= t0 <= ts})
+            for x in culpables:
+                dar(x, "objetivos", d / len(culpables), ts, f"Tu muerte les dio {nombre}")
+    # farmeo: cada minuto, tu CS frente al de tu rival del mismo rol (unos 20 de oro por cada uno de diferencia)
+    rival = {}
+    for pid in nuestros:
+        mismo = [x for x in suyos if roles.get(x) and roles.get(x) == roles.get(pid)]
+        if len(mismo) == 1:
+            rival[pid] = mismo[0]
+    for i in range(1, len(frames)):
+        a, b = frames[i - 1], frames[i]
+        ts = b.get("timestamp") or 0
+        for pid, rv in rival.items():
+            cs = lambda f, x: _cs_pf(_pf(f, x) or {})
+            dcs = (cs(b, pid) - cs(a, pid)) - (cs(b, rv) - cs(a, rv))
+            if dcs:
+                dar(pid, "farmeo", cambio(20 * dcs, ts, True) if dcs > 0 else cambio(-20 * dcs, ts, False), ts)
+
+    total = {pid: sum(c.values()) for pid, c in pts.items()}
+    gano = bool((parts[yo_id].get("stats") or {}).get("win"))
+    base = {pid: max(0.0, v if gano else -v) for pid, v in total.items()}
+    suma = sum(base.values())
+    pct = round(100 * base[yo_id] / suma) if suma > 0.5 else None
+    orden = sorted(nuestros, key=lambda x: -total[x])
+    puesto = orden.index(yo_id) + 1
+    yo = total[yo_id]
+    cats = {k: round(pts[yo_id][k], 1) for k in IMPACTO_CAT}
+    peor = min(cats, key=lambda k: cats[k])
+    mejor = max(cats, key=lambda k: cats[k])
+    n = lambda v: ("+" if v > 0 else "−" if v < 0 else "") + _dec(abs(v))
+    if gano:
+        if yo <= 0:
+            frase = f"Ganaste, pero tu juego restó {n(yo)} puntos. Lo que más: {IMPACTO_CAT[peor]}."
+        elif puesto == 1 or (pct is not None and pct >= 30):
+            frase = (f"Fuiste clave: sumaste {n(yo)} puntos de impacto, "
+                     + ("lo que más de tu equipo." if puesto == 1 else f"el {puesto}.º de tu equipo."))
+        elif puesto >= 3 and (pct is None or pct < 15):
+            frase = (f"Ganaste con poco peso: te llevó el equipo. Lo que más te restó: {IMPACTO_CAT[peor]}."
+                     if cats[peor] < 0 else "Ganaste con poco peso: el equipo hizo casi todo el trabajo.")
+        else:
+            frase = f"Aportaste {n(yo)} puntos, el {puesto}.º de tu equipo. Lo mejor: {IMPACTO_CAT[mejor]}."
+    else:
+        if pct is not None and pct >= 30:
+            frase = (f"La derrota pasó mucho por ti: el {pct} % de lo que se perdió fue tuyo. "
+                     f"Lo que más restó: {IMPACTO_CAT[peor]}.")
+        elif yo >= 1:
+            frase = (f"No fue por ti: sumaste {n(yo)} puntos aunque perdisteis"
+                     + (", lo que más de tu equipo." if puesto == 1 else ".") + f" Lo mejor: {IMPACTO_CAT[mejor]}.")
+        elif abs(yo) < 1 and cats[mejor] > 0 > cats[peor]:
+            frase = (f"Quedaste en tablas: lo que sumaste con {IMPACTO_CAT[mejor]} lo perdiste con "
+                     f"{IMPACTO_CAT[peor]}.")
+        elif abs(yo) < 1:
+            frase = "Apenas influiste en el resultado, ni para bien ni para mal."
+        elif pct is not None and pct < 15:
+            frase = f"Tu parte en la derrota fue pequeña: el {pct} % (lo normal es un 20 %)."
+        elif pct is not None:
+            frase = f"Derrota repartida: tu parte fue del {pct} %, cerca de lo normal (20 %)."
+        else:
+            frase = "Derrota repartida entre todo el equipo."
+    momentos = sorted(sorted(mios, key=lambda m: -abs(m[1]))[:4], key=lambda m: m[0])
+    return {"gano": gano, "pct": pct, "puesto": puesto, "yo": round(yo, 1), "frase": frase, "partes": cats,
+            "equipo": [{"cid": parts[x].get("championId"), "camp": camp(x), "rol": roles.get(x) or "",
+                        "pts": round(total[x], 1), "yo": x == yo_id} for x in orden],
+            "momentos": [{"seg": int(t / 1000), "pts": round(v, 1), "txt": txt} for t, v, txt in momentos
+                         if abs(v) >= 0.3]}
+
+
 def minuto_a_minuto(juego, tl, puuid, rec):
     """La partida minuto a minuto (como dpm.lol o itero): tu oro, XP y CS contra tu rival de linea, la ventaja de oro
     de tu equipo con su probabilidad de ganar estimada, lo que paso y los momentos que decidieron la partida."""
@@ -1903,8 +2072,13 @@ def minuto_a_minuto(juego, tl, puuid, rec):
         clips = clips_partida(frames, parts, yo_id, roles.get(yo_id), camp)
     except Exception:
         clips = []
+    try:
+        impacto = impacto_partida(frames, parts, roles, yo_id, camp)
+    except Exception as e:
+        log(f"Impacto: {type(e).__name__}: {e}")
+        impacto = None
     return {"serie": serie, "eventos": [x for x in eventos if x["tipo"] != "kill_eq" or True], "momentos": momentos,
-            "resumen": resumen, "rival": camp(rival_id) if rival_id else "", "clips": clips}
+            "resumen": resumen, "rival": camp(rival_id) if rival_id else "", "clips": clips, "impacto": impacto}
 
 
 def _lista_y(items):

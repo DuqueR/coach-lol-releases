@@ -12,6 +12,16 @@ Cómo empezar (si te lo pasó un amigo)
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
 
+Lo nuevo en la v47: tu peso en la victoria (o en la derrota)
+- Nueva tarjeta en el Resumen de cada partida: qué parte de la victoria salió
+  de ti, o qué parte de la derrota fue tuya, y tu puesto entre los 5 de tu
+  equipo.
+- Puntos de impacto: cuánto movieron tus kills, muertes, objetivos y farmeo
+  la probabilidad de ganar de tu equipo. Si perdéis un dragón o el Barón justo
+  después de que mueras, cuenta para ti.
+- Barras de los 5 de tu equipo y los momentos que más pesaron, con botón para
+  verlos en la repetición.
+
 Lo nuevo en la v46: tus jugadas en vídeo, en tu PC
 - Nuevo en Ajustes: "Grabar jugadas". Mientras juegas en la Grieta, el coach
   graba la pantalla con tu gráfica y guarda tus kills, asistencias,
