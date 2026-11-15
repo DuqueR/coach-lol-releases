@@ -1,0 +1,15 @@
+{
+  "version": "25",
+  "notas": "se actualiza solo, botón de diagnóstico y comentarios, Hoy cuenta Normales",
+  "archivos": [
+    "coach.py",
+    "dashboard.html",
+    "LEEME.txt",
+    "fuente/archivo.woff2",
+    "fuente/hud_eti.ttf",
+    "fuente/hud_neg.ttf",
+    "fuente/hud_num.ttf",
+    "fuente/hud_txt.ttf",
+    "fuente/LICENCIA_OFL.txt"
+  ]
+}

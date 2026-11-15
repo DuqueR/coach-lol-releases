@@ -1,0 +1,495 @@
+﻿COACH LOL v25
+=============
+
+Cómo empezar (si te lo pasó un amigo)
+-------------------------------------
+1. Descomprime el zip en una carpeta tuya (por ejemplo Documentos\CoachLoL).
+2. Abre CoachLoL.exe. Si Windows dice "Windows protegió su PC", pulsa "Más información"
+   y "Ejecutar de todos modos" (el .exe no está firmado; es normal en programas caseros).
+3. Abre el cliente de League of Legends. El coach se conecta solo y lee tus partidas.
+4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
+Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
+
+Lo nuevo en la v25: se actualiza solo
+-------------------------------------
+- Al abrir, el coach mira si hay una versión nueva en GitHub. Si la hay, la baja, guarda una
+  copia de la anterior en datosespaldo y se reinicia. Nunca toca tus datos.
+- Ajustes > Sobre el coach: "Copiar diagnóstico" (versión y el final del log, sin tus claves)
+  y "Enviar comentario" para contar fallos o ideas.
+- "Hoy" cuenta también las partidas Normales, no solo SoloQ y Flex.
+- El porcentaje de victorias es de todo tu historial, con filtro por cola.
+- Si Gemini está saturado, el coach reintenta una vez solo.
+
+Lo nuevo en la v24: interfaz nueva, sin parpadeos, y el rol que de verdad juegas
+--------------------------------------------------------------------------------
+- Interfaz rehecha desde cero, oscura por defecto. El tema claro sigue ahí: Ajustes, o el
+  botón del sol y la luna. Cada partida abre con el arte de tu campeón, la nota del coach
+  y cinco pestañas: Resumen, Muertes, Tú contra tu rival, Los 10 jugadores y Runas y build.
+- Ya no parpadea nada. La página solo toca lo que cambió (si no cambió nada, no toca nada)
+  y las tarjetas del juego son una sola ventana fija que se actualiza por dentro.
+- En partida: una tarjeta mini fija con tus números contra la media del rango siguiente.
+  Mantén Tab para ver el detalle: misión, reto, siguiente objeto y cuándo volver a base.
+  No reciben clics, no le quitan el foco al juego y solo se ven con el juego delante.
+- Ajustes (nuevo): opacidad, tamaño y posición de las tarjetas, apagar la mini,
+  "Probar 14 segundos" y "Colocar a mano".
+- Roles: el coach ya no insiste con top si casi no lo juegas. Tu rol principal es el que
+  más partidas tuyas tiene, y un rol sin partidas se cambia por otro que sí juegas.
+- Builds contra tu rival: ahora se leen bien de Lolalytics (antes no salían nunca).
+- Objeto de support: ya no te lo ofrece como compra, ni ningún objeto que no esté en la
+  tienda o que lleve una pieza que no se vende.
+- Retos: los activos arriba, con sus huecos libres; el catálogo, en lista por habilidad.
+- "Los 10 jugadores": la columna se llama Puntos y te compara con los otros nueve. No es
+  la nota del coach, que mide tus números contra tus metas: por eso pueden ser distintas.
+- Imágenes: si el cliente no da una, el coach la pide a CommunityDragon.
+- Si la ventana es pequeña, el menú se pliega a iconos y todo se reacomoda.
+- Para actualizar no hay que rehacer el .exe: copia los archivos y abre INICIAR_COACH.bat.
+
+Lo nuevo en la v23: tarjetas pequeñas en la partida (mantén Tab)
+----------------------------------------------------------------
+- En partida ya no sale la ventana blanca grande. Mantén Tab y aparecen tarjetas pequeñas,
+  oscuras y translúcidas; al soltar se van. (Desde la v24 hay además una mini fija y se
+  colocan desde Ajustes.)
+- Números: CS/min, oro/min, participación en kills, KDA y nivel. Al lado, la media del rango
+  de encima del tuyo para tu campeón y línea (Lolalytics). El oro/min es aproximado, y la media
+  es de la partida entera, así que al principio de la partida la comparación es orientativa.
+- Misión, reto activo y siguiente objeto, cada uno en su tarjeta.
+- Cuándo volver a base: avisa cuando tu oro alcanza para el siguiente objeto entero o para la
+  pieza más cara que te falta. Solo mira tu oro y tu inventario.
+- Objeto de support: ya no dice "cómpralo"; avisa cuando termina su misión para que elijas
+  la mejora en la tienda.
+- Los avisos (misión cumplida o fallada, volver a base) salen solos unos 8 segundos.
+- En selección de campeón, las opciones de build con "Usar" se ven también en modo compacto.
+- Para volver a la ventana de antes: en coach.py, "hud_partida": False.
+
+Lo nuevo en la v22: interfaz nueva con menú lateral y la IA ya no se queda "escribiendo"
+-----------------------------------------------------------------------------------------
+- Menú a la izquierda: Inicio, Partidas, Retos, Builds y runas, Progreso y Coach con IA.
+- Inicio abre con "Tu siguiente paso" y cuatro tarjetas: tareas y retos, última partida,
+  build y runas, y tu avance.
+- El análisis con IA ahora trabaja en segundo plano y te dice qué modelo está probando y
+  cuántos segundos lleva. Si Gemini tarda más de 90 segundos pasa solo al respaldo.
+- El coach recuerda el modelo que respondió y empieza por ese la próxima vez (6 horas).
+- En "Coach con IA" ves tus claves guardadas (solo los 4 últimos caracteres) y puedes
+  cambiarlas. Cada intento queda anotado en datos\coach.log con el tiempo que tardó.
+- Para actualizar ya no hay que rehacer el .exe: abre el coach con INICIAR_COACH.bat y usa los
+  archivos de la carpeta. Si había un coach viejo abierto, el nuevo lo cierra y ocupa su lugar.
+- Si prefieres abrir CoachLoL.exe directamente, ejecuta CREAR_EXE.bat una última vez: desde
+  entonces el .exe también usa el coach.py y el dashboard.html de la carpeta.
+
+Lo nuevo en la v21: la IA te asigna tareas, dentro de un catálogo que el coach sabe medir
+----------------------------------------------------------------------------------------
+1. Catálogo más grande: 29 retos medibles (antes 13) en 6 habilidades, como en Mobalytics:
+   Pelea, Agresión, Farmeo, Supervivencia, Visión y Objetivos. Nuevos: kills en solitario,
+   participación en kills, control en peleas, racha sin morir, ventaja de nivel, ganarle
+   en farmeo, CS por minuto, gastar el oro, no morir con oro, que no te gankeen, no entrar
+   solo, vivo al final, poner wards, quitar su visión, daño a objetivos y objeto de
+   support a tiempo.
+2. Retos con condición extra: los de pelea y agresión solo cuentan si además no mueres
+   más que la media de tu rango. Así no se cumple un reto de kills regalando muertes.
+3. La IA elige tu reto. Después de cada partida, si tienes un hueco (máximo 3 activos),
+   la IA recibe lo que pasó en la partida y el catálogo con tus números, y elige UNO.
+   - Solo puede elegir del catálogo: no inventa tareas que el coach no pueda medir.
+   - Te explica por qué, con un dato de la partida ("Te lo puso la IA: ...").
+   - Si la IA no responde o devuelve algo que no existe, elige la regla del coach: el
+     reto en el que estás más lejos de la meta.
+   - Un reto que dejas tú a mano no te lo vuelve a poner sola.
+   - En la pestaña Retos hay un botón "Que la IA elija uno" para pedirlo cuando quieras.
+4. Sesión con tus palabras. En la sesión de coaching puedes escribir qué pasó en vez de
+   elegir una opción. La IA lo clasifica en una de las causas del coach y a partir de
+   ahí todo sigue igual: causa, regla y tarea medible. Si no encaja en ninguna, te lo
+   dice y eliges tú.
+5. Estrellas: superar un reto en 3 partidas da 3 estrellas; en 4, 2; en 5, 1.
+6. Tus retos activos aparecen en "Tu plan" y en la ventanita durante la selección.
+
+La primera vez vuelve a analizar tus partidas guardadas. Si usas CoachLoL.exe, vuelve a
+crearlo con CREAR_EXE.bat.
+
+
+Versiones anteriores (v17 a v20)
+================================
+
+Lo nuevo en la v17 a v20: análisis escrito por IA (opcional y gratis)
+---------------------------------------------------------------
+En cada revisión de partida hay un bloque "Análisis escrito por IA".
+- Usa Gemini, de Google, en su plan gratuito, con TU propia clave:
+  1. Entra en aistudio.google.com/apikey con tu cuenta de Google y pulsa "Create API key".
+  2. Pega la clave en el bloque y pulsa "Guardar clave". El coach la prueba al momento.
+- La clave se guarda solo en tu PC (datos\ia.json). "Quitar mi clave" la borra.
+- La IA solo redacta: recibe los números que el coach ya calculó (sin tu nombre) y tiene
+  prohibido inventar datos, recomendar builds o culpar a tus compañeros. Aun así puede
+  equivocarse: si contradice un dato de la página, vale el dato.
+- Con la clave puesta, cada partida nueva se analiza sola. Las anteriores, con el botón.
+- Modelo: el coach le pregunta a Google qué modelos Flash puede usar tu clave y empieza
+  por el más nuevo. Si Google responde "saturado" (error 503, frecuente en el plan
+  gratis), reintenta una vez y pasa al modelo anterior. El modelo que responde se usa
+  primero durante una hora, para no esperar por los saturados en cada partida.
+  Lo que ocurra queda anotado en datos\coach.log (líneas que empiezan por "IA:").
+  El plan gratis tiene un límite diario de peticiones.
+- Respaldo opcional: si Gemini no responde, el coach puede usar otro servicio gratuito
+  con modelos abiertos (Groq u OpenRouter). En el mismo bloque, abre "Respaldo gratis",
+  elige el servicio y pega su clave (se crea gratis en console.groq.com/keys o en
+  openrouter.ai/keys). El coach elige el modelo de la lista que da ese servicio.
+- Tu clave se guarda en datos\ia.json. No compartas nunca la carpeta datos: el zip que
+  genera HACER_ZIP.bat no la incluye.
+- En el plan gratis, Google puede usar lo enviado para mejorar sus productos.
+- Sin clave, el coach funciona igual que antes.
+
+
+Lo que trajo la v16: precisión y nada escrito a mano
+----------------------------------------------------
+Todos los datos del juego salen en vivo de Lolalytics (parche actual) y de tu cliente de LoL.
+Necesitas internet; lo descargado se guarda 3 días en datos\cache.
+
+1. Cómo se arma la build (comprobado con datos reales de Syndra, Yorick y Taric):
+   - Los 3 primeros objetos: el núcleo más jugado.
+   - 4.º, 5.º y 6.º: en cada posición, el más comprado. Solo se cambia por otro con más %
+     de victorias si ese otro también se compra mucho (la mitad o más) y la diferencia es
+     mayor que el margen de error para esas muestras.
+   - Si una posición tiene menos de 30 partidas, se rellena con el más comprado sumando
+     las tres posiciones. Así no entra un objeto con 17 partidas.
+   El coach NO elige por % de victorias a secas: ese número sube con los objetos tardíos
+   y con los que se compran cuando ya vas ganando.
+2. Panel "Build y runas en uso" (en Tu plan, durante la selección y la partida): cada
+   objeto con sus partidas, su % y por qué está ahí.
+3. Opciones con números honestos: "OTP" muestra cuántas partidas de OTP hay y cuánto
+   ganan; "Contra <rival>" muestra cuánto gana tu campeón contra ese rival. No se comparan
+   entre sí: los OTP ganan más porque dominan el campeón.
+4. Build adaptada con datos de tu campeón, no con una tabla: las botas defensivas solo
+   si al menos el 10% las compra con ese campeón, y como objeto defensivo el de armadura
+   o resistencia mágica que más compra ese campeón.
+5. Runas: el árbol de cada runa lo dice tu cliente. Si alguna página no cuadra, no se
+   aplica y se usan las recomendadas por Riot.
+6. Enfrentamientos (rival de línea y mejor pick de tu pool): ahora de Lolalytics, que da
+   el % de tu campeón contra cada rival sin ambigüedad.
+7. Retos sin metas inventadas:
+   - De rango (muertes, kills + asistencias, daño, CS y oro por partida): la meta es la
+     media real de ese rango con el campeón y la línea de cada partida.
+   - Personales (duelos, visión, CS al 10, etc., que Lolalytics no publica): la meta sale
+     de tus partidas: hacerlo mejor que en el 70% de las últimas 20.
+8. El objeto de support ya no sale como "siguiente compra": su mejora llega sola.
+
+Lo que sigue fijo porque no existe una fuente de donde sacarlo: las reglas del coach
+(parar tras 2 derrotas, etapas y hábitos), la curva de "probabilidad de ganar" (es una
+estimación) y los pesos de la nota entre los 10 jugadores.
+
+
+Lo que trajo la v15
+-------------------
+1. Runas y build de OTP y contra tu rival (ya no las recomendadas por Riot).
+   En la selección de campeón la ventanita muestra las opciones con su % de victorias:
+   - "OTP de <campeón>": lo que usan quienes solo juegan ese campeón (datos de Lolalytics).
+   - "Contra <rival>": la build y runas de ese enfrentamiento, cuando el rival ya eligió.
+   - "Tu build fijada", si fijaste una.
+   Pulsa "Usar" en la que quieras: el coach pone la página de runas y los objetos en la
+   tienda. Tu última elección (OTP o rival) queda como preferida para las siguientes.
+   Incluye hechizos y orden de habilidades de esa misma opción.
+   Si Lolalytics no responde, el coach usa la build de u.gg y las runas de Riot, y lo
+   anota en datos\coach.log.
+2. Build adaptada al equipo enemigo. Si casi todo su daño es físico o mágico, el coach
+   cambia la build: botas defensivas para luchadores, tanques y supports, y un objeto
+   defensivo dentro de la build (por ejemplo Zhonya o Velo de la Banshee para magos).
+   La ventanita te dice qué cambió.
+3. Interfaz nueva estilo DPM, con tema claro y oscuro. Botón "Tema oscuro / Tema claro"
+   arriba a la derecha; la ventanita del juego cambia con él. Cabecera de perfil con el
+   arte de tu campeón más jugado y tus números de las últimas 20 partidas. En cada
+   partida de la lista: tu puesto entre los 10 y si fuiste MVP.
+4. Retos (pestaña nueva), como los Challenges de Mobalytics. 13 retos por habilidad
+   (Pelea, Farmeo, Supervivencia, Visión, Objetivos), cada uno con una meta medible y
+   niveles Hierro -> Bronce -> Plata -> Oro -> Platino. Activas hasta 3; el coach los
+   comprueba solo en tus partidas y, al cumplir uno en 3 de 5, sube de nivel.
+   El coach marca como "Recomendado" los 3 en los que estás más lejos de la meta.
+   En cada revisión ves cómo te fue en tus retos activos.
+5. Tus mejores jugadas. En cada revisión: tus kills en solitario, dobles y triples, con
+   un botón que abre la repetición del juego en ese momento. No graba vídeo.
+
+La primera vez vuelve a analizar tus partidas guardadas. Si usas CoachLoL.exe, vuelve a
+crearlo con CREAR_EXE.bat.
+
+
+Lo que trajo la v14 (funciones de las apps grandes: Mobalytics, Blitz, OP.GG, DPM, iTero, Porofessor)
+-----------------------------------------------------------------------------------------------------
+Después de la partida y en Progreso:
+1. Mapa de la partida. Junto a la gráfica de oro, un mapa con el punto donde moriste cada
+   vez (los mismos números que en la gráfica). El mapa de todas tus muertes sigue en
+   Progreso ("Dónde mueres").
+2. Probabilidad de ganar por muerte. Al lado de cada muerte: "51% -> 44%". Es una
+   ESTIMACIÓN del coach a partir de la ventaja de oro y el minuto, no el modelo de Blitz.
+   Sirve para comparar tus muertes entre sí, no como dato exacto.
+3. Tu puesto entre los 10. Una nota de 0 a 10 para cada jugador de la partida, tu puesto
+   y premios (MVP, más daño, más oro, más visión, más CS). La nota es propia del coach y
+   depende del rol: a un support no se le pide oro ni CS, se le pide visión y participación.
+4. Calendario. En Progreso, cada día coloreado según cuánto ganaste.
+5. Objeto de support. Si juegas support, en qué minuto lo mejoraste y lo completaste, y tu
+   media. Si el cliente no guarda ese momento, el coach te lo dice y no inventa el dato.
+
+Antes y durante la partida:
+6. Habilidades y hechizos. En la selección: qué habilidad subir primero (por ejemplo
+   Q > E > W), tus 3 primeros niveles y los hechizos más jugados, de u.gg. En partida, el
+   orden queda escrito en la ventanita.
+7. Etiquetas de los rivales. En la pantalla de carga, una línea por cada enemigo: rango,
+   si solo juega ese campeón, si es su primera vez con él y si viene en racha.
+8. Mejor pick de tu pool. Si en un rol tienes 2 campeones o más, al elegir el rival el
+   coach te dice cuál de los tuyos le gana más según u.gg.
+
+Sin backend: todo sigue en tu PC, sin cuentas.
+La primera vez vuelve a analizar tus partidas guardadas. Si usas CoachLoL.exe, vuelve a
+crearlo con CREAR_EXE.bat.
+
+
+Lo que trajo la v13 (ideas de QueryLoL y MobaHinted)
+----------------------------------------------------
+1. Oro de tu equipo, minuto a minuto. En cada revisión hay una gráfica con la ventaja de
+   oro de tu equipo y tus muertes marcadas con un número. Debajo, cada muerte con lo que
+   ganó o perdió tu equipo en el minuto siguiente.
+2. Tus números por fase. CS por minuto, oro por minuto, muertes y kills + asistencias
+   separados en Línea (0-14), Mitad (14-25) y Final (25 en adelante).
+3. Tus campeones: subes o bajas. En Progreso, por cada campeón con 6 partidas o más:
+   tus últimas partidas contra las anteriores (victorias, muertes, CS por minuto, nota).
+4. Dato de tilt con tus números. Cuando llevas derrotas seguidas, el coach te enseña tu
+   % real de victorias en la partida siguiente a una racha (aparece cuando tienes al
+   menos 5 partidas jugadas en esa situación).
+5. Tu build entera en la ventanita. En partida ves los 6 objetos: borde verde y ✓ = ya lo
+   tienes; borde azul y ▲ = el siguiente; gris = después. Debajo, el oro que te falta.
+6. Daño del equipo enemigo. En la selección y en la pantalla de carga: cuántos de sus
+   campeones hacen daño físico o mágico. Si casi todo es de un tipo, te dice qué defensa
+   comprar y un ejemplo de objeto. Es un consejo fijo de antes de empezar: no cambia
+   durante la partida.
+7. Roles: el coach ya no elige un rol en el que no tienes al menos 5 partidas.
+
+La primera vez que abras esta versión vuelve a analizar tus partidas guardadas (unos
+segundos). Si usas CoachLoL.exe, vuelve a crearlo con CREAR_EXE.bat para tener lo nuevo.
+
+
+Lo que trajo la v12
+-------------------
+1. Ventana propia, sin ventana negra. El coach se abre en su propia ventana (usa Edge o
+   Chrome en "modo aplicación": sin pestañas ni barra de direcciones). Ya no hay ventana
+   negra que dejar abierta.
+   - Cerrar la ventana NO apaga el coach: sigue funcionando para la ventanita del juego.
+   - Para volver a verla: doble clic otra vez en INICIAR_COACH.bat.
+   - Para apagarlo del todo: botón "Cerrar coach", arriba a la derecha.
+   - Lo que antes salía en la ventana negra ahora se guarda en datos\coach.log.
+2. Diseño nuevo, tipo app de LoL (fondo claro): tus partidas con campeón, KDA, CS, objetos
+   y rival; victorias en azul y derrotas en rojo; resumen de la partida arriba de cada revisión.
+3. Build de u.gg. En la selección de campeón, si no tienes una build fijada, el coach trae
+   la build más jugada de tu campeón en tu rol (datos públicos de u.gg, parche actual), te
+   la enseña con sus iconos y la deja en la tienda del juego como set de objetos.
+   Tus builds fijadas siguen mandando: fijada contra ese rival > fijada > u.gg.
+4. Qué comprar ahora. Durante la partida la ventanita muestra "Siguiente: <objeto> · te
+   faltan X de oro" (o "ya te alcanza"). Cambia sola cuando compras el objeto.
+   Sigue el orden de tu build y mira solo TU oro y TUS objetos. No mira lo que compran los
+   enemigos: eso Riot no lo permite a las apps.
+5. CoachLoL.exe (opcional). Doble clic en CREAR_EXE.bat: crea CoachLoL.exe en esta carpeta
+   (tarda unos minutos, necesita internet y Python; solo se hace una vez por versión).
+   Después INICIAR_COACH.bat abre el .exe. No es obligatorio: sin el .exe el coach funciona
+   igual y también sin ventana negra.
+   Windows puede avisar de "aplicación desconocida" la primera vez: "Más información" >
+   "Ejecutar de todas formas".
+
+Límites que debes saber: u.gg no es una API oficial; si un día cambia o no responde, el
+coach sigue con tus builds fijadas y no se rompe nada (queda anotado en datos\coach.log).
+La build es la más jugada, no una adaptada a cada partida.
+
+
+La sesión de coaching
+---------------------
+Después de cada partida el coach hace lo que hace un coach de verdad:
+1. Comprueba tu tarea: si cumpliste lo que te dejó en la sesión anterior, con la prueba.
+2. Elige los 2 errores que más te costaron (no solo muertes: también jugar lejos de tu
+   equipo, quedarte atrás en nivel, entrar solo al lado enemigo, perder farmeo...).
+3. Te pregunta por qué lo hiciste. Contestas con un clic.
+4. Con tu respuesta te dice la causa (decisión, mapa, posición, mecánica, cabeza...) y te
+   deja una tarea concreta, con cómo se mide.
+5. En tus siguientes 3 partidas comprueba la tarea solo. Con 2 de 3 cumplidas queda
+   superada; si no, se repite. Como mucho 3 tareas a la vez.
+Mientras tengas tareas, tu tarea es tu misión: la ves en "Tu plan", en la selección de
+campeón y en la ventanita durante la partida.
+"Ahora" te avisa cuando hay una sesión por hacer. Es un minuto.
+
+Tu avance (pestaña Progreso): cuántos errores caros cometes por partida en tus últimas 10
+contra las 10 anteriores, cuáles se repiten, y cuántas tareas superaste. Ese número tiene
+que bajar. Las partidas con un AFK en tu equipo no cuentan.
+
+
+Qué hace
+--------
+Es un plan para dejar de perder, no una página de estadísticas. El coach decide en qué
+trabajas y te dice qué hacer en cada momento:
+
+0. "Ahora". Arriba del todo, el coach te dice lo que toca: parar por hoy, revisar las
+   muertes de tu última partida, marcar cómo terminaste, calentar con el ejercicio de CS
+   o jugar (qué roles poner en la cola y qué misión), o descansar 10 minutos.
+   "Tu próxima partida" es tu plan fase por fase (fase de líneas, mitad y final), sacado
+   de tus partidas: cuántas veces mueres en cada fase, por qué (según tus revisiones),
+   si te matan sin tu equipo y tu farmeo. Lo más importante aparece también en la
+   ventanita de selección de campeón y en la pantalla de carga.
+   Al conectarse, el coach importa todo el historial que da el cliente (hasta 100 partidas).
+
+1. Tu ruta a Diamante. Seis etapas, una por salto de rango, con lo que más separa a cada
+   rango del siguiente según las guías de dodge.gg de 2026:
+   1) Hierro a Bronce, sobrevivir y farmear: 0 muertes antes del 10, 5 muertes o menos,
+      no morir sin tu equipo desde el 14, no morir con oro sin gastar y 60 CS al minuto 10.
+   2) Bronce a Plata, ganar tu línea: 0 muertes antes del 14, 70 CS al minuto 10, tantos CS
+      como tu rival al minuto 10 y 4 muertes o menos.
+   3) Plata a Oro, mirar el mapa: que no te ganquee su jungla antes del 14, visión (0,60 por
+      minuto; de support 1,20) y, de support, mid y tirador, llegar a los dragones, Heraldos
+      y Barones con tu jungla.
+   4) Oro a Platino, después de la línea: 7 CS por minuto entre el 14 y el 25, de top tirar
+      torres, visión 0,75 (de support 1,50) y como mucho 1 muerte después del minuto 25.
+   5) Platino a Esmeralda, intercambios con ventaja: llegar al 14 con más oro que tu rival.
+   6) Esmeralda a Diamante, consistencia: nota del coach de 6,5 o más de forma constante.
+   Trabajas UN hábito a la vez, el que el coach elige dentro de tu etapa con tus números
+   (el foco no se cambia a mano). Lo dominas al cumplirlo en 4 de tus últimas 5 partidas.
+   Lo que ya cumples de forma constante cuenta como dominado ("Ya lo hacías"): no te hace
+   repetir lo que ya sabes. Si un hábito dominado se te cae (2 o menos de tus últimas 5),
+   vuelve como "Repaso" antes que lo nuevo.
+   Cada hábito trae su lección ("Aprende esto", debajo de tu foco): por qué pasa, un ejercicio
+   para practicarlo y qué mirar en la repetición. Si fallas la misión, la revisión de la
+   partida te dice qué mirar en la repetición.
+   Los porcentajes de victoria ("cuando lo cumples ganas el X%") solo se muestran con 8
+   partidas o más de cada lado: con menos, son ruido.
+   Cada misión es algo que haces TÚ, en tu rol, y que se mide sin depender de tus compañeros.
+   Los consejos cambian según el rol (de support no te pide farmear). El coach no te culpa
+   por objetivos que pierde tu equipo; llegar a los objetivos es una conducta tuya y entra
+   en la etapa 3, cuando lo básico ya está dominado.
+
+   Tus roles y campeones. El coach elige 2 roles (nunca jungla) con tus partidas: tu % de
+   victorias y tu nota en cada rol, comparados con tu media, y tus preferencias para
+   desempatar. Para cada rol, tus campeones: primero el que te gusta (Yorick en top, Taric en
+   support, Syndra en mid) y luego los que mejor te van. Los revisa cada 25 partidas y solo
+   cambia un rol si otro te va claramente mejor. En "Ahora" te dice qué poner en la cola.
+
+2. Selección de campeón. Una ventanita te da la misión de la partida y cómo cumplirla, si
+   el campeón que elegiste es de tu pool para el rol que te tocó (si cambias de línea con
+   un compañero, se actualiza; si te toca un rol que no es de los tuyos, te avisa), tu
+   historial contra los campeones del rival, tus notas contra ellos y si toca parar.
+   Además pone las runas solo: primero las que fijaste contra ese rival, si no las que
+   fijaste para ese campeón y, si no hay ninguna, las que Riot recomienda para tu rol.
+   Si fijaste una build, la deja en la tienda del juego como set de objetos.
+
+3. Pantalla de carga: plan de partida. Contra quién juegas, tu nota contra ese campeón, su
+   rango, si es main de ese campeón y su racha, tu historial contra él, los consejos oficiales
+   de Riot para jugarle y qué tipo de daño hace.
+
+4. Durante la partida. La ventanita muestra tu misión y tus números (muertes, CS por minuto,
+   control wards...) y te dice cuando la cumples o la fallas. No te da órdenes según lo que
+   pasa en la partida: la política de Riot para apps de terceros lo prohíbe.
+   Puedes moverla arrastrándola, contraerla o expandirla con "Más / Menos" (recuerda
+   cómo la dejaste) y cerrarla con la X. Tocarla no le quita el foco al juego.
+   Modo de pantalla del juego (Opciones > Vídeo > Modo de ventana):
+   - Sin bordes o Ventana: la ventanita se ve encima del juego durante toda la partida (si
+     el juego la tapa, se vuelve a poner encima sola, sin quitarle el foco al juego).
+   - Pantalla completa: la ventanita se oculta al empezar la partida y vuelve en tu
+     siguiente selección de campeón.
+     En pantalla completa ninguna ventana puede ponerse encima del juego sin sacarlo al
+     escritorio, así que el coach no lo intenta. Tu misión la ves en la selección de
+     campeón y el coach la sigue igual: el resultado aparece en la revisión.
+   El coach lee el modo en los archivos del juego (Config\game.cfg) y en datos\coach.log
+   escribe cuál detectó al empezar cada partida ("Modo de pantalla: ..."). Si cambias a
+   Sin bordes en plena partida, la ventanita vuelve en unos 15 segundos.
+   Mientras juegas el coach no abre el navegador ni importa partidas: lo hace al terminar.
+
+5. Al terminar. La revisión empieza por si cumpliste la misión, con la prueba, y qué hacer en
+   la siguiente. Luego la nota y "Por qué perdiste / Por qué ganaste": separa lo que fue tuyo
+   de lo que no dependía de ti (compañeros AFK o desconectados, compañeros que murieron
+   mucho, tu línea ganada o perdida, el momento en que se rompió la partida).
+   La nota solo mide lo que decide partidas: muertes, farmeo, tu línea y tu impacto.
+   Debajo: errores, tu muerte más cara (por el oro que perdió tu equipo), lo que costó cada
+   muerte, cuáles fueron sin tu equipo, el botón "Ver" para la
+   repetición y las runas y la build que usaste, con botones para fijarlas
+   (para ese campeón o para ese campeón contra ese rival).
+   Libreta de enfrentamientos: en "Tú contra ..." escribes 2 o 3 líneas para la próxima vez
+   contra ese campeón. Te las muestra en la selección de campeón y en la pantalla de carga.
+
+6. Progreso. Tu perfil por áreas (supervivencia, tu línea, farmeo, visión, impacto y
+   disciplina), etiquetas de cómo juegas, tendencias, tu LP y tus patrones: qué cosas van
+   con ganar en TUS partidas (por ejemplo, "cuando pones 0,5 wards por minuto o más ganas
+   el 65%; cuando pones menos, el 40%"), cómo juegas después de perder, en qué partida del
+   día rindes peor y en qué horario ganas más. Las partidas con un AFK en tu equipo no
+   cuentan para estas cifras.
+
+7. Revisión de muertes. Las estadísticas dicen cuándo mueres; el porqué solo se ve en la
+   repetición. En cada partida el coach marca tus 2 muertes clave (las tempranas y la más cara).
+   Pulsa "Revisar": ves la repetición, eliges qué pasó (te ganquearon, empujaste demasiado,
+   perdiste un 1 contra 1, entraste a una pelea con menos aliados, perseguiste de más, te
+   atraparon solo, fallaste habilidades, o fue una muerte útil) y, si quieres, escribes qué
+   harás distinto. El coach te sugiere la causa según los datos, pero decides tú.
+   Con 5 muertes revisadas te dice tu causa nº1, con su consejo, en el plan y en la ventanita
+   de selección de campeón.
+
+8. Entrenamiento de CS. Abre la Herramienta de práctica con tu campeón y da último golpe 10
+   minutos sin pelear. El coach lo sigue en la ventanita y guarda el resultado. La meta empieza
+   en 60 CS y sube 10 cada vez que la cumples dos veces seguidas. Hazlo como calentamiento
+   antes de tu primera clasificatoria del día (el panel "Hoy" te dice si ya lo hiciste).
+
+9. Tu nivel por rango. En Progreso ves tu CS por minuto comparado con lo típico de Hierro,
+   Bronce, Plata y Oro, y tus muertes frente a la meta para subir (5 o menos). También un
+   mapa de dónde mueres, por fase de la partida.
+
+10. Retos. Cuando cumples la misión en 4 de tus últimas 5 partidas, el hábito queda dominado
+   con 1 a 3 estrellas según lo rápido que lo lograste (o "Ya lo hacías"), y el coach elige
+   el siguiente de tu etapa.
+
+11. Anti-racha. Después de cada partida marcas cómo terminaste: Bien, Molesto o Tilt.
+   "Para por hoy" salta con 2 derrotas seguidas, un Tilt o al llegar a tu tope del día
+   (SoloQ y Flex). El tope empieza en 4 y luego lo ajustan tus números: compara cómo juegas
+   en tus primeras partidas del día con las siguientes (en Progreso, "Cuántas partidas al
+   día te convienen"). Cada 3 partidas, 10 minutos de descanso. El día empieza a las 5:00.
+
+Cómo se usa
+-----------
+1. Necesitas Python 3 (el mismo que usas para el overlay de Yorick). No hay que instalar nada más.
+2. Si tenías una versión anterior: cierra la ventana negra de la versión vieja, copia los archivos de esta versión
+   dentro de tu carpeta Coach_LoL y acepta reemplazar. Tu carpeta "datos" se queda y el coach
+   vuelve a analizar tus partidas guardadas con el sistema nuevo.
+3. Doble clic en INICIAR_COACH.bat. Se abre la ventana del coach (ya no hay ventana negra).
+4. Puedes cerrar esa ventana mientras juegas: el coach sigue funcionando. Para apagarlo,
+   botón "Cerrar coach".
+5. Juega. El coach hace el resto.
+
+Repeticiones
+------------
+El botón "Ver" solo funciona con partidas del parche actual (las repeticiones viejas el
+cliente ya no las abre) y Riot limita las descargas a 10 por hora.
+Para que la repetición salte sola al momento de la muerte, activa la Replay API del juego:
+abre "Config\game.cfg" dentro de tu carpeta de League of Legends y, debajo de [General],
+añade la línea  EnableReplayApi=1  . Sin eso, la repetición se abre igual y el coach te dice
+a qué minuto ir.
+
+¿Es seguro con Vanguard y con las reglas de Riot?
+-------------------------------------------------
+Sí. Lee la API local del cliente, la API oficial de partida en vivo y Data Dragon (los datos
+públicos de Riot), lo mismo que usan Porofessor, Blitz o Mobalytics. Importar runas y sets de objetos también lo hacen esas
+apps. No toca el juego, no
+automatiza nada, no muestra temporizadores de enemigos, no avisa de picos de poder y no da
+órdenes durante la partida. Los datos del rival solo aparecen después de la pantalla de carga,
+cuando los nombres ya son visibles.
+
+Archivos
+--------
+coach.py         el programa
+dashboard.html   las pantallas del coach
+INICIAR_COACH.bat abre el coach
+CREAR_EXE.bat    crea CoachLoL.exe (opcional)
+fuente/          tipografía Archivo (licencia libre OFL)
+datos/           se crea solo: tus partidas, tu plan y tu historial. No lo borres.
+
+Ajustes
+-------
+Al inicio de coach.py está el bloque CONFIG: tope de partidas por día, derrotas para parar,
+metas de cada hábito, cuántas partidas hacen falta para dominarlo, etc.
+Para quitar la ventanita flotante: "ventana_mision": False.
+Para que no toque tus runas: "importar_runas": False. Para la build: "importar_build": False.
+El coach usa una página de runas llamada "Coach: ...". Si no te queda espacio para otra
+página, usa la página que tengas seleccionada.
+
+Problemas
+---------
+- "Esperando a que abras el cliente de LoL..." con el cliente abierto: pon tu carpeta de
+  instalación en CONFIG["ruta_lol"], por ejemplo r"D:\Riot Games\League of Legends".
+- La ventanita no se ve durante la partida: mira en datos\coach.log la línea "Modo de
+  pantalla" del inicio de la partida. Si dice "Pantalla completa", es normal: pon el juego en
+  "Sin bordes". Si dice "Sin bordes" y aun así no la ves, avísame con esa línea.
+- El juego se minimiza o te manda al escritorio con el coach abierto: pasaba hasta la v7 en
+  pantalla completa. Desde la v8 no debería pasar; si te pasa, avísame y dime en qué momento.
+- La página dice que la ventana del coach está cerrada: vuelve a abrir INICIAR_COACH.bat.
