@@ -1,6 +1,6 @@
 {
-  "version": "27",
-  "notas": "tooltips con espera, ventanas más suaves, mantener pulsado para cerrar y aviso visual de partida nueva",
+  "version": "28",
+  "notas": "pone tus hechizos de invocador según la build (Flash no cambia de tecla)",
   "archivos": [
     "coach.py",
     "dashboard.html",

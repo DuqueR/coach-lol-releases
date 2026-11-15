@@ -1,4 +1,4 @@
-﻿COACH LOL v27
+﻿COACH LOL v28
 =============
 
 Cómo empezar (si te lo pasó un amigo)
@@ -11,6 +11,15 @@ Cómo empezar (si te lo pasó un amigo)
 4. Opcional: en "Coach con IA" pega tu propia clave gratis de Gemini (aistudio.google.com/apikey).
 Tus partidas y tu clave se guardan solo en tu PC, en la carpeta datos.
 Para quitarlo: Configuración > Aplicaciones > Coach LoL > Desinstalar (te pregunta si borra tus partidas).
+
+Lo nuevo en la v28: hechizos de invocador automáticos
+-----------------------------------------------------
+- En la selección de campeón, el coach pone los dos hechizos de la build que elige (o la que
+  marcas con "Usar"), igual que ya hacía con runas y objetos. Salen de Lolalytics para tu
+  campeón y línea.
+- El hechizo que ya tengas (por ejemplo Flash) se queda en su tecla, D o F: solo cambia el otro.
+- Si los cambias a mano después, el coach no los vuelve a tocar en esa selección.
+- Para desactivarlo: en coach.py, "importar_hechizos": False.
 
 Lo nuevo en la v27: pulido de movimiento
 ----------------------------------------

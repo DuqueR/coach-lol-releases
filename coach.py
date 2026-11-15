@@ -48,6 +48,7 @@ CONFIG = {
     "ventana_mision": True,                  # ventanita con la mision (seleccion y partida)
     "importar_runas": True,                  # aplica tus runas fijadas (o las de Riot para tu rol) al elegir campeón
     "importar_build": True,                  # pone tu build fijada como set de objetos en la tienda
+    "importar_hechizos": True,               # pone los hechizos de invocador de la build elegida (Flash no cambia de tecla)
     "entreno_meta_inicial": 60,              # CS en 10 minutos en la Herramienta de práctica (sube de 10 en 10)
 
     # ---- Anti-racha
@@ -104,7 +105,7 @@ CONGELADO = bool(getattr(sys, "frozen", False))           # empaquetado como .ex
 DIR = Path(sys.executable).resolve().parent if CONGELADO else Path(__file__).resolve().parent
 # dashboard.html y la fuente: los de la carpeta si estan (asi una actualizacion vale sin rehacer el .exe)
 RECURSOS = DIR if (DIR / "dashboard.html").exists() else Path(getattr(sys, "_MEIPASS", DIR))
-VERSION = "27"
+VERSION = "28"
 DATOS = DIR / "datos"
 CRUDO = DATOS / "partidas"
 CACHE = DATOS / "cache"
@@ -904,6 +905,9 @@ class LCU:
 
     def delete(self, ruta, timeout=10):
         return self._enviar("DELETE", ruta, None, timeout)
+
+    def patch(self, ruta, cuerpo=None, timeout=10):
+        return self._enviar("PATCH", ruta, cuerpo, timeout)
 
     def _enviar(self, metodo, ruta, cuerpo, timeout):
         if not self.base:
@@ -6946,6 +6950,7 @@ class Coach:
         self._opcion_puesta = None
         self.build_info = None        # la build en uso con el porque de cada objeto (para el panel)
         self._build_puesta = None
+        self._hechizos_puestos = None    # (campeon, hechizos) ya puestos en esta seleccion
         self._build_campeon_vivo = False
         self.pantalla = None          # modo de pantalla del juego: 0 completa, 1 ventana, 2 sin bordes
         self.pantalla_fuente = ""
@@ -7459,11 +7464,25 @@ class Coach:
                 self._poner_items(champ, nombre, build, f"{sel['titulo']} (Coach LoL)"[:60])
                 log(f"{nombre}: build \"{sel['titulo']}\": {', '.join(self.rec.item(i) for i in build['orden'])}."
                     + (f" Adaptada: {'; '.join(cambios)}." if cambios else ""))
+        # hechizos de invocador de la build elegida (las fijadas no los guardan: se usan los de Lolalytics)
+        hechizos = b.get("hechizos") or (otp or {}).get("hechizos") or (gen or {}).get("hechizos")
+        if hechizos and CONFIG.get("importar_hechizos", True):
+            marca_h = (champ, tuple(hechizos))
+            if marca_h != self._hechizos_puestos:
+                try:
+                    if self._poner_hechizos(hechizos):
+                        self._hechizos_puestos = marca_h
+                        log(f"{nombre}: hechizos de \"{sel['titulo']}\": "
+                            f"{' y '.join(self.rec.hechizos.get(str(h), str(h)) for h in hechizos)}.")
+                except Exception as e:
+                    log(f"{nombre}: no pude poner los hechizos ({type(e).__name__}).")
+                    self._hechizos_puestos = marca_h        # no se reintenta en bucle
         pq = b.get("porque") or {}
         self.build_info = {
             "campeon_id": champ, "campeon": nombre, "rol": rol, "titulo": sel["titulo"], "fuente": sel.get("fuente") or "",
             "detalle": sel["detalle"], "cambios": cambios, "runas": self.rec.detalle_runas(runas) if runas else None,
             "habilidades": texto_habilidades(b, self.rec),
+            "hechizos": [self.rec.hechizos.get(str(h), "") for h in hechizos or []],
             "opciones": [{"clave": o["clave"], "titulo": o["titulo"], "detalle": o["detalle"], "sel": o is sel} for o in ops],
             "items": [{"id": i, "nombre": self.rec.item(i), "n": (pq.get(str(i)) or {}).get("n"),
                        "wr": (pq.get(str(i)) or {}).get("wr"),
@@ -7720,6 +7739,26 @@ class Coach:
             pass
         return False
 
+    def _poner_hechizos(self, hechizos):
+        """Pone los 2 hechizos de invocador en la selección de campeón. El que ya tengas puesto (por ejemplo Flash)
+        se queda en su misma tecla, D o F; solo cambia el otro. Devuelve True si ya quedaron puestos."""
+        hs = [int(h) for h in hechizos or [] if h]
+        if len(hs) != 2 or hs[0] == hs[1]:
+            return False
+        ses = self.lcu.get("/lol-champ-select/v1/session", timeout=5)
+        celda = ses.get("localPlayerCellId")
+        yo = next((m for m in ses.get("myTeam") or [] if m.get("cellId") == celda), None)
+        if not yo:
+            return False
+        actual = [yo.get("spell1Id"), yo.get("spell2Id")]
+        if sorted(actual) == sorted(hs):
+            return True
+        nuevo = [h if h in hs else None for h in actual]              # lo que ya coincide no se mueve de tecla
+        resto = [h for h in hs if h not in nuevo]
+        nuevo = [h if h is not None else resto.pop(0) for h in nuevo]
+        self.lcu.patch("/lol-champ-select/v1/session/my-selection", {"spell1Id": nuevo[0], "spell2Id": nuevo[1]})
+        return True
+
     def _poner_items(self, champ, nombre, build, titulo="Build fijada (Coach LoL)"):
         if not self.summoner_id:
             return False
@@ -7907,6 +7946,7 @@ class Coach:
                 self._sel_clave = None
                 self._opcion_clic = None
                 self._build_puesta = None
+                self._hechizos_puestos = None
                 self._runas_clave = None
                 self._runas_txt = None
                 self.carga = None
